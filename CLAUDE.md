@@ -28,14 +28,14 @@ Stage 1; patch for fixes/refinement within a stage.
 
 Everything of DSP substance lives in `dsp/` and is shared, unmodified, across three consumers:
 
-- `dsp/include/dsp/` — portable, header-only C++20 building blocks with **no heap allocation, no exceptions, no RTTI** (the ARM target is built with `-fno-exceptions -fno-rtti`). Current primitives: `DelayLine` (non-owning, span-based circular buffer), `Allpass` / `ModulatedAllpass` (Schroeder diffusers), `OnePoleLowpass` (feedback-path damping), `LFO`, and `FeedbackMatrix.h`'s Householder mixing matrix for FDNs.
-- `dsp/include/dsp/algorithms/` — full effect engines composed from those primitives (e.g. `LexiconHall.h`), independent of any SDK. An engine exposes `prepare(sampleRate, workingBuffer)`, per-parameter setters, `process(left, right)`, and `reset()`.
+- `dsp/include/dsp/` — portable, header-only C++20 building blocks with **no heap allocation, no exceptions, no RTTI** (the ARM target is built with `-fno-exceptions -fno-rtti`). Current primitives: `DelayLine` (non-owning, span-based circular buffer), `Allpass` / `ModulatedAllpass` (Schroeder diffusers), `DiffuserChain<N>` (a shared-diffusion allpass chain), `Comb` (feedback comb / recirculating echo), `Crossover` (one-pole two-band splitter, low+high reconstruct the input exactly), `OnePoleLowpass` (damping/high-cut), `Decay.h`'s `rt60ToGain` (per-line feedback gain for a target RT60), `Envelope.h`'s `LinearRamp` (one-shot ramp; used for Attack/Shape-Spread shaping and for muting output while a structural parameter like reverb Size changes), `LFO`, and `FeedbackMatrix.h`'s Householder mixing matrix for FDNs. These map directly onto the PCM81 reverb-core block diagrams — see `docs/lexicon-pcm81-reference.md`.
+- `dsp/include/dsp/algorithms/` — full effect engines composed from those primitives (e.g. `ConcertHall.h`), independent of any SDK. An engine exposes `prepare(sampleRate, workingBuffer)`, per-parameter setters, `process(left, right)`, and `reset()`.
 - `patches/<device>/<algo>/` — thin Polyend `Patch` adapters (e.g. `patches/lexicon/hall/PatchImpl.cpp`) that own one engine, map its parameters to the pedal's 3 knobs (`endless::ParamId::kParamLeft/Mid/Right`) and 2 footswitch actions (`kLeftFootSwitchPress/Hold`), and report LED color via `Patch::Color`. Each has its own tiny `Makefile` that just sets `PATCH_NAME`/`PATCH_SOURCES`/`EXTRA_INCLUDES` and includes `sdk/Patch.mk`.
 - `sdk/` — vendored upstream `FxPatchSDK` (`source/Patch.h` interface, `internal/` ABI glue and linker script) plus `sdk/Patch.mk`, the shared cross-compile Makefile logic every patch includes. Treat `internal/` as upstream boilerplate; don't hand-edit it.
 - `host/` — native (host-arch) CMake target `dsp_host_render` that instantiates an engine directly (no SDK involved), renders an impulse response and a test-tone burst to WAV in `--out=<dir>` (default `out/`), and prints an RT60-style decay curve. This is the fast iteration loop before touching real hardware.
 - `plugin/` — JUCE-based VST3/Standalone wrapper ("Loom", CMake `FetchContent`d JUCE 8.0.14) around the same engines, for testing in Ableton/Bitwig. Gated behind the `DSP_EFFECTS_BUILD_PLUGIN` CMake option so a normal build doesn't fetch JUCE. One `juce_add_plugin` target per algorithm (currently `LexiconHallPlugin`), each with its own `PluginProcessor` in `plugin/source/`.
 
-Because a `Patch`'s delay lines must live in the pedal's external working buffer (`Patch::kWorkingBufferSize` = 2,400,000 floats, `Patch::kSampleRate` = 48000) rather than internal RAM, every engine's `prepare()` takes a `std::span<float>` and carves it up itself (see `LexiconHall::requiredWorkingBufferSize()` / `subspan` usage) — don't give primitives owned storage.
+Because a `Patch`'s delay lines must live in the pedal's external working buffer (`Patch::kWorkingBufferSize` = 2,400,000 floats, `Patch::kSampleRate` = 48000) rather than internal RAM, every engine's `prepare()` takes a `std::span<float>` and carves it up itself (see `ConcertHall::requiredWorkingBufferSize()` / `subspan` usage) — don't give primitives owned storage.
 
 ## Commands
 
@@ -43,7 +43,7 @@ Native host harness (primary day-to-day build/test loop):
 ```
 cmake -S . -B build
 cmake --build build -j
-./build/host/dsp_host_render lexicon_hall --out=out
+./build/host/dsp_host_render concert_hall --out=out
 ```
 Exit code is non-zero if any rendered buffer contains a non-finite sample or a WAV fails to write; the decay curve it prints is the quickest sanity check that an engine's RT60/damping behaves.
 

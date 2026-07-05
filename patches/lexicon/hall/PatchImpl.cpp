@@ -1,6 +1,6 @@
 #include "Patch.h"
 
-#include "dsp/algorithms/LexiconHall.h"
+#include "dsp/algorithms/ConcertHall.h"
 
 // Lexicon PCM81-inspired hall reverb for the Polyend Endless.
 //
@@ -17,12 +17,12 @@ class PatchImpl : public Patch
   public:
     void setWorkingBuffer(std::span<float, kWorkingBufferSize> buffer) override
     {
-        static_assert(dsp::algorithms::LexiconHall::requiredWorkingBufferSize() <=
+        static_assert(dsp::algorithms::ConcertHall::requiredWorkingBufferSize() <=
                         kWorkingBufferSize,
-                      "LexiconHall needs more working buffer than the Patch provides");
+                      "ConcertHall needs more working buffer than the Patch provides");
         engine_.prepare(kSampleRate,
                          std::span<float>(buffer.data(),
-                                           dsp::algorithms::LexiconHall::requiredWorkingBufferSize()));
+                                           dsp::algorithms::ConcertHall::requiredWorkingBufferSize()));
     }
 
     void processAudio(std::span<float> audioBufferLeft, std::span<float> audioBufferRight) override
@@ -94,7 +94,7 @@ class PatchImpl : public Patch
     }
 
   private:
-    dsp::algorithms::LexiconHall engine_;
+    dsp::algorithms::ConcertHall engine_;
     bool bypassed_ = false;
     bool frozen_ = false;
 };

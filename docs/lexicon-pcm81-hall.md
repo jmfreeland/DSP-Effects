@@ -1,100 +1,116 @@
-# Lexicon PCM81-style Hall Reverb
+# Lexicon PCM81-style Concert Hall Reverb
 
-`dsp/include/dsp/algorithms/LexiconHall.h`, wired into the Polyend Endless
-as `patches/lexicon/hall/`.
+`dsp/include/dsp/algorithms/ConcertHall.h`, wired into the Polyend Endless
+as `patches/lexicon/hall/`. Composed entirely from the shared `dsp/`
+primitives (`DiffuserChain`, `Crossover`, `Comb` is unused here but proven
+separately, `LinearRamp`, `rt60ToGain`, `DelayLine`, `OnePoleLowpass`,
+`LFO`, `FeedbackMatrix`'s Householder mix) — see
+`docs/lexicon-pcm81-reference.md` for the primary-source parameter
+definitions this was built from.
 
 ## Scope and honesty
 
 This is an **original implementation inspired by** the general character of
 Lexicon's algorithmic reverbs — dense, prime-length diffusion feeding a
-mutually-coupled tank, gentle internal modulation, damped feedback — not a
-disassembly or reverse-engineering of the PCM81's proprietary DSP code
-(which isn't public). Treat every "PCM81-style"/"Lexicon-style" label in
-this repo the same way: topology and character, not a bit-exact clone.
+mutually-coupled tank, gentle internal modulation, dual-band damped
+feedback — not a disassembly or reverse-engineering of the PCM81's
+proprietary DSP code (which isn't public). Treat every
+"PCM81-style"/"Lexicon-style" label in this repo the same way: topology
+and character, not a bit-exact clone.
 
 ## Topology
 
 ```
-L,R -> mono sum -> [4x series Allpass diffuser] -> diffused
-                                                        |
-                    +-----------------------------------+
-                    v
-  8-line Householder FDN tank:
-    for each line i:
-      tapped[i]  = delay_i.read(length_i, +/- LFO wobble on 4 of 8 lines)
-      damped[i]  = onePoleLowpass_i(tapped[i])
-    householderMix(damped)                  // lossless energy-preserving mix
-    for each line i:
-      delay_i.write(diffused * sign_i * 0.5 + damped[i] * feedbackGain_i)
+L,R -> mono sum -> PreDelay -+-> DiffuserChain<4> -> diffused
+                              +-> early-reflection tap (RefDly/RefLvl) -> wet out
 
-  wetLeft, wetRight <- signed sums of tapped[] (decorrelated stereo taps)
+  8-line Householder FDN tank, per line i:
+    tapped[i]   = delay_i.readLinear(length_i * sizeScale +/- Spin/Chorus wobble)
+    damped[i]   = onePoleLowpass_i(tapped[i])              // Rt HC
+    low, high   = crossover_i(damped[i])                   // split at Crossover Hz
+    decayed[i]  = low*lowGain_i + high*midGain_i            // Low Rt / Mid Rt
+  householderMix(decayed)                                  // lossless energy-preserving mix
+  for each line i:
+    delay_i.write(diffused * sign_i * 0.5 + decayed[i])
+
+  wetLeft, wetRight <- signed sums of tapped[] + earlyTap*earlyReflectionLevel
+  wet *= sizeMuteEnvelope (briefly mutes/fades-in on a Size change)
   output = lerp(dry, wet, mix)
 ```
 
-- **Diffusers**: 4 series Schroeder allpasses, prime lengths 211/431/751/1091
-  samples (~4.4/9.0/15.7/22.7ms @ 48kHz), coefficient 0.6. Turns a transient
-  into a dense cluster of echoes before it reaches the tank.
-- **Tank**: 8 delay lines, prime lengths 977..4357 samples (~20ms to ~91ms),
-  mutually coprime to avoid periodic/metallic ringing.
-- **Feedback gain per line** is solved from the user's decay-time (RT60)
-  parameter so all eight lines — despite different lengths — decay to
-  -60dB at the same time: `gain_i = 10^(-3 * length_i/sampleRate / RT60)`.
-- **Damping**: one-pole lowpass in each line's feedback path models the
-  progressive high-frequency loss of a real space/plate, i.e. the tail
-  gets darker as it decays.
-- **Modulation**: 4 of the 8 lines get a slow (~0.08-0.19Hz), mutually
-  detuned, small (+/-3 sample) delay wobble via fractional-interpolated
-  reads. This is what keeps a static FDN from settling into an audibly
-  discrete, metallic set of resonances — a defining Lexicon trait.
+- **PreDelay**: a plain `DelayLine`, 0-930ms, gap before the diffuser/tank see any signal.
+- **Diffusion**: `DiffuserChain<4>`, prime lengths 211/431/751/1091 samples
+  (~4.4/9.0/15.7/22.7ms @ 48kHz). `setDiffusion(0..1)` maps to the shared
+  allpass coefficient (0-0.75) across all four stages.
+- **Early reflections**: a single `DelayLine` tap (`RefDly`/`RefLvl`,
+  0-1.2s) mixed straight into the wet output, parallel to the tank.
+- **Tank**: 8 delay lines, prime lengths 977-4357 samples (~20-91ms),
+  mutually coprime to avoid periodic/metallic ringing. `Size` scales the
+  *read* delay length (0.4x-1.0x of the tuned lengths) rather than
+  resizing buffers, and — matching the source material's "audio is
+  temporarily muted when Size is changed" — triggers a 30ms mute/fade-in
+  via `LinearRamp` on change instead of clicking.
+- **Dual-band decay**: each line's damped output is split by a `Crossover`
+  (one-pole low/high split) at a settable frequency; the low band decays
+  at `decaySeconds * lowRatio`, the high band at `decaySeconds`, each via
+  `rt60ToGain(lineLength, sampleRate, rt60)` — so all eight lines hit
+  -60dB at the same wall-clock time in each band despite differing
+  lengths.
+- **Rt HC damping**: a `OnePoleLowpass` per line, coefficient computed
+  from a real cutoff-Hz value (`onePoleLowpassCoefficient`), applied
+  before the crossover split — models progressive high-frequency loss
+  independent of the low/mid decay-rate split.
+- **Spin + Chorus modulation**: alternating tank lines get either a slow
+  (~0.08-0.19Hz) "Spin" wobble or a faster (~0.6-1.3Hz) "Chorus" wobble
+  via fractional-interpolated reads — both are what keep a static FDN
+  from settling into an audibly discrete, metallic set of resonances.
 - **Mixing matrix**: Householder reflection (`I - (2/N)*J`) — lossless,
   so tank energy is redistributed, not amplified or lost, on every pass.
+- **Freeze**: forces both band gains to ~0.9999 and excludes the diffused
+  input from the tank, so whatever's currently ringing sustains
+  indefinitely — this matches Lexicon's own "Infinite" algorithm, not
+  something invented for this repo.
 
 ## Knob / footswitch mapping (Polyend Endless)
 
+The hardware patch only exposes 3 knobs; everything else uses the
+defaults set in `ConcertHall::prepare()`. The JUCE plugin exposes the
+engine's full parameter set (Decay, Low Ratio, Crossover, Damping,
+Diffusion, Size, Pre Delay, Early Reflections, Spin, Chorus, Mix, Freeze)
+via `AudioProcessorValueTreeState` for deeper editing.
+
 | Control | Range | Effect |
 |---|---|---|
-| Left knob | 0.3s .. 8s | Decay time (RT60) |
-| Mid knob | 0 .. 1 | Damping (0 = bright, 1 = dark) |
+| Left knob | 0.3s .. 8s | Decay time (Mid Rt / master RT60) |
+| Mid knob | 0 .. 1 | Damping (Rt HC: 0 = bright/20kHz, 1 = dark/1kHz) |
 | Right knob | 0 .. 1 | Dry/wet mix |
 | Footswitch press | toggle | Bypass (LED: dim white) |
-| Footswitch hold | toggle | Freeze — feedback gain forced to ~0.9999 and dry input excluded from the tank, so whatever's currently ringing sustains indefinitely (LED: light yellow) |
+| Footswitch hold | toggle | Freeze (LED: light yellow) |
 
 Normal/active LED color is dim cobalt.
 
-## Known simplifications / future refinement (Stage 2 candidates)
+## Known simplifications / remaining gaps
 
-Now grounded against the real interface (see
-`docs/lexicon-pcm81-reference.md`), the gaps between this Stage 1 engine
-and Lexicon's actual Concert Hall design are:
-
-- **Decay is single-band, not dual-band.** Real Concert Hall has
-  independent `Mid Rt` (master RT60) and `Low Rt` (a *multiplier* of Mid
-  Rt, recommended ≤1.5x) either side of a `Crossover` frequency, plus a
-  separate `Rt HC` one-pole high-cut. This engine only has one damping
-  filter doing the job of `Rt HC`; there's no low-frequency-decay
-  multiplier or crossover yet.
-- **No Pre Delay, no early reflections.** Real Concert Hall has `Pre
-  Delay` (gap before reverb onset, up to 930ms) and a distinct pair of
-  early-reflection taps (`RefDly`/`RefLvl`) parallel to the diffuse tank.
-  This engine only has the diffuser-into-tank path.
-- **`Size` and `Diffusion` are conflated.** Lexicon treats `Diffusion`
-  (initial echo density) and `Size` (the *rate* diffusion keeps building
-  after that initial period, correlated to room size in meters) as two
-  separate controls; this engine has one fixed diffuser chain and no size
-  control at all (delay lengths are fixed).
-- **`Chorus`/`Spin`/`Definition`/`Depth` aren't separated.** This engine's
-  "4 of 8 lines wobble" is a rough stand-in for what Lexicon splits into
-  `Spin` (continuous timbre movement, tail-wide) and `Chorus` (explicitly:
-  randomizes delay times to kill metallic ringing — Concert Hall/Glide>Hall
-  only). `Definition` (buildup rate late in the decay) and `Depth`
-  (front/rear perspective) have no analog here yet.
-- Delay lengths are fixed sample counts, tuned for 48kHz (the Endless's
-  native rate) and reused as-is by the JUCE plugin at other sample rates —
-  actual delay *time* will drift slightly off-48kHz-tuning at other rates.
-- Stereo decorrelation is a simple alternating-sign tap sum, not a true
-  stereo-input/stereo-tank design; input is summed to mono before the tank.
-- Only one of the five reverb cores (Concert Hall) exists — Plate,
-  Chamber, Inverse, and Infinite each have their own distinct
-  character/parameter per `docs/lexicon-pcm81-reference.md` and are
-  natural next patches, sharing this file's diffuser/tank/damping
-  primitives.
+- **`Definition` and `Depth` aren't implemented.** Real Concert Hall has
+  `Definition` (echo-density buildup rate in the *latter* part of decay,
+  as distinct from `Diffusion`'s initial buildup) and `Depth`
+  (front-to-rear listener perspective). Both would need a time-varying
+  diffusion/level contour rather than a fixed coefficient; left as an
+  open gap rather than approximated.
+- **`Link` isn't implemented** (ties Mid Rt/Spread scaling to Size) — more
+  relevant to Chamber/Infinite's Shape+Spread than to Concert Hall.
+- **No `FX Width`** (the -360..+360 mono/stereo/surround/phase-invert
+  imaging control common to every algorithm) — only a fixed
+  alternating-sign stereo tap sum.
+- Early reflections are a single mono tap shared by both channels, not
+  independent `RefDly L`/`RefDly R`.
+- Delay lengths (diffuser, tank, pre-delay, early-reflection capacities)
+  are fixed sample counts tuned for 48kHz and reused as-is by the JUCE
+  plugin at other sample rates — actual delay *time* will drift slightly
+  off-48kHz-tuning at other rates.
+- Only one of the five reverb cores (Concert Hall) is wired up end-to-end.
+  Plate, Chamber, Inverse, and Infinite each have their own distinct
+  character/parameter per `docs/lexicon-pcm81-reference.md`, and can
+  reuse every primitive here plus the still-unexercised `Comb` (for their
+  `EkoDly`/`EkoFbk` pre-echo stage, which Concert Hall's diagram doesn't
+  have).

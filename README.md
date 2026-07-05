@@ -17,7 +17,7 @@ See [CLAUDE.md](CLAUDE.md) for architecture and build commands, and
 ```
 cmake -S . -B build
 cmake --build build -j
-./build/host/dsp_host_render lexicon_hall --out=out
+./build/host/dsp_host_render concert_hall --out=out
 ```
 
 Renders an impulse response and a test-tone burst through the current

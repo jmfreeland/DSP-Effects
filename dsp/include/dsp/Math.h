@@ -33,4 +33,10 @@ inline float timeConstantToCoefficient(float seconds, float sampleRate)
     }
     return std::exp(-1.0f / (seconds * sampleRate));
 }
+
+// One-pole lowpass feedback coefficient for a given -3dB cutoff frequency.
+inline float onePoleLowpassCoefficient(float cutoffHz, float sampleRate)
+{
+    return std::exp(-kTwoPi * cutoffHz / sampleRate);
+}
 }

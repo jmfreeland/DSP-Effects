@@ -1,4 +1,4 @@
-#include "dsp/algorithms/LexiconHall.h"
+#include "dsp/algorithms/ConcertHall.h"
 #include "host/WavWriter.h"
 
 #include <cmath>
@@ -60,15 +60,23 @@ void printDecayCurve(const std::vector<float>& left, const std::vector<float>& r
     }
 }
 
-RunResult renderLexiconHall(const std::string& outDir)
+RunResult renderConcertHall(const std::string& outDir)
 {
     RunResult result;
 
-    static std::vector<float> working(dsp::algorithms::LexiconHall::requiredWorkingBufferSize());
-    dsp::algorithms::LexiconHall engine;
+    static std::vector<float> working(dsp::algorithms::ConcertHall::requiredWorkingBufferSize());
+    dsp::algorithms::ConcertHall engine;
     engine.prepare(static_cast<float>(kSampleRate), working);
     engine.setDecaySeconds(3.0f);
+    engine.setLowRatio(1.3f);
+    engine.setCrossoverFrequency(400.0f);
     engine.setDamping(0.4f);
+    engine.setDiffusion(0.65f);
+    engine.setSize(1.0f);
+    engine.setPreDelaySeconds(0.02f);
+    engine.setEarlyReflectionLevel(0.2f);
+    engine.setSpin(0.5f);
+    engine.setChorus(0.3f);
     engine.setMix(1.0f);
 
     // Impulse response: unit impulse into an otherwise silent buffer.
@@ -82,10 +90,10 @@ RunResult renderLexiconHall(const std::string& outDir)
         engine.process(left, right);
         checkFinite(left, right, result);
 
-        std::printf("lexicon_hall impulse response decay:\n");
+        std::printf("concert_hall impulse response decay:\n");
         printDecayCurve(left, right, seconds);
 
-        auto path = outDir + "/lexicon_hall_impulse.wav";
+        auto path = outDir + "/concert_hall_impulse.wav";
         if (!host::writeStereoWav(path, left, right, kSampleRate))
         {
             std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
@@ -102,6 +110,7 @@ RunResult renderLexiconHall(const std::string& outDir)
     {
         engine.reset();
         engine.setDecaySeconds(3.0f);
+        engine.setLowRatio(1.3f);
         engine.setDamping(0.4f);
         engine.setMix(0.4f);
 
@@ -137,7 +146,7 @@ RunResult renderLexiconHall(const std::string& outDir)
         engine.process(left, right);
         checkFinite(left, right, result);
 
-        auto path = outDir + "/lexicon_hall_tone.wav";
+        auto path = outDir + "/concert_hall_tone.wav";
         if (!host::writeStereoWav(path, left, right, kSampleRate))
         {
             std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
@@ -155,7 +164,7 @@ RunResult renderLexiconHall(const std::string& outDir)
 
 int main(int argc, char** argv)
 {
-    std::string algorithm = "lexicon_hall";
+    std::string algorithm = "concert_hall";
     std::string outDir = "out";
 
     for (int i = 1; i < argc; ++i)
@@ -174,9 +183,9 @@ int main(int argc, char** argv)
     std::filesystem::create_directories(outDir);
 
     RunResult result;
-    if (algorithm == "lexicon_hall")
+    if (algorithm == "concert_hall")
     {
-        result = renderLexiconHall(outDir);
+        result = renderConcertHall(outDir);
     }
     else
     {
