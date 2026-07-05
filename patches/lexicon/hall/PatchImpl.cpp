@@ -1,8 +1,11 @@
 #include "Patch.h"
 
-#include "dsp/algorithms/ConcertHall.h"
+#include "dsp/graphs/ConcertHallAlgorithm.h"
 
-// Lexicon PCM81-inspired hall reverb for the Polyend Endless.
+// Lexicon PCM81-inspired Concert Hall algorithm for the Polyend Endless:
+// the Concert Hall reverb plus its 4-Voice "Reverb Shell" (parallel delay
+// voices, post-delay, FX Mix/Width/Hi-Cut/Adjust). See
+// dsp/include/dsp/graphs/ConcertHallAlgorithm.h.
 //
 // Knob mapping:
 //   Left  - Decay time (RT60), ~0.3s to 8s.
@@ -12,17 +15,22 @@
 // Footswitch:
 //   Press - toggle bypass.
 //   Hold  - toggle freeze (sustain whatever is currently ringing forever).
+//
+// The Voice/post-delay/FX-chain layer runs at the graph's own defaults
+// (a modest slapback layered under the reverb) since the hardware only
+// exposes 3 knobs; the JUCE plugin exposes the full parameter set.
 class PatchImpl : public Patch
 {
   public:
     void setWorkingBuffer(std::span<float, kWorkingBufferSize> buffer) override
     {
-        static_assert(dsp::algorithms::ConcertHall::requiredWorkingBufferSize() <=
+        static_assert(dsp::graphs::ConcertHallAlgorithm::requiredWorkingBufferSize() <=
                         kWorkingBufferSize,
-                      "ConcertHall needs more working buffer than the Patch provides");
-        engine_.prepare(kSampleRate,
-                         std::span<float>(buffer.data(),
-                                           dsp::algorithms::ConcertHall::requiredWorkingBufferSize()));
+                      "ConcertHallAlgorithm needs more working buffer than the Patch provides");
+        engine_.prepare(
+          kSampleRate,
+          std::span<float>(buffer.data(),
+                            dsp::graphs::ConcertHallAlgorithm::requiredWorkingBufferSize()));
     }
 
     void processAudio(std::span<float> audioBufferLeft, std::span<float> audioBufferRight) override
@@ -94,7 +102,7 @@ class PatchImpl : public Patch
     }
 
   private:
-    dsp::algorithms::ConcertHall engine_;
+    dsp::graphs::ConcertHallAlgorithm engine_;
     bool bypassed_ = false;
     bool frozen_ = false;
 };

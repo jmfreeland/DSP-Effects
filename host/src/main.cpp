@@ -1,4 +1,4 @@
-#include "dsp/algorithms/ConcertHall.h"
+#include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "host/WavWriter.h"
 
 #include <cmath>
@@ -64,8 +64,8 @@ RunResult renderConcertHall(const std::string& outDir)
 {
     RunResult result;
 
-    static std::vector<float> working(dsp::algorithms::ConcertHall::requiredWorkingBufferSize());
-    dsp::algorithms::ConcertHall engine;
+    static std::vector<float> working(dsp::graphs::ConcertHallAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::ConcertHallAlgorithm engine;
     engine.prepare(static_cast<float>(kSampleRate), working);
     engine.setDecaySeconds(3.0f);
     engine.setLowRatio(1.3f);

@@ -7,8 +7,10 @@ namespace dsp
 /**
  * Feedback comb filter / recirculating echo: a delay line with a
  * feedback path around it, no direct/inverted mixing (unlike Allpass).
- * Used for the discrete, repeating pre-echo ahead of a reverb tank
- * (Lexicon's Eko Dly / Eko Fbk).
+ * The delay length is continuously settable (fractionally interpolated)
+ * independent of the buffer capacity, which just bounds the maximum
+ * delay. Used both for a reverb's discrete pre-echo (Lexicon's Eko Dly /
+ * Eko Fbk) and as the core of a delay Voice (Level/Delay/Feedback/Pan).
  *
  *   y[n] = x[n] + fb * y[n-D]
  */
@@ -18,9 +20,12 @@ class Comb
     void setBuffer(std::span<float> buffer) { delay_.setBuffer(buffer); }
     void setFeedback(float feedback) { feedback_ = feedback; }
 
+    // Must stay within the buffer's capacity minus one (for interpolation).
+    void setDelaySamples(float delaySamples) { delaySamples_ = delaySamples; }
+
     float process(float input)
     {
-        auto delayed = delay_.read(delay_.size() - 1);
+        auto delayed = delay_.readLinear(delaySamples_);
         delay_.write(input + feedback_ * delayed);
         return delayed;
     }
@@ -30,5 +35,6 @@ class Comb
   private:
     DelayLine delay_;
     float feedback_ = 0.0f;
+    float delaySamples_ = 0.0f;
 };
 }

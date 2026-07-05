@@ -245,70 +245,77 @@ class ConcertHall
     {
         for (std::size_t n = 0; n < left.size(); ++n)
         {
-            auto dry = 0.5f * (left[n] + right[n]);
-
-            auto preDelayed = preDelayLine_.readLinear(preDelaySamples_);
-            preDelayLine_.write(dry);
-
-            auto earlyTap = earlyReflectionLine_.readLinear(earlyReflectionDelaySamples_);
-            earlyReflectionLine_.write(dry);
-
-            auto diffused = diffuser_.process(preDelayed);
-            if (frozen_)
-            {
-                diffused = 0.0f;
-            }
-
-            std::array<float, kNumLines> tapped{};
-            for (int i = 0; i < kNumLines; ++i)
-            {
-                auto modValue =
-                  spinLfo_[i].nextSine() * spinDepth_ + chorusLfo_[i].nextSine() * chorusDepth_;
-                auto delaySamples = static_cast<float>(kLineLengths[i]) * sizeScale_ + modValue;
-                tapped[i] = lines_[i].readLinear(delaySamples);
-            }
-
-            std::array<float, kNumLines> decayed{};
-            for (int i = 0; i < kNumLines; ++i)
-            {
-                auto damped = damping_[i].process(tapped[i]);
-                auto bands = crossover_[i].process(damped);
-                auto lowGain = frozen_ ? 0.9999f : lowGain_[i];
-                auto midGain = frozen_ ? 0.9999f : midGain_[i];
-                decayed[i] = bands.low * lowGain + bands.high * midGain;
-            }
-
-            householderMix(decayed);
-
-            static constexpr std::array<float, kNumLines> inputSign =
-              { 1, -1, 1, -1, 1, -1, 1, -1 };
-            for (int i = 0; i < kNumLines; ++i)
-            {
-                auto lineInput = diffused * inputSign[i] * 0.5f + decayed[i];
-                lines_[i].write(lineInput);
-            }
-
-            float wetLeft = 0.0f;
-            float wetRight = 0.0f;
-            for (int i = 0; i < kNumLines; ++i)
-            {
-                auto tap = tapped[i];
-                wetLeft += tap;
-                wetRight += (i % 2 == 0) ? -tap : tap;
-            }
-            wetLeft *= 0.35f;
-            wetRight *= 0.35f;
-
-            wetLeft += earlyTap * earlyReflectionLevel_;
-            wetRight += earlyTap * earlyReflectionLevel_;
-
-            auto muteGain = sizeMuteEnvelope_.next();
-            wetLeft *= muteGain;
-            wetRight *= muteGain;
-
-            left[n] = lerp(left[n], wetLeft, wet_);
-            right[n] = lerp(right[n], wetRight, wet_);
+            processSample(left[n], right[n]);
         }
+    }
+
+    // Single-sample step, so a Graph can interleave this reverb Block with
+    // other per-sample components (e.g. delay Voices) without needing
+    // whole-block scratch buffers.
+    void processSample(float& left, float& right)
+    {
+        auto dry = 0.5f * (left + right);
+
+        auto preDelayed = preDelayLine_.readLinear(preDelaySamples_);
+        preDelayLine_.write(dry);
+
+        auto earlyTap = earlyReflectionLine_.readLinear(earlyReflectionDelaySamples_);
+        earlyReflectionLine_.write(dry);
+
+        auto diffused = diffuser_.process(preDelayed);
+        if (frozen_)
+        {
+            diffused = 0.0f;
+        }
+
+        std::array<float, kNumLines> tapped{};
+        for (int i = 0; i < kNumLines; ++i)
+        {
+            auto modValue =
+              spinLfo_[i].nextSine() * spinDepth_ + chorusLfo_[i].nextSine() * chorusDepth_;
+            auto delaySamples = static_cast<float>(kLineLengths[i]) * sizeScale_ + modValue;
+            tapped[i] = lines_[i].readLinear(delaySamples);
+        }
+
+        std::array<float, kNumLines> decayed{};
+        for (int i = 0; i < kNumLines; ++i)
+        {
+            auto damped = damping_[i].process(tapped[i]);
+            auto bands = crossover_[i].process(damped);
+            auto lowGain = frozen_ ? 0.9999f : lowGain_[i];
+            auto midGain = frozen_ ? 0.9999f : midGain_[i];
+            decayed[i] = bands.low * lowGain + bands.high * midGain;
+        }
+
+        householderMix(decayed);
+
+        static constexpr std::array<float, kNumLines> inputSign = { 1, -1, 1, -1, 1, -1, 1, -1 };
+        for (int i = 0; i < kNumLines; ++i)
+        {
+            auto lineInput = diffused * inputSign[i] * 0.5f + decayed[i];
+            lines_[i].write(lineInput);
+        }
+
+        float wetLeft = 0.0f;
+        float wetRight = 0.0f;
+        for (int i = 0; i < kNumLines; ++i)
+        {
+            auto tap = tapped[i];
+            wetLeft += tap;
+            wetRight += (i % 2 == 0) ? -tap : tap;
+        }
+        wetLeft *= 0.35f;
+        wetRight *= 0.35f;
+
+        wetLeft += earlyTap * earlyReflectionLevel_;
+        wetRight += earlyTap * earlyReflectionLevel_;
+
+        auto muteGain = sizeMuteEnvelope_.next();
+        wetLeft *= muteGain;
+        wetRight *= muteGain;
+
+        left = lerp(left, wetLeft, wet_);
+        right = lerp(right, wetRight, wet_);
     }
 
   private:

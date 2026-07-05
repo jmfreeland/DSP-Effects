@@ -1,12 +1,18 @@
-# Lexicon PCM81-style Concert Hall Reverb
+# Lexicon PCM81-style Concert Hall Algorithm
 
-`dsp/include/dsp/algorithms/ConcertHall.h`, wired into the Polyend Endless
-as `patches/lexicon/hall/`. Composed entirely from the shared `dsp/`
-primitives (`DiffuserChain`, `Crossover`, `Comb` is unused here but proven
-separately, `LinearRamp`, `rt60ToGain`, `DelayLine`, `OnePoleLowpass`,
-`LFO`, `FeedbackMatrix`'s Householder mix) — see
-`docs/lexicon-pcm81-reference.md` for the primary-source parameter
-definitions this was built from.
+Two tiers, per `CLAUDE.md`'s Primitive → Component → Block → Graph layering:
+
+- **Block**: `dsp/include/dsp/algorithms/ConcertHall.h` — the reverb core
+  alone. Composed from `DiffuserChain`, `Crossover`, `LinearRamp`,
+  `rt60ToGain`, `DelayLine`, `OnePoleLowpass`, `LFO`, `FeedbackMatrix`'s
+  Householder mix.
+- **Graph**: `dsp/include/dsp/graphs/ConcertHallAlgorithm.h` — the full
+  PCM81 "Concert Hall" *algorithm*: the Block above wrapped in the
+  4-Voice "Reverb Shell" (4 `Voice` Components + post-delay + FX chain).
+  This is what `patches/lexicon/hall/` and the JUCE plugin actually wire up.
+
+See `docs/lexicon-pcm81-reference.md` for the primary-source parameter
+definitions both were built from.
 
 ## Scope and honesty
 
@@ -18,7 +24,7 @@ proprietary DSP code (which isn't public). Treat every
 "PCM81-style"/"Lexicon-style" label in this repo the same way: topology
 and character, not a bit-exact clone.
 
-## Topology
+## Block topology (the reverb core)
 
 ```
 L,R -> mono sum -> PreDelay -+-> DiffuserChain<4> -> diffused
@@ -35,7 +41,7 @@ L,R -> mono sum -> PreDelay -+-> DiffuserChain<4> -> diffused
 
   wetLeft, wetRight <- signed sums of tapped[] + earlyTap*earlyReflectionLevel
   wet *= sizeMuteEnvelope (briefly mutes/fades-in on a Size change)
-  output = lerp(dry, wet, mix)
+  output = lerp(dry, wet, mix)   // forced to fully wet (mix=1) when owned by the Graph
 ```
 
 - **PreDelay**: a plain `DelayLine`, 0-930ms, gap before the diffuser/tank see any signal.
@@ -70,20 +76,54 @@ L,R -> mono sum -> PreDelay -+-> DiffuserChain<4> -> diffused
   input from the tank, so whatever's currently ringing sustains
   indefinitely — this matches Lexicon's own "Infinite" algorithm, not
   something invented for this repo.
+- Exposes both a whole-block `process(span, span)` and a single-sample
+  `processSample(float&, float&)` — the Graph uses the latter to
+  interleave the reverb with its Voice Components sample-by-sample.
+
+## Graph topology (the full 4-Voice algorithm)
+
+```
+dry -+-> ConcertHall Block (forced fully wet)  -+-> postDelay L/R -+
+     |                                          |                 |
+     +-> Voice 1..4 (parallel, from dry mono) --+-- FX Mix --------+-- postDelayMix
+                                                                    |
+                                                 FX Width (mid/side scale)
+                                                 Hi-Cut (one-pole)
+                                                 FX Adjust (output gain, dB)
+output = lerp(dry, that, mix)   // the top-level dry/wet control
+```
+
+- **Voice** (Component, `dsp/include/dsp/Voice.h`): a `Comb` (continuously
+  settable delay length, not fixed to buffer capacity) plus level and a
+  simple linear pan. Four independent voices, each with Delay
+  (0-1.365s)/Feedback/Level (both -1..1, negative = phase inverted)/Pan.
+  Defaults give a modest slapback (Voice 1: 90ms, Voice 2: 130ms) so the
+  layer is audible without being gimmicky; Voices 3-4 default off.
+- **Post-delay**: two more settable-delay taps (`DelayLine`, 0-1.365s),
+  fed from the reverb's own wet output (not the voices), blended back in
+  via `PstDlyMix` — matches the PCM81's "delays after the reverb effect."
+- **FX Mix**: balances the Voices path against the reverb path before
+  post-delay/width/hi-cut/adjust are applied to their sum.
+- **FX Width**: `mid = (L+R)/2, side = (L-R)/2 * width`, reconstructed as
+  `mid±side` — a plain mid/side scale (0 = mono, 1 = neutral, up to 2 =
+  exaggerated), not the PCM81's full mono/stereo/surround/phase-invert table.
+- **Hi-Cut / FX Adjust**: a final `OnePoleLowpass` (real Hz cutoff) and a
+  dB output-gain multiply, applied after Width.
 
 ## Knob / footswitch mapping (Polyend Endless)
 
-The hardware patch only exposes 3 knobs; everything else uses the
-defaults set in `ConcertHall::prepare()`. The JUCE plugin exposes the
-engine's full parameter set (Decay, Low Ratio, Crossover, Damping,
-Diffusion, Size, Pre Delay, Early Reflections, Spin, Chorus, Mix, Freeze)
-via `AudioProcessorValueTreeState` for deeper editing.
+The hardware patch only exposes 3 knobs; everything else (Voices,
+post-delay, FX chain, and the Block's own Diffusion/Size/Pre
+Delay/Early Reflections/Spin/Chorus) uses the defaults set in
+`ConcertHallAlgorithm::prepare()`. The JUCE plugin exposes the full
+parameter set (~30 params) via `AudioProcessorValueTreeState` for deeper
+editing.
 
 | Control | Range | Effect |
 |---|---|---|
 | Left knob | 0.3s .. 8s | Decay time (Mid Rt / master RT60) |
 | Mid knob | 0 .. 1 | Damping (Rt HC: 0 = bright/20kHz, 1 = dark/1kHz) |
-| Right knob | 0 .. 1 | Dry/wet mix |
+| Right knob | 0 .. 1 | Dry/wet mix (the Graph's top-level Mix) |
 | Footswitch press | toggle | Bypass (LED: dim white) |
 | Footswitch hold | toggle | Freeze (LED: light yellow) |
 
@@ -99,18 +139,23 @@ Normal/active LED color is dim cobalt.
   open gap rather than approximated.
 - **`Link` isn't implemented** (ties Mid Rt/Spread scaling to Size) — more
   relevant to Chamber/Infinite's Shape+Spread than to Concert Hall.
-- **No `FX Width`** (the -360..+360 mono/stereo/surround/phase-invert
-  imaging control common to every algorithm) — only a fixed
-  alternating-sign stereo tap sum.
+- **FX Width is a plain mid/side scale**, not the PCM81's -360..+360
+  mono/stereo/surround/phase-invert table, and there's no separate Rvb
+  Width (reverb-only width) distinct from the Graph's overall FX Width.
+- **No "Voice Diffusion"** stage ahead of the 4 Voices (the PCM81 diagram
+  shows one, separate from the reverb's own Diffusion) — Voices take the
+  dry input directly.
+- **No master Voice controls** (simultaneous scaling of all 4 voices'
+  level/delay/pan) — each voice is set independently via `setVoice()`.
 - Early reflections are a single mono tap shared by both channels, not
   independent `RefDly L`/`RefDly R`.
-- Delay lengths (diffuser, tank, pre-delay, early-reflection capacities)
-  are fixed sample counts tuned for 48kHz and reused as-is by the JUCE
-  plugin at other sample rates — actual delay *time* will drift slightly
-  off-48kHz-tuning at other rates.
+- Delay lengths (diffuser, tank, pre-delay, early-reflection, Voice, and
+  post-delay capacities) are fixed sample counts tuned for 48kHz and
+  reused as-is by the JUCE plugin at other sample rates — actual delay
+  *time* will drift slightly off-48kHz-tuning at other rates.
 - Only one of the five reverb cores (Concert Hall) is wired up end-to-end.
   Plate, Chamber, Inverse, and Infinite each have their own distinct
   character/parameter per `docs/lexicon-pcm81-reference.md`, and can
-  reuse every primitive here plus the still-unexercised `Comb` (for their
-  `EkoDly`/`EkoFbk` pre-echo stage, which Concert Hall's diagram doesn't
-  have).
+  reuse every Primitive/Component here, including `Comb`/`Voice`, plus
+  their own `EkoDly`/`EkoFbk` pre-echo stage (a plain `Comb`), which
+  Concert Hall's diagram doesn't have.
