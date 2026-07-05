@@ -4,19 +4,33 @@
 
 namespace
 {
+constexpr auto kInLevelLeftId = "inLevelLeft";
+constexpr auto kInLevelRightId = "inLevelRight";
+constexpr auto kInPanLeftId = "inPanLeft";
+constexpr auto kInPanRightId = "inPanRight";
 constexpr auto kDecayId = "decay";
 constexpr auto kLowRatioId = "lowRatio";
 constexpr auto kCrossoverId = "crossover";
 constexpr auto kDampingId = "damping";
 constexpr auto kDiffusionId = "diffusion";
 constexpr auto kSizeId = "size";
+constexpr auto kLinkId = "link";
+constexpr auto kDefinitionId = "definition";
+constexpr auto kDepthId = "depth";
+constexpr auto kRvbInId = "rvbIn";
+constexpr auto kRvbOutId = "rvbOut";
 constexpr auto kPreDelayId = "preDelay";
-constexpr auto kEarlyReflectionLevelId = "earlyReflectionLevel";
+constexpr auto kEarlyReflectionLevelLeftId = "earlyReflectionLevelLeft";
+constexpr auto kEarlyReflectionLevelRightId = "earlyReflectionLevelRight";
+constexpr auto kEarlyReflectionDelayLeftId = "earlyReflectionDelayLeft";
+constexpr auto kEarlyReflectionDelayRightId = "earlyReflectionDelayRight";
 constexpr auto kSpinId = "spin";
 constexpr auto kChorusId = "chorus";
+constexpr auto kVoiceDiffusionId = "voiceDiffusion";
 constexpr auto kPostDelayLeftId = "postDelayLeft";
 constexpr auto kPostDelayRightId = "postDelayRight";
 constexpr auto kPostDelayMixId = "postDelayMix";
+constexpr auto kRvbWidthId = "rvbWidth";
 constexpr auto kFxMixId = "fxMix";
 constexpr auto kFxWidthId = "fxWidth";
 constexpr auto kHiCutId = "hiCut";
@@ -28,6 +42,22 @@ constexpr auto kFreezeId = "freeze";
 juce::String voiceParamId(int index, const char* suffix)
 {
     return "voice" + juce::String(index) + suffix;
+}
+
+std::unique_ptr<juce::AudioParameterFloat> floatParam(const char* id, const juce::String& name,
+                                                        float min, float max, float defaultValue,
+                                                        const char* label = nullptr,
+                                                        float skew = 1.0f)
+{
+    juce::AudioParameterFloatAttributes attributes;
+    if (label != nullptr)
+    {
+        attributes = attributes.withLabel(label);
+    }
+    auto interval = (max - min) / 10000.0f;
+    return std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{ id, 1 }, name, juce::NormalisableRange<float>(min, max, interval, skew),
+      defaultValue, attributes);
 }
 }
 
@@ -49,125 +79,69 @@ LexiconHallAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kDecayId, 1 },
-      "Decay",
-      juce::NormalisableRange<float>(0.3f, 8.0f, 0.01f, 0.5f),
-      2.5f,
-      juce::AudioParameterFloatAttributes().withLabel("s")));
+    // -- Input conditioning --
+    params.push_back(floatParam(kInLevelLeftId, "In Level L", -1.0f, 1.0f, 1.0f));
+    params.push_back(floatParam(kInLevelRightId, "In Level R", -1.0f, 1.0f, 1.0f));
+    params.push_back(floatParam(kInPanLeftId, "In Pan L", -1.0f, 1.0f, -1.0f));
+    params.push_back(floatParam(kInPanRightId, "In Pan R", -1.0f, 1.0f, 1.0f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kLowRatioId, 1 },
-      "Low Ratio",
-      juce::NormalisableRange<float>(0.2f, 2.0f, 0.01f),
-      1.0f));
+    // -- Reverb core --
+    params.push_back(floatParam(kDecayId, "Decay", 0.3f, 8.0f, 2.5f, "s", 0.5f));
+    params.push_back(floatParam(kLowRatioId, "Low Ratio", 0.2f, 2.0f, 1.0f));
+    params.push_back(floatParam(kCrossoverId, "Crossover", 100.0f, 2000.0f, 400.0f, "Hz", 0.4f));
+    params.push_back(floatParam(kDampingId, "Damping", 0.0f, 1.0f, 0.5f));
+    params.push_back(floatParam(kDiffusionId, "Diffusion", 0.0f, 1.0f, 0.6f));
+    params.push_back(floatParam(kSizeId, "Size", 0.0f, 1.0f, 1.0f));
+    params.push_back(
+      std::make_unique<juce::AudioParameterBool>(juce::ParameterID{ kLinkId, 1 }, "Link", false));
+    params.push_back(floatParam(kDefinitionId, "Definition", 0.0f, 1.0f, 0.0f));
+    params.push_back(floatParam(kDepthId, "Depth", 0.0f, 1.0f, 0.5f));
+    params.push_back(floatParam(kRvbInId, "Rvb In", 0.0f, 1.0f, 1.0f));
+    params.push_back(floatParam(kRvbOutId, "Rvb Out", 0.0f, 1.0f, 1.0f));
+    params.push_back(floatParam(kPreDelayId, "Pre Delay", 0.0f, 0.93f, 0.0f, "s"));
+    params.push_back(
+      floatParam(kEarlyReflectionLevelLeftId, "Early Reflections L", 0.0f, 1.0f, 0.2f));
+    params.push_back(
+      floatParam(kEarlyReflectionLevelRightId, "Early Reflections R", 0.0f, 1.0f, 0.2f));
+    params.push_back(
+      floatParam(kEarlyReflectionDelayLeftId, "Early Reflection Delay L", 0.0f, 1.2f, 0.03f, "s"));
+    params.push_back(
+      floatParam(kEarlyReflectionDelayRightId, "Early Reflection Delay R", 0.0f, 1.2f, 0.03f, "s"));
+    params.push_back(floatParam(kSpinId, "Spin", 0.0f, 1.0f, 0.5f));
+    params.push_back(floatParam(kChorusId, "Chorus", 0.0f, 1.0f, 0.3f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kCrossoverId, 1 },
-      "Crossover",
-      juce::NormalisableRange<float>(100.0f, 2000.0f, 1.0f, 0.4f),
-      400.0f,
-      juce::AudioParameterFloatAttributes().withLabel("Hz")));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kDampingId, 1 }, "Damping", juce::NormalisableRange<float>(0.0f, 1.0f), 0.5f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kDiffusionId, 1 }, "Diffusion", juce::NormalisableRange<float>(0.0f, 1.0f),
-      0.6f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kSizeId, 1 }, "Size", juce::NormalisableRange<float>(0.0f, 1.0f), 1.0f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kPreDelayId, 1 },
-      "Pre Delay",
-      juce::NormalisableRange<float>(0.0f, 0.93f, 0.001f),
-      0.0f,
-      juce::AudioParameterFloatAttributes().withLabel("s")));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kEarlyReflectionLevelId, 1 }, "Early Reflections",
-      juce::NormalisableRange<float>(0.0f, 1.0f), 0.2f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kSpinId, 1 }, "Spin", juce::NormalisableRange<float>(0.0f, 1.0f), 0.5f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kChorusId, 1 }, "Chorus", juce::NormalisableRange<float>(0.0f, 1.0f), 0.3f));
-
-    // Four delay Voices: Delay/Feedback/Level/Pan, matching the PCM81's
-    // 4-Voice Reverb Shell.
+    // -- Voice Diffusion + four delay Voices, matching the PCM81's 4-Voice Reverb Shell --
+    params.push_back(floatParam(kVoiceDiffusionId, "Voice Diffusion", 0.0f, 1.0f, 0.0f));
     static constexpr float kDefaultDelay[4] = { 0.09f, 0.13f, 0.0f, 0.0f };
     static constexpr float kDefaultFeedback[4] = { 0.15f, 0.10f, 0.0f, 0.0f };
     static constexpr float kDefaultLevel[4] = { 0.25f, 0.18f, 0.0f, 0.0f };
     static constexpr float kDefaultPan[4] = { -0.3f, 0.3f, 0.0f, 0.0f };
     for (int i = 0; i < 4; ++i)
     {
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-          juce::ParameterID{ voiceParamId(i, "Delay"), 1 },
-          "Voice " + juce::String(i + 1) + " Delay",
-          juce::NormalisableRange<float>(0.0f, 1.365f, 0.001f),
-          kDefaultDelay[i],
-          juce::AudioParameterFloatAttributes().withLabel("s")));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-          juce::ParameterID{ voiceParamId(i, "Feedback"), 1 },
-          "Voice " + juce::String(i + 1) + " Feedback",
-          juce::NormalisableRange<float>(-1.0f, 1.0f, 0.01f),
-          kDefaultFeedback[i]));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-          juce::ParameterID{ voiceParamId(i, "Level"), 1 },
-          "Voice " + juce::String(i + 1) + " Level",
-          juce::NormalisableRange<float>(-1.0f, 1.0f, 0.01f),
-          kDefaultLevel[i]));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-          juce::ParameterID{ voiceParamId(i, "Pan"), 1 },
-          "Voice " + juce::String(i + 1) + " Pan",
-          juce::NormalisableRange<float>(-1.0f, 1.0f, 0.01f),
-          kDefaultPan[i]));
+        params.push_back(floatParam(voiceParamId(i, "Delay").toRawUTF8(),
+                                     "Voice " + juce::String(i + 1) + " Delay", 0.0f, 1.365f,
+                                     kDefaultDelay[i], "s"));
+        params.push_back(floatParam(voiceParamId(i, "Feedback").toRawUTF8(),
+                                     "Voice " + juce::String(i + 1) + " Feedback", -1.0f, 1.0f,
+                                     kDefaultFeedback[i]));
+        params.push_back(floatParam(voiceParamId(i, "Level").toRawUTF8(),
+                                     "Voice " + juce::String(i + 1) + " Level", -1.0f, 1.0f,
+                                     kDefaultLevel[i]));
+        params.push_back(floatParam(voiceParamId(i, "Pan").toRawUTF8(),
+                                     "Voice " + juce::String(i + 1) + " Pan", -1.0f, 1.0f,
+                                     kDefaultPan[i]));
     }
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kPostDelayLeftId, 1 },
-      "Post Delay L",
-      juce::NormalisableRange<float>(0.0f, 1.365f, 0.001f),
-      0.25f,
-      juce::AudioParameterFloatAttributes().withLabel("s")));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kPostDelayRightId, 1 },
-      "Post Delay R",
-      juce::NormalisableRange<float>(0.0f, 1.365f, 0.001f),
-      0.25f,
-      juce::AudioParameterFloatAttributes().withLabel("s")));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kPostDelayMixId, 1 }, "Post Delay Mix",
-      juce::NormalisableRange<float>(0.0f, 1.0f), 0.15f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kFxMixId, 1 }, "FX Mix", juce::NormalisableRange<float>(0.0f, 1.0f), 0.75f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kFxWidthId, 1 }, "FX Width", juce::NormalisableRange<float>(0.0f, 2.0f),
-      1.0f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kHiCutId, 1 },
-      "Hi Cut",
-      juce::NormalisableRange<float>(1000.0f, 20000.0f, 1.0f, 0.4f),
-      18000.0f,
-      juce::AudioParameterFloatAttributes().withLabel("Hz")));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kFxAdjustId, 1 },
-      "FX Adjust",
-      juce::NormalisableRange<float>(-73.0f, 12.0f, 0.1f),
-      0.0f,
-      juce::AudioParameterFloatAttributes().withLabel("dB")));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-      juce::ParameterID{ kMixId, 1 }, "Mix", juce::NormalisableRange<float>(0.0f, 1.0f), 0.35f));
+    // -- Post-delay, width, and output chain --
+    params.push_back(floatParam(kPostDelayLeftId, "Post Delay L", 0.0f, 1.365f, 0.25f, "s"));
+    params.push_back(floatParam(kPostDelayRightId, "Post Delay R", 0.0f, 1.365f, 0.25f, "s"));
+    params.push_back(floatParam(kPostDelayMixId, "Post Delay Mix", 0.0f, 1.0f, 0.15f));
+    params.push_back(floatParam(kRvbWidthId, "Rvb Width", -360.0f, 360.0f, 0.0f, "deg"));
+    params.push_back(floatParam(kFxMixId, "FX Mix", 0.0f, 1.0f, 0.75f));
+    params.push_back(floatParam(kFxWidthId, "FX Width", -360.0f, 360.0f, 0.0f, "deg"));
+    params.push_back(floatParam(kHiCutId, "Hi Cut", 1000.0f, 20000.0f, 18000.0f, "Hz", 0.4f));
+    params.push_back(floatParam(kFxAdjustId, "FX Adjust", -73.0f, 12.0f, 0.0f, "dB"));
+    params.push_back(floatParam(kMixId, "Mix", 0.0f, 1.0f, 0.35f));
 
     params.push_back(
       std::make_unique<juce::AudioParameterBool>(juce::ParameterID{ kFreezeId, 1 }, "Freeze", false));
@@ -191,16 +165,28 @@ bool LexiconHallAudioProcessor::isBusesLayoutSupported(const BusesLayout& layout
 
 void LexiconHallAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
+    engine_.setInLevel(paramValue(kInLevelLeftId), paramValue(kInLevelRightId));
+    engine_.setInPan(paramValue(kInPanLeftId), paramValue(kInPanRightId));
+
     engine_.setDecaySeconds(paramValue(kDecayId));
     engine_.setLowRatio(paramValue(kLowRatioId));
     engine_.setCrossoverFrequency(paramValue(kCrossoverId));
     engine_.setDamping(paramValue(kDampingId));
     engine_.setDiffusion(paramValue(kDiffusionId));
     engine_.setSize(paramValue(kSizeId));
+    engine_.setLink(paramValue(kLinkId) >= 0.5f);
+    engine_.setDefinition(paramValue(kDefinitionId));
+    engine_.setDepth(paramValue(kDepthId));
+    engine_.setRvbIn(paramValue(kRvbInId));
+    engine_.setRvbOut(paramValue(kRvbOutId));
     engine_.setPreDelaySeconds(paramValue(kPreDelayId));
-    engine_.setEarlyReflectionLevel(paramValue(kEarlyReflectionLevelId));
+    engine_.setEarlyReflectionLevel(paramValue(kEarlyReflectionLevelLeftId),
+                                     paramValue(kEarlyReflectionLevelRightId));
+    engine_.setEarlyReflectionDelaySeconds(paramValue(kEarlyReflectionDelayLeftId),
+                                            paramValue(kEarlyReflectionDelayRightId));
     engine_.setSpin(paramValue(kSpinId));
     engine_.setChorus(paramValue(kChorusId));
+    engine_.setVoiceDiffusion(paramValue(kVoiceDiffusionId));
 
     for (int i = 0; i < 4; ++i)
     {
@@ -212,6 +198,7 @@ void LexiconHallAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 
     engine_.setPostDelaySeconds(paramValue(kPostDelayLeftId), paramValue(kPostDelayRightId));
     engine_.setPostDelayMix(paramValue(kPostDelayMixId));
+    engine_.setRvbWidth(paramValue(kRvbWidthId));
     engine_.setFxMix(paramValue(kFxMixId));
     engine_.setFxWidth(paramValue(kFxWidthId));
     engine_.setHiCut(paramValue(kHiCutId));

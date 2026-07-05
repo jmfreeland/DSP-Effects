@@ -74,9 +74,11 @@ RunResult renderConcertHall(const std::string& outDir)
     engine.setDiffusion(0.65f);
     engine.setSize(1.0f);
     engine.setPreDelaySeconds(0.02f);
-    engine.setEarlyReflectionLevel(0.2f);
+    engine.setEarlyReflectionLevel(0.2f, 0.2f);
     engine.setSpin(0.5f);
     engine.setChorus(0.3f);
+    engine.setDefinition(0.2f);
+    engine.setDepth(0.5f);
     engine.setMix(1.0f);
 
     // Impulse response: unit impulse into an otherwise silent buffer.

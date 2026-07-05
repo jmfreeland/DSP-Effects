@@ -1,8 +1,10 @@
 #pragma once
 
 #include "dsp/DelayLine.h"
+#include "dsp/Diffuser.h"
 #include "dsp/Math.h"
 #include "dsp/OnePole.h"
+#include "dsp/StereoRotate.h"
 #include "dsp/Voice.h"
 #include "dsp/algorithms/ConcertHall.h"
 
@@ -16,25 +18,27 @@ namespace dsp::graphs
 /**
  * The full PCM81 "Concert Hall" algorithm: the Concert Hall reverb Block
  * wrapped in the 4-Voice "Reverb Shell" the manual describes as common to
- * every 4-Voice algorithm - 4 independent delay Voices (Level/Delay/
- * Feedback/Pan) running in parallel with the reverb, 2 post-delay taps
- * off the reverb's own output, and a shared FX Mix/Width/Hi-Cut/Adjust
- * chain, finished with a top-level dry/wet Mix.
+ * every 4-Voice algorithm - In Lvl/Pan conditioning, a Voice Diffusion
+ * stage, 4 independent delay Voices (Level/Delay/Feedback/Pan) running in
+ * parallel with the reverb, 2 post-delay taps off the reverb's own
+ * output, Rvb Width scoped to just the reverb, and a shared FX Mix/Width/
+ * Hi-Cut/Adjust chain, finished with a top-level dry/wet Mix.
  *
- *   dry -+-> ConcertHall (forced fully wet)  -+-> postDelay L/R -+
- *        |                                    |                 |
- *        +-> Voice 1..4 (parallel)  ----------+-- FX Mix --------+-- postDelayMix
- *                                                                 |
- *                                              FX Width (mid/side)
- *                                              Hi-Cut (one-pole)
- *                                              FX Adjust (output gain)
+ *   L,R -> InLvl/InPan -+-> ConcertHall (forced fully wet) -> RvbWidth -+-> postDelay L/R -+
+ *                        |                                              |                 |
+ *                        +-> VoiceDiffusion -> Voice 1..4 (parallel) ---+-- FX Mix --------+-- postDelayMix
+ *                                                                                           |
+ *                                                        FX Width (StereoRotate, -360..360deg)
+ *                                                        Hi-Cut (one-pole)
+ *                                                        FX Adjust (output gain)
  *   output = lerp(dry, that, mix)
  *
- * Simplifications vs. the source material: no separate "Voice
- * Diffusion" stage ahead of the voices, no independent Rvb Width vs FX
- * Width, and FX Width is a plain mid/side scale rather than the PCM81's
- * full mono/stereo/surround/phase-invert table. See
- * docs/lexicon-pcm81-reference.md for what a Reverb Shell "should" have.
+ * Simplifications vs. the source material: no master Voice controls
+ * (simultaneous scaling of all 4 voices), and FX/Rvb Width are an
+ * original reconstruction of the PCM81's described periodic imaging
+ * behavior (see dsp/StereoRotate.h) rather than a verified match to its
+ * exact labeled value table. See docs/lexicon-pcm81-reference.md for the
+ * full source-material parameter list.
  */
 class ConcertHallAlgorithm
 {
@@ -43,12 +47,19 @@ class ConcertHallAlgorithm
     // 1.365s @ 48kHz - the 4-Voice algorithms' documented max delay/post-delay range.
     static constexpr int kVoiceCapacitySamples = 65520;
     static constexpr int kPostDelayCapacitySamples = 65520;
+    static constexpr int kNumVoiceDiffusers = 2;
+    static constexpr std::array<int, kNumVoiceDiffusers> kVoiceDiffuserLengths = { 97, 149 };
 
     static constexpr std::size_t requiredWorkingBufferSize()
     {
+        std::size_t voiceDiffuserTotal = 0;
+        for (auto length : kVoiceDiffuserLengths)
+        {
+            voiceDiffuserTotal += static_cast<std::size_t>(length);
+        }
         return dsp::algorithms::ConcertHall::requiredWorkingBufferSize() +
                static_cast<std::size_t>(kNumVoices) * kVoiceCapacitySamples +
-               2 * static_cast<std::size_t>(kPostDelayCapacitySamples);
+               2 * static_cast<std::size_t>(kPostDelayCapacitySamples) + voiceDiffuserTotal;
     }
 
     void prepare(float sampleRate, std::span<float> workingBuffer)
@@ -71,18 +82,29 @@ class ConcertHallAlgorithm
         postDelayRight_.setBuffer(workingBuffer.subspan(offset, kPostDelayCapacitySamples));
         offset += kPostDelayCapacitySamples;
 
+        for (int i = 0; i < kNumVoiceDiffusers; ++i)
+        {
+            auto length = static_cast<std::size_t>(kVoiceDiffuserLengths[i]);
+            voiceDiffuser_.setStageBuffer(i, workingBuffer.subspan(offset, length));
+            offset += length;
+        }
+
         // The reverb Block always runs fully wet inside the Graph; the
         // Graph applies its own single dry/wet Mix at the very end.
         reverb_.setMix(1.0f);
 
+        setInLevel(1.0f, 1.0f);
+        setInPan(-1.0f, 1.0f);
+        setVoiceDiffusion(0.0f);
         setVoice(0, 0.09f, 0.15f, 0.25f, -0.3f);
         setVoice(1, 0.13f, 0.10f, 0.18f, 0.3f);
         setVoice(2, 0.0f, 0.0f, 0.0f, 0.0f);
         setVoice(3, 0.0f, 0.0f, 0.0f, 0.0f);
         setPostDelaySeconds(0.25f, 0.25f);
         setPostDelayMix(0.15f);
+        setRvbWidth(0.0f);
         setFxMix(0.75f);
-        setFxWidth(1.0f);
+        setFxWidth(0.0f);
         setHiCut(18000.0f);
         setFxAdjustDb(0.0f);
         setMix(1.0f);
@@ -96,10 +118,45 @@ class ConcertHallAlgorithm
     void setDamping(float amount) { reverb_.setDamping(amount); }
     void setDiffusion(float amount) { reverb_.setDiffusion(amount); }
     void setSize(float sizeNormalized) { reverb_.setSize(sizeNormalized); }
+    void setLink(bool linked) { reverb_.setLink(linked); }
+    void setDefinition(float amount) { reverb_.setDefinition(amount); }
+    void setDepth(float amount) { reverb_.setDepth(amount); }
+    void setRvbIn(float level) { reverb_.setRvbIn(level); }
+    void setRvbOut(float level) { reverb_.setRvbOut(level); }
     void setPreDelaySeconds(float seconds) { reverb_.setPreDelaySeconds(seconds); }
-    void setEarlyReflectionLevel(float level) { reverb_.setEarlyReflectionLevel(level); }
+    void setEarlyReflectionLevel(float left, float right)
+    {
+        reverb_.setEarlyReflectionLevel(left, right);
+    }
+    void setEarlyReflectionDelaySeconds(float left, float right)
+    {
+        reverb_.setEarlyReflectionDelaySeconds(left, right);
+    }
     void setSpin(float amount) { reverb_.setSpin(amount); }
     void setChorus(float amount) { reverb_.setChorus(amount); }
+
+    // -- Input conditioning --
+    // level -1..1 (magnitude = level, sign = phase) applied to each input
+    // channel before it reaches the reverb/voices (not the final dry path).
+    void setInLevel(float left, float right)
+    {
+        inLevelLeft_ = left;
+        inLevelRight_ = right;
+    }
+
+    // pan -1(full left)..+1(full right): how much each physical input
+    // channel is routed into the effect's left vs right input. Defaults
+    // (-1, +1) are an identity pass-through (matches "50L/50R = unmodified
+    // stereo imaging" from the source material).
+    void setInPan(float left, float right)
+    {
+        inPanLeft_ = left;
+        inPanRight_ = right;
+    }
+
+    // 0 (no diffusion) .. 1: density of echoes fed into the 4 Voices,
+    // independent of the reverb's own Diffusion.
+    void setVoiceDiffusion(float amount) { voiceDiffuser_.setDiffusion(amount); }
 
     // -- Voices --
     // delaySeconds 0..1.365, feedback/level -1..1 (negative = phase inverted), pan -1..1.
@@ -125,11 +182,15 @@ class ConcertHallAlgorithm
     // 0 (no post-delay heard) .. 1 (post-delay fully blended in).
     void setPostDelayMix(float mix) { postDelayMix_ = clamp01(mix); }
 
+    // -360..360 degrees, scoped to just the reverb's own output (before
+    // FX Mix combines it with the Voices path). See dsp/StereoRotate.h.
+    void setRvbWidth(float degrees) { rvbWidthDegrees_ = degrees; }
+
     // 0 (all Voices) .. 1 (all reverb) balance of the two parallel paths.
     void setFxMix(float mix) { fxMix_ = clamp01(mix); }
 
-    // 0 (mono) .. 1 (neutral) .. 2 (exaggerated stereo), a mid/side scale.
-    void setFxWidth(float width) { fxWidth_ = std::max(width, 0.0f); }
+    // -360..360 degrees on the combined (Voices+reverb+postDelay) signal.
+    void setFxWidth(float degrees) { fxWidthDegrees_ = degrees; }
 
     // Final high-cut on the combined signal, in Hz.
     void setHiCut(float hz)
@@ -154,6 +215,7 @@ class ConcertHallAlgorithm
         {
             v.reset();
         }
+        voiceDiffuser_.reset();
         postDelayLeft_.reset();
         postDelayRight_.reset();
         hiCutLeft_.reset();
@@ -172,17 +234,28 @@ class ConcertHallAlgorithm
     {
         auto dryLeft = left;
         auto dryRight = right;
-        auto dryMono = 0.5f * (dryLeft + dryRight);
 
-        auto reverbLeft = left;
-        auto reverbRight = right;
+        auto leftIn = left * inLevelLeft_;
+        auto rightIn = right * inLevelRight_;
+        auto leftPanL = (1.0f - inPanLeft_) * 0.5f;
+        auto leftPanR = (1.0f + inPanLeft_) * 0.5f;
+        auto rightPanL = (1.0f - inPanRight_) * 0.5f;
+        auto rightPanR = (1.0f + inPanRight_) * 0.5f;
+        auto effectsLeft = leftIn * leftPanL + rightIn * rightPanL;
+        auto effectsRight = leftIn * leftPanR + rightIn * rightPanR;
+        auto effectsMono = 0.5f * (effectsLeft + effectsRight);
+
+        auto reverbLeft = effectsLeft;
+        auto reverbRight = effectsRight;
         reverb_.processSample(reverbLeft, reverbRight);
+        rotateStereoWidth(reverbLeft, reverbRight, rvbWidthDegrees_);
 
+        auto voiceInput = voiceDiffuser_.process(effectsMono);
         float voicesLeft = 0.0f;
         float voicesRight = 0.0f;
         for (auto& voice : voices_)
         {
-            auto out = voice.process(dryMono);
+            auto out = voice.process(voiceInput);
             voicesLeft += out.left;
             voicesRight += out.right;
         }
@@ -198,10 +271,7 @@ class ConcertHallAlgorithm
         fxLeft = lerp(fxLeft, postLeft, postDelayMix_);
         fxRight = lerp(fxRight, postRight, postDelayMix_);
 
-        auto mid = 0.5f * (fxLeft + fxRight);
-        auto side = 0.5f * (fxLeft - fxRight) * fxWidth_;
-        fxLeft = mid + side;
-        fxRight = mid - side;
+        rotateStereoWidth(fxLeft, fxRight, fxWidthDegrees_);
 
         fxLeft = hiCutLeft_.process(fxLeft);
         fxRight = hiCutRight_.process(fxRight);
@@ -217,17 +287,23 @@ class ConcertHallAlgorithm
     float sampleRate_ = 48000.0f;
 
     dsp::algorithms::ConcertHall reverb_;
+    DiffuserChain<kNumVoiceDiffusers> voiceDiffuser_;
     std::array<Voice, kNumVoices> voices_;
     DelayLine postDelayLeft_;
     DelayLine postDelayRight_;
     OnePoleLowpass hiCutLeft_;
     OnePoleLowpass hiCutRight_;
 
+    float inLevelLeft_ = 1.0f;
+    float inLevelRight_ = 1.0f;
+    float inPanLeft_ = -1.0f;
+    float inPanRight_ = 1.0f;
     float postDelayLeftSamples_ = 0.0f;
     float postDelayRightSamples_ = 0.0f;
     float postDelayMix_ = 0.0f;
+    float rvbWidthDegrees_ = 0.0f;
     float fxMix_ = 0.75f;
-    float fxWidth_ = 1.0f;
+    float fxWidthDegrees_ = 0.0f;
     float fxAdjustGain_ = 1.0f;
     float mix_ = 1.0f;
 };
