@@ -1,3 +1,4 @@
+#include "dsp/algorithms/Plate.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "host/WavWriter.h"
 
@@ -162,6 +163,49 @@ RunResult renderConcertHall(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderPlate(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::algorithms::Plate::requiredWorkingBufferSize());
+    dsp::algorithms::Plate engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDecaySeconds(2.2f);
+    engine.setLowRatio(1.0f);
+    engine.setCrossoverFrequency(400.0f);
+    engine.setPreDelaySeconds(0.01f);
+    engine.setEarlyReflectionLevel(0.25f, 0.25f);
+    engine.setMix(1.0f);
+
+    // Impulse response: unit impulse into an otherwise silent buffer.
+    {
+        const int seconds = 5;
+        std::vector<float> left(kSampleRate * seconds, 0.0f);
+        std::vector<float> right(kSampleRate * seconds, 0.0f);
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        engine.process(left, right);
+        checkFinite(left, right, result);
+
+        std::printf("plate impulse response decay:\n");
+        printDecayCurve(left, right, seconds);
+
+        auto path = outDir + "/plate_impulse.wav";
+        if (!host::writeStereoWav(path, left, right, kSampleRate))
+        {
+            std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+            result.ok = false;
+        }
+        else
+        {
+            std::printf("wrote %s\n", path.c_str());
+        }
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -188,6 +232,10 @@ int main(int argc, char** argv)
     if (algorithm == "concert_hall")
     {
         result = renderConcertHall(outDir);
+    }
+    else if (algorithm == "plate")
+    {
+        result = renderPlate(outDir);
     }
     else
     {

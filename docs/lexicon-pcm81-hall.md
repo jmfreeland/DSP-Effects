@@ -3,9 +3,11 @@
 Two tiers, per `CLAUDE.md`'s Primitive → Component → Block → Graph layering:
 
 - **Block**: `dsp/include/dsp/algorithms/ConcertHall.h` — the reverb core
-  alone. Composed from `DiffuserChain`, `Crossover`, `LinearRamp`,
-  `rt60ToGain`, `DelayLine`, `OnePoleLowpass`, `LFO`, `FeedbackMatrix`'s
-  Householder mix.
+  alone; a thin, addition-free subclass of the shared
+  `dsp/include/dsp/algorithms/ReverbCore.h` (composed from
+  `DiffuserChain`, `Crossover`, `LinearRamp`, `rt60ToGain`, `DelayLine`,
+  `OnePoleLowpass`, `LFO`, `FeedbackMatrix`'s Householder mix), which all
+  five of the PCM81's reverb cores share.
 - **Graph**: `dsp/include/dsp/graphs/ConcertHallAlgorithm.h` — the full
   PCM81 "Concert Hall" *algorithm*: the Block above wrapped in the
   4-Voice "Reverb Shell" (In Lvl/Pan, Voice Diffusion, 4 `Voice`
@@ -201,9 +203,13 @@ Normal/active LED color is dim cobalt.
   tuned for 48kHz and reused as-is by the JUCE plugin at other sample
   rates — actual delay *time* will drift slightly off-48kHz-tuning at
   other rates.
-- Only one of the five reverb cores (Concert Hall) is wired up end-to-end.
-  Plate, Chamber, Inverse, and Infinite each have their own distinct
-  character/parameter per `docs/lexicon-pcm81-reference.md`, and can
-  reuse every Primitive/Component here, including `Comb`/`Voice`/
-  `StereoRotate`, plus their own `EkoDly`/`EkoFbk` pre-echo stage (a plain
-  `Comb`), which Concert Hall's diagram doesn't have.
+- Only one of the five reverb cores (Concert Hall) is wired up end-to-end
+  (Graph + Patch + JUCE plugin). The shared plumbing below now lives in
+  `dsp/include/dsp/algorithms/ReverbCore.h`, with `ConcertHall.h` a thin
+  subclass adding nothing; see `docs/lexicon-pcm81-reference.md` and
+  `dsp/include/dsp/algorithms/Plate.h` (Block-level only so far, verified
+  via `dsp_host_render plate`) for how the other four cores build on it —
+  Plate adds Attack + an `EkoDly`/`EkoFbk` pre-echo stage (a plain
+  `Comb`), which Concert Hall's diagram doesn't have. Chamber, Inverse,
+  and Infinite, plus wiring Plate into a Graph/Patch/plugin, are still
+  open.
