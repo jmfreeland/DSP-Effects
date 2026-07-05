@@ -63,12 +63,38 @@ Normal/active LED color is dim cobalt.
 
 ## Known simplifications / future refinement (Stage 2 candidates)
 
+Now grounded against the real interface (see
+`docs/lexicon-pcm81-reference.md`), the gaps between this Stage 1 engine
+and Lexicon's actual Concert Hall design are:
+
+- **Decay is single-band, not dual-band.** Real Concert Hall has
+  independent `Mid Rt` (master RT60) and `Low Rt` (a *multiplier* of Mid
+  Rt, recommended ≤1.5x) either side of a `Crossover` frequency, plus a
+  separate `Rt HC` one-pole high-cut. This engine only has one damping
+  filter doing the job of `Rt HC`; there's no low-frequency-decay
+  multiplier or crossover yet.
+- **No Pre Delay, no early reflections.** Real Concert Hall has `Pre
+  Delay` (gap before reverb onset, up to 930ms) and a distinct pair of
+  early-reflection taps (`RefDly`/`RefLvl`) parallel to the diffuse tank.
+  This engine only has the diffuser-into-tank path.
+- **`Size` and `Diffusion` are conflated.** Lexicon treats `Diffusion`
+  (initial echo density) and `Size` (the *rate* diffusion keeps building
+  after that initial period, correlated to room size in meters) as two
+  separate controls; this engine has one fixed diffuser chain and no size
+  control at all (delay lengths are fixed).
+- **`Chorus`/`Spin`/`Definition`/`Depth` aren't separated.** This engine's
+  "4 of 8 lines wobble" is a rough stand-in for what Lexicon splits into
+  `Spin` (continuous timbre movement, tail-wide) and `Chorus` (explicitly:
+  randomizes delay times to kill metallic ringing — Concert Hall/Glide>Hall
+  only). `Definition` (buildup rate late in the decay) and `Depth`
+  (front/rear perspective) have no analog here yet.
 - Delay lengths are fixed sample counts, tuned for 48kHz (the Endless's
   native rate) and reused as-is by the JUCE plugin at other sample rates —
   actual delay *time* will drift slightly off-48kHz-tuning at other rates.
-  A size-aware engine would rescale lengths by `sampleRate/48000`.
 - Stereo decorrelation is a simple alternating-sign tap sum, not a true
   stereo-input/stereo-tank design; input is summed to mono before the tank.
-- No pre-delay, bass-boost/crossover, or multiple algorithm variants
-  (Random Hall, Ambience, etc.) yet — Stage 1 is one solid Hall algorithm
-  as the reference building block for the rest of the reverb family.
+- Only one of the five reverb cores (Concert Hall) exists — Plate,
+  Chamber, Inverse, and Infinite each have their own distinct
+  character/parameter per `docs/lexicon-pcm81-reference.md` and are
+  natural next patches, sharing this file's diffuser/tank/damping
+  primitives.
