@@ -1,0 +1,7 @@
+build/
+build-*/
+out/
+patches/**/build/
+*.o
+*.elf
+*.endl
