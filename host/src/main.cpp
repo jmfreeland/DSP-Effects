@@ -204,6 +204,56 @@ RunResult renderPlate(const std::string& outDir)
         }
     }
 
+    // Test tone: a short dry chord-like burst so the tail is audible
+    // against sustained material, not just a click, and so Attack's
+    // effect on a real onset is audible.
+    {
+        engine.reset();
+        engine.setMix(0.4f);
+
+        const int seconds = 4;
+        const int burstSamples = kSampleRate / 2; // 500ms tone burst
+        std::vector<float> left(kSampleRate * seconds, 0.0f);
+        std::vector<float> right(kSampleRate * seconds, 0.0f);
+
+        const float freqs[3] = { 220.0f, 277.18f, 329.63f }; // A3 minor-ish triad
+        for (int i = 0; i < burstSamples; ++i)
+        {
+            float sample = 0.0f;
+            for (float freq : freqs)
+            {
+                sample += std::sin(2.0f * 3.14159265f * freq * static_cast<float>(i) / kSampleRate);
+            }
+            sample *= 0.15f;
+            float envelope = 1.0f;
+            const int fadeSamples = kSampleRate / 50;
+            if (i < fadeSamples)
+            {
+                envelope = static_cast<float>(i) / fadeSamples;
+            }
+            else if (i > burstSamples - fadeSamples)
+            {
+                envelope = static_cast<float>(burstSamples - i) / fadeSamples;
+            }
+            left[i] = sample * envelope;
+            right[i] = sample * envelope;
+        }
+
+        engine.process(left, right);
+        checkFinite(left, right, result);
+
+        auto path2 = outDir + "/plate_tone.wav";
+        if (!host::writeStereoWav(path2, left, right, kSampleRate))
+        {
+            std::fprintf(stderr, "FAIL: could not write %s\n", path2.c_str());
+            result.ok = false;
+        }
+        else
+        {
+            std::printf("wrote %s\n", path2.c_str());
+        }
+    }
+
     return result;
 }
 }
