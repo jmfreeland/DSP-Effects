@@ -37,6 +37,8 @@ Everything of DSP substance lives in `dsp/` and is shared, unmodified, across th
 
 Because a `Patch`'s delay lines must live in the pedal's external working buffer (`Patch::kWorkingBufferSize` = 2,400,000 floats, `Patch::kSampleRate` = 48000) rather than internal RAM, every engine's `prepare()` takes a `std::span<float>` and carves it up itself (see `ConcertHall::requiredWorkingBufferSize()` / `subspan` usage) — don't give primitives owned storage.
 
+**Future direction (not yet built):** today's `plugin/` is one `juce_add_plugin` target per algorithm. The intent is to eventually also have a single, higher-level "Loom" plugin that can browse/select from the full list of algorithms across all devices and generically visualize whatever parameters the selected engine exposes, rather than requiring a separate plugin per algorithm. Likely needs each engine to expose its parameter set in some introspectable/self-describing form (name, range, current value) rather than only bespoke setters, so a generic UI can be built over any engine without per-algorithm UI code.
+
 ## Commands
 
 Native host harness (primary day-to-day build/test loop):
