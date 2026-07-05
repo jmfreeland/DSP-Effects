@@ -143,6 +143,20 @@ output = lerp(dry, that, mix)   // the top-level dry/wet control, dry = original
 - **Post-delay**: two more settable-delay taps (`DelayLine`, 0-1.365s),
   fed from the reverb's own wet output (not the voices), blended back in
   via `PstDlyMix` — matches the PCM81's "delays after the reverb effect."
+- **Glide (GldResp/GldRange)**: both the 4 Voices' delay times and the
+  post-delay taps use `dsp/GlideParameter.h` — when a delay-time target
+  changes by no more than the settable Range (seconds), it glides
+  smoothly to the new value at a speed set by Response (0..100, ~60s at
+  0 down to ~5ms at 100); larger changes jump instantly instead. This is
+  a direct port of the manual's documented behavior (not a
+  reconstruction) and is what makes live delay-time changes click-free,
+  and enables tape-echo-style pitch-bend glides. Calling `setVoice()`/
+  `setPostDelaySeconds()` repeatedly with the same value is a no-op, so
+  it's safe for a plugin to call every block with the current parameter
+  value without retriggering the glide.
+- **Clear**: instantly flushes the 4 Voice delay lines on the rising edge
+  and gates their input silent while held — "one tap removal of all old
+  audio," typically patched to a footswitch on the original hardware.
 - **Rvb Width / FX Width** *(original reconstruction)*: both use
   `dsp/StereoRotate.h`'s mid/side rotation over a continuously-variable
   -360..360 degree range (0 = pass-through, ±180 = fully phase-inverted,
@@ -161,8 +175,8 @@ output = lerp(dry, that, mix)   // the top-level dry/wet control, dry = original
 
 The hardware patch only exposes 3 knobs; everything else uses the
 defaults set in `ConcertHallAlgorithm::prepare()`. The JUCE plugin exposes
-the full parameter set (~49 params) via `AudioProcessorValueTreeState`
-for deeper editing.
+the full parameter set (~54 params, including Voice/Post-Delay Glide and
+Clear) via `AudioProcessorValueTreeState` for deeper editing.
 
 | Control | Range | Effect |
 |---|---|---|

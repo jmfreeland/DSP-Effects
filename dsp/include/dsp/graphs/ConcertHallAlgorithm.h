@@ -2,6 +2,7 @@
 
 #include "dsp/DelayLine.h"
 #include "dsp/Diffuser.h"
+#include "dsp/GlideParameter.h"
 #include "dsp/Math.h"
 #include "dsp/OnePole.h"
 #include "dsp/StereoRotate.h"
@@ -74,8 +75,11 @@ class ConcertHallAlgorithm
         for (int i = 0; i < kNumVoices; ++i)
         {
             voices_[i].setBuffer(workingBuffer.subspan(offset, kVoiceCapacitySamples));
+            voices_[i].setSampleRate(sampleRate);
             offset += kVoiceCapacitySamples;
         }
+        postDelayGlideLeft_.setSampleRate(sampleRate);
+        postDelayGlideRight_.setSampleRate(sampleRate);
 
         postDelayLeft_.setBuffer(workingBuffer.subspan(offset, kPostDelayCapacitySamples));
         offset += kPostDelayCapacitySamples;
@@ -96,12 +100,15 @@ class ConcertHallAlgorithm
         setInLevel(1.0f, 1.0f);
         setInPan(-1.0f, 1.0f);
         setVoiceDiffusion(0.0f);
+        setVoiceGlide(50.0f, 0.0f);
         setVoice(0, 0.09f, 0.15f, 0.25f, -0.3f);
         setVoice(1, 0.13f, 0.10f, 0.18f, 0.3f);
         setVoice(2, 0.0f, 0.0f, 0.0f, 0.0f);
         setVoice(3, 0.0f, 0.0f, 0.0f, 0.0f);
+        setPostDelayGlide(50.0f, 0.0f);
         setPostDelaySeconds(0.25f, 0.25f);
         setPostDelayMix(0.15f);
+        setClear(false);
         setRvbWidth(0.0f);
         setFxMix(0.75f);
         setFxWidth(0.0f);
@@ -160,6 +167,8 @@ class ConcertHallAlgorithm
 
     // -- Voices --
     // delaySeconds 0..1.365, feedback/level -1..1 (negative = phase inverted), pan -1..1.
+    // Delay-time changes glide per setVoiceGlide() rather than jumping,
+    // unless the change exceeds the glide range.
     void setVoice(int index, float delaySeconds, float feedback, float level, float pan)
     {
         auto& voice = voices_[index];
@@ -170,13 +179,49 @@ class ConcertHallAlgorithm
         voice.setPan(pan);
     }
 
+    // Shared glide behavior for all 4 voices' delay-time changes.
+    // response 0..100 (0 = ~60s glide, 100 = ~5ms glide); rangeSeconds is
+    // the max |delta| that still glides (0 = every change jumps instantly).
+    void setVoiceGlide(float response, float rangeSeconds)
+    {
+        for (auto& voice : voices_)
+        {
+            voice.setGlide(response, rangeSeconds);
+        }
+    }
+
+    // Instantly flushes the 4 Voice delay lines on the rising edge, and
+    // gates their input silent while held - a footswitch-friendly "clear
+    // all old audio and start fresh."
+    void setClear(bool clear)
+    {
+        if (clear && !clearActive_)
+        {
+            for (auto& voice : voices_)
+            {
+                voice.reset();
+            }
+        }
+        clearActive_ = clear;
+    }
+
     // -- Post-delay (taps off the reverb's own wet output) --
+    // Delay-time changes glide per setPostDelayGlide() rather than jumping.
     void setPostDelaySeconds(float leftSeconds, float rightSeconds)
     {
-        postDelayLeftSamples_ = std::clamp(leftSeconds * sampleRate_, 0.0f,
-                                            static_cast<float>(kPostDelayCapacitySamples - 2));
-        postDelayRightSamples_ = std::clamp(rightSeconds * sampleRate_, 0.0f,
-                                             static_cast<float>(kPostDelayCapacitySamples - 2));
+        postDelayGlideLeft_.setTarget(std::clamp(leftSeconds * sampleRate_, 0.0f,
+                                                  static_cast<float>(kPostDelayCapacitySamples - 2)));
+        postDelayGlideRight_.setTarget(std::clamp(
+          rightSeconds * sampleRate_, 0.0f, static_cast<float>(kPostDelayCapacitySamples - 2)));
+    }
+
+    // response 0..100; rangeSeconds is the max |delta| that still glides.
+    void setPostDelayGlide(float response, float rangeSeconds)
+    {
+        postDelayGlideLeft_.setResponse(response);
+        postDelayGlideLeft_.setRangeSeconds(rangeSeconds);
+        postDelayGlideRight_.setResponse(response);
+        postDelayGlideRight_.setRangeSeconds(rangeSeconds);
     }
 
     // 0 (no post-delay heard) .. 1 (post-delay fully blended in).
@@ -218,6 +263,8 @@ class ConcertHallAlgorithm
         voiceDiffuser_.reset();
         postDelayLeft_.reset();
         postDelayRight_.reset();
+        postDelayGlideLeft_.reset();
+        postDelayGlideRight_.reset();
         hiCutLeft_.reset();
         hiCutRight_.reset();
     }
@@ -250,7 +297,7 @@ class ConcertHallAlgorithm
         reverb_.processSample(reverbLeft, reverbRight);
         rotateStereoWidth(reverbLeft, reverbRight, rvbWidthDegrees_);
 
-        auto voiceInput = voiceDiffuser_.process(effectsMono);
+        auto voiceInput = clearActive_ ? 0.0f : voiceDiffuser_.process(effectsMono);
         float voicesLeft = 0.0f;
         float voicesRight = 0.0f;
         for (auto& voice : voices_)
@@ -263,9 +310,9 @@ class ConcertHallAlgorithm
         auto fxLeft = lerp(voicesLeft, reverbLeft, fxMix_);
         auto fxRight = lerp(voicesRight, reverbRight, fxMix_);
 
-        auto postLeft = postDelayLeft_.readLinear(postDelayLeftSamples_);
+        auto postLeft = postDelayLeft_.readLinear(postDelayGlideLeft_.next());
         postDelayLeft_.write(reverbLeft);
-        auto postRight = postDelayRight_.readLinear(postDelayRightSamples_);
+        auto postRight = postDelayRight_.readLinear(postDelayGlideRight_.next());
         postDelayRight_.write(reverbRight);
 
         fxLeft = lerp(fxLeft, postLeft, postDelayMix_);
@@ -291,6 +338,8 @@ class ConcertHallAlgorithm
     std::array<Voice, kNumVoices> voices_;
     DelayLine postDelayLeft_;
     DelayLine postDelayRight_;
+    GlideParameter postDelayGlideLeft_;
+    GlideParameter postDelayGlideRight_;
     OnePoleLowpass hiCutLeft_;
     OnePoleLowpass hiCutRight_;
 
@@ -298,8 +347,7 @@ class ConcertHallAlgorithm
     float inLevelRight_ = 1.0f;
     float inPanLeft_ = -1.0f;
     float inPanRight_ = 1.0f;
-    float postDelayLeftSamples_ = 0.0f;
-    float postDelayRightSamples_ = 0.0f;
+    bool clearActive_ = false;
     float postDelayMix_ = 0.0f;
     float rvbWidthDegrees_ = 0.0f;
     float fxMix_ = 0.75f;
