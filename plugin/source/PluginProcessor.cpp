@@ -27,8 +27,13 @@ constexpr auto kEarlyReflectionDelayRightId = "earlyReflectionDelayRight";
 constexpr auto kSpinId = "spin";
 constexpr auto kChorusId = "chorus";
 constexpr auto kVoiceDiffusionId = "voiceDiffusion";
+constexpr auto kVoiceGlideResponseId = "voiceGlideResponse";
+constexpr auto kVoiceGlideRangeId = "voiceGlideRange";
+constexpr auto kClearId = "clear";
 constexpr auto kPostDelayLeftId = "postDelayLeft";
 constexpr auto kPostDelayRightId = "postDelayRight";
+constexpr auto kPostDelayGlideResponseId = "postDelayGlideResponse";
+constexpr auto kPostDelayGlideRangeId = "postDelayGlideRange";
 constexpr auto kPostDelayMixId = "postDelayMix";
 constexpr auto kRvbWidthId = "rvbWidth";
 constexpr auto kFxMixId = "fxMix";
@@ -131,10 +136,19 @@ LexiconHallAudioProcessor::createParameterLayout()
                                      "Voice " + juce::String(i + 1) + " Pan", -1.0f, 1.0f,
                                      kDefaultPan[i]));
     }
+    params.push_back(floatParam(kVoiceGlideResponseId, "Voice Glide Response", 0.0f, 100.0f, 50.0f));
+    params.push_back(
+      floatParam(kVoiceGlideRangeId, "Voice Glide Range", 0.0f, 1.365f, 0.0f, "s"));
+    params.push_back(
+      std::make_unique<juce::AudioParameterBool>(juce::ParameterID{ kClearId, 1 }, "Clear", false));
 
     // -- Post-delay, width, and output chain --
     params.push_back(floatParam(kPostDelayLeftId, "Post Delay L", 0.0f, 1.365f, 0.25f, "s"));
     params.push_back(floatParam(kPostDelayRightId, "Post Delay R", 0.0f, 1.365f, 0.25f, "s"));
+    params.push_back(
+      floatParam(kPostDelayGlideResponseId, "Post Delay Glide Response", 0.0f, 100.0f, 50.0f));
+    params.push_back(
+      floatParam(kPostDelayGlideRangeId, "Post Delay Glide Range", 0.0f, 1.365f, 0.0f, "s"));
     params.push_back(floatParam(kPostDelayMixId, "Post Delay Mix", 0.0f, 1.0f, 0.15f));
     params.push_back(floatParam(kRvbWidthId, "Rvb Width", -360.0f, 360.0f, 0.0f, "deg"));
     params.push_back(floatParam(kFxMixId, "FX Mix", 0.0f, 1.0f, 0.75f));
@@ -188,6 +202,7 @@ void LexiconHallAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     engine_.setChorus(paramValue(kChorusId));
     engine_.setVoiceDiffusion(paramValue(kVoiceDiffusionId));
 
+    engine_.setVoiceGlide(paramValue(kVoiceGlideResponseId), paramValue(kVoiceGlideRangeId));
     for (int i = 0; i < 4; ++i)
     {
         engine_.setVoice(i, paramValue(voiceParamId(i, "Delay").toRawUTF8()),
@@ -195,7 +210,10 @@ void LexiconHallAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
                           paramValue(voiceParamId(i, "Level").toRawUTF8()),
                           paramValue(voiceParamId(i, "Pan").toRawUTF8()));
     }
+    engine_.setClear(paramValue(kClearId) >= 0.5f);
 
+    engine_.setPostDelayGlide(paramValue(kPostDelayGlideResponseId),
+                               paramValue(kPostDelayGlideRangeId));
     engine_.setPostDelaySeconds(paramValue(kPostDelayLeftId), paramValue(kPostDelayRightId));
     engine_.setPostDelayMix(paramValue(kPostDelayMixId));
     engine_.setRvbWidth(paramValue(kRvbWidthId));
