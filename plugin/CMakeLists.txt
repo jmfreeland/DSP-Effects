@@ -11,7 +11,7 @@ juce_add_plugin(LexiconHallPlugin
     COMPANY_NAME "Loom"
     PLUGIN_MANUFACTURER_CODE Loom
     PLUGIN_CODE Lxh1
-    FORMATS VST3 Standalone
+    FORMATS VST3 AU Standalone
     PRODUCT_NAME "Loom - Lexicon Hall"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
