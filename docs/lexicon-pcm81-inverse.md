@@ -81,6 +81,29 @@ only the three qualitative behaviors. No pre-echo (EkoDly/EkoFbk): the
 manual's block diagram confirms this is scoped to Plate/Chamber/Infinite
 only (Inverse's diagram has no EkoDly/EkoFbk boxes).
 
+## Shape
+
+A second manual excerpt (`docs/references/` - chapter 3 continued, pages
+3-20 through 3-39) resolved what was previously flagged below as an
+unknown gap: the "Shape, Spread" glossary entry (p.3-35) states plainly
+that "In the Chamber and Infinite algorithms, Shape and Spread work
+together to control the overall ambience... In the **Inverse algorithm,
+Spread is fixed, and only a Shape control is available**." So Inverse's
+Shape is the *same* swell/relax envelope mechanism Chamber/Infinite use
+(see `docs/lexicon-pcm81-hall.md`/Chamber.h's doc comment - an original
+reconstruction, since the manual doesn't specify the curve shape, only
+the qualitative build-up/sustain behavior), not a separate unknown
+parameter as previously guessed from the block diagram alone.
+
+Implemented in `Inverse.h` by reusing the same rising-edge transient
+detector already driving the Duration/Slope envelope (`applyPreEcho()`)
+to also trigger a Chamber-style attack/release swell, applied as an
+extra multiplicative gain in `shapeWetOutput()` alongside the existing
+Low Slope/Mid Slope band shaping. Spread is a fixed internal constant
+(`kFixedSpreadSeconds = 0.4f`, a middle-ground pick within Chamber's own
+0.05-3s Spread range) rather than user-settable, per the manual quote
+above.
+
 ## Known simplifications
 
 - The tank's own internal Crossover (feeding the fixed sustain decay)
@@ -91,17 +114,13 @@ only (Inverse's diagram has no EkoDly/EkoFbk boxes).
 - The fixed internal sustain decay (2.5s) is a flat constant, not
   exposed or tuned per Size/other parameters the way the other four
   cores' Decay is.
-- **Gap found in the manual, not yet implemented**: Inverse's real Rvb
-  Design row has a `Shape` parameter (matrix position 2.2, alongside
-  Duration and Diffusion) distinct from Low Slope/Mid Slope (which live
-  in the Rvb Time row) - visible in the block diagram as its own box
-  next to Rt HC/Duration. The parameter glossary text explaining what it
-  does isn't in the manual excerpt available so far (page numbers jump
-  from the block diagrams straight to Chorus/Controls/Delay Time in the
-  alphabetical parameter glossary - Rvb Design's entry, which would
-  cover Shape, is on a later page not yet in this repo). Until that page
-  is available, Shape is not implemented here - flagging rather than
-  guessing.
+- Shape's fixed Spread constant (0.4s) is a reasonable guess, not a
+  manual-specified value - the manual states Spread is fixed for Inverse
+  but doesn't say at what value.
+- The manual states Inverse's RefLvl/RefDly range is 800ms (vs. 1.2s for
+  every other algorithm); this repo still uses the uniform 1.2s
+  (`kEarlyReflectionCapacitySamples`) for all five cores. Not yet fixed
+  - low-impact since it only affects the top of the range.
 
 ## Status
 

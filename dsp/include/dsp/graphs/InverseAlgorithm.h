@@ -140,6 +140,9 @@ class InverseAlgorithm
     // -1 (natural decay tail) .. 0 (gate) .. +1 (inverse/rise), independent per band.
     void setLowSlope(float slope) { reverb_.setLowSlope(slope); }
     void setMidSlope(float slope) { reverb_.setMidSlope(slope); }
+    // 0 (no swell) .. 1 (pronounced swell on each onset) - Spread is
+    // fixed internally for Inverse (see dsp/algorithms/Inverse.h).
+    void setShape(float amount) { reverb_.setShape(amount); }
 
     // -- Input conditioning --
     // level -1..1 (magnitude = level, sign = phase) applied to each input

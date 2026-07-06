@@ -207,7 +207,7 @@ inline const AlgorithmSchema& inverseSchema()
           &tankDetailSchema() },
         { "output", "Output", StageKind::kOutput,
           "Re-split into Low/Mid bands, each shaped by its own Duration+Slope envelope (decay, gate, or rise), "
-          "then hard-cut at Duration" },
+          "then hard-cut at Duration; also swelled by Shape (Spread fixed for this algorithm)" },
     };
     static const Connection connections[] = {
         { "input", "earlyReflections", nullptr },
@@ -216,7 +216,7 @@ inline const AlgorithmSchema& inverseSchema()
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
         { "tank", "tank", "fixed sustain gain (~2.5s) - not user-adjustable" },
-        { "tank", "output", "* RvbOut, then band-split + Low Slope/Mid Slope" },
+        { "tank", "output", "* RvbOut, then band-split + Low Slope/Mid Slope, then Shape swell" },
     };
     static const AlgorithmSchema schema = {
         "Inverse", "Concert Hall's tank kept healthy internally, but RT60 decay replaced entirely by a "

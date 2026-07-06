@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dsp/Crossover.h"
+#include "dsp/Envelope.h"
 #include "dsp/Math.h"
 #include "dsp/OnePole.h"
 #include "dsp/algorithms/ReverbCore.h"
@@ -55,6 +56,14 @@ namespace dsp::algorithms
  * sign convention and the decay/gate/rise behavior it produces are
  * verified against the primary source, not guessed. No pre-echo
  * (EkoDly/EkoFbk): the manual scopes that to Plate/Chamber/Infinite only.
+ *
+ * Also has a Shape control, reusing Chamber's Shape+Spread swell/relax
+ * envelope mechanism (see Chamber.h) - but per the manual's "Shape,
+ * Spread" glossary entry (docs/references/lexicon-pcm81-user-guide-rev1.pdf,
+ * p.3-35): "In the Inverse algorithm, Spread is fixed, and only a Shape
+ * control is available." So Spread is a fixed internal constant here
+ * rather than user-settable, and the resulting swell envelope multiplies
+ * the already Slope-shaped wet output in shapeWetOutput().
  */
 class Inverse : public ReverbCore
 {
@@ -75,6 +84,7 @@ class Inverse : public ReverbCore
         setDuration(1.0f);
         setLowSlope(-0.3f);
         setMidSlope(-0.3f);
+        setShape(0.3f);
         reset();
     }
 
@@ -88,6 +98,12 @@ class Inverse : public ReverbCore
     void setLowSlope(float slope) { lowSlope_ = std::clamp(slope, -1.0f, 1.0f); }
     void setMidSlope(float slope) { midSlope_ = std::clamp(slope, -1.0f, 1.0f); }
 
+    // 0 (no swell: onset reads as immediate/flat) .. 1 (pronounced,
+    // slower swell on each new onset), same mechanism as Chamber's Shape
+    // but with Spread fixed internally (see class comment - the manual
+    // scopes Spread out of Inverse specifically).
+    void setShape(float amount) { shapeAmount_ = std::clamp(amount, 0.0f, 1.0f); }
+
     void reset()
     {
         ReverbCore::reset();
@@ -96,6 +112,9 @@ class Inverse : public ReverbCore
         transientFollower_.reset();
         elapsedSamples_ = durationSamples_; // start past cutoff: silent until the first onset
         wasTransient_ = false;
+        shapeRamp_.reset();
+        shapeStage_ = ShapeStage::kIdle;
+        shapeValue_ = 1.0f;
     }
 
   protected:
@@ -107,12 +126,39 @@ class Inverse : public ReverbCore
         if (isTransient && !wasTransient_)
         {
             elapsedSamples_ = 0.0f;
+
+            auto peak = 1.0f + shapeAmount_ * 1.5f;
+            auto attackSamples = mapLinear(shapeAmount_, 0.005f, 0.3f) * sampleRate();
+            shapeRamp_.trigger(shapeValue_, peak, attackSamples);
+            shapeStage_ = ShapeStage::kAttack;
         }
         wasTransient_ = isTransient;
 
         if (elapsedSamples_ <= durationSamples_)
         {
             elapsedSamples_ += 1.0f;
+        }
+
+        if (shapeStage_ == ShapeStage::kAttack)
+        {
+            shapeValue_ = shapeRamp_.next();
+            if (!shapeRamp_.isActive())
+            {
+                // Spread is fixed for Inverse (see class comment), unlike
+                // Chamber where it's user-settable.
+                auto releaseSamples = kFixedSpreadSeconds * sampleRate();
+                shapeRamp_.trigger(shapeValue_, 1.0f, releaseSamples);
+                shapeStage_ = ShapeStage::kRelease;
+            }
+        }
+        else if (shapeStage_ == ShapeStage::kRelease)
+        {
+            shapeValue_ = shapeRamp_.next();
+            if (!shapeRamp_.isActive())
+            {
+                shapeStage_ = ShapeStage::kIdle;
+                shapeValue_ = 1.0f;
+            }
         }
     }
 
@@ -122,13 +168,25 @@ class Inverse : public ReverbCore
         auto midEnv = envelopeValue(midSlope_);
 
         auto bandsLeft = outputCrossoverLeft_.process(wetLeft);
-        wetLeft = bandsLeft.low * lowEnv + bandsLeft.high * midEnv;
+        wetLeft = (bandsLeft.low * lowEnv + bandsLeft.high * midEnv) * shapeValue_;
 
         auto bandsRight = outputCrossoverRight_.process(wetRight);
-        wetRight = bandsRight.low * lowEnv + bandsRight.high * midEnv;
+        wetRight = (bandsRight.low * lowEnv + bandsRight.high * midEnv) * shapeValue_;
     }
 
   private:
+    enum class ShapeStage
+    {
+        kIdle,
+        kAttack,
+        kRelease
+    };
+
+    // Spread's fixed value for Inverse, since the manual states only
+    // Shape is user-settable here (Chamber's Spread range is 0.05..3s;
+    // this picks a middle-ground constant rather than either extreme).
+    static constexpr float kFixedSpreadSeconds = 0.4f;
+
     float envelopeValue(float slope) const
     {
         if (elapsedSamples_ >= durationSamples_)
@@ -155,5 +213,10 @@ class Inverse : public ReverbCore
     float durationSamples_ = 48000.0f;
     float lowSlope_ = 0.3f;
     float midSlope_ = 0.3f;
+
+    LinearRamp shapeRamp_;
+    ShapeStage shapeStage_ = ShapeStage::kIdle;
+    float shapeValue_ = 1.0f;
+    float shapeAmount_ = 0.3f;
 };
 }

@@ -29,6 +29,7 @@ constexpr auto kChorusId = "chorus";
 constexpr auto kDurationId = "duration";
 constexpr auto kLowSlopeId = "lowSlope";
 constexpr auto kMidSlopeId = "midSlope";
+constexpr auto kShapeId = "shape";
 constexpr auto kVoiceDiffusionId = "voiceDiffusion";
 constexpr auto kVoiceGlideResponseId = "voiceGlideResponse";
 constexpr auto kVoiceGlideRangeId = "voiceGlideRange";
@@ -120,6 +121,9 @@ LexiconInverseAudioProcessor::createParameterLayout()
     params.push_back(floatParam(kDurationId, "Duration", 0.05f, 8.0f, 1.0f, "s", 0.5f));
     params.push_back(floatParam(kLowSlopeId, "Low Slope", -1.0f, 1.0f, -0.3f));
     params.push_back(floatParam(kMidSlopeId, "Mid Slope", -1.0f, 1.0f, -0.3f));
+    // Spread is fixed internally for Inverse per the manual - only Shape
+    // is exposed here (see dsp/algorithms/Inverse.h).
+    params.push_back(floatParam(kShapeId, "Shape", 0.0f, 1.0f, 0.3f));
 
     // -- Voice Diffusion + four delay Voices, matching the PCM81's 4-Voice Reverb Shell --
     params.push_back(floatParam(kVoiceDiffusionId, "Voice Diffusion", 0.0f, 1.0f, 0.0f));
@@ -206,6 +210,7 @@ void LexiconInverseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     engine_.setDuration(paramValue(kDurationId));
     engine_.setLowSlope(paramValue(kLowSlopeId));
     engine_.setMidSlope(paramValue(kMidSlopeId));
+    engine_.setShape(paramValue(kShapeId));
     engine_.setVoiceDiffusion(paramValue(kVoiceDiffusionId));
 
     engine_.setVoiceGlide(paramValue(kVoiceGlideResponseId), paramValue(kVoiceGlideRangeId));
