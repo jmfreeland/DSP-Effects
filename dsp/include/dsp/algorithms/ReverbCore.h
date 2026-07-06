@@ -358,8 +358,8 @@ class ReverbCore
             // validate - see dsp/algorithms/Infinite.h).
             auto damped = frozen_ ? tapped[i] : damping_[i].process(tapped[i]);
             auto bands = crossover_[i].process(damped);
-            auto lowGain = frozen_ ? 0.9999f : lowGain_[i];
-            auto midGain = frozen_ ? 0.9999f : midGain_[i];
+            auto lowGain = frozen_ ? 0.9999f : lowGain_[static_cast<std::size_t>(i)];
+            auto midGain = frozen_ ? 0.9999f : midGain_[static_cast<std::size_t>(i)];
             decayed[i] = bands.low * lowGain + bands.high * midGain;
         }
 
@@ -404,9 +404,7 @@ class ReverbCore
         wetLeft = wetLeft * tankGain + earlyTapLeft * earlyReflectionLevelLeft_ * earlyGain;
         wetRight = wetRight * tankGain + earlyTapRight * earlyReflectionLevelRight_ * earlyGain;
 
-        auto envelopeGain = outputEnvelope();
-        wetLeft *= envelopeGain;
-        wetRight *= envelopeGain;
+        shapeWetOutput(wetLeft, wetRight);
 
         auto muteGain = sizeMuteEnvelope_.next();
         wetLeft *= muteGain;
@@ -431,8 +429,26 @@ class ReverbCore
 
     // Lets a subclass scale the final wet output over time (e.g.
     // Chamber/Infinite's Shape+Spread onset swell). Called once per
-    // sample; default passes the wet signal through unchanged.
+    // sample via shapeWetOutput()'s default implementation; passes the
+    // wet signal through unchanged unless overridden.
     virtual float outputEnvelope() { return 1.0f; }
+
+    // Lets a subclass replace how the wet output is shaped entirely,
+    // rather than just by a single scalar (e.g. Inverse's independent
+    // Low Slope/Mid Slope needs to split wetLeft/wetRight into bands and
+    // shape each separately). Deliberately a *read-path only* hook: it
+    // must not be used to starve the recirculating feedback (the values
+    // written back into the tank, computed earlier in processSample()
+    // via lowGain_/midGain_, are unaffected by this), because a
+    // near-zero gain there would prevent the tank from ever holding
+    // enough energy to later "reveal" - which is exactly what a rising
+    // envelope needs to do. Default multiplies by outputEnvelope().
+    virtual void shapeWetOutput(float& wetLeft, float& wetRight)
+    {
+        auto gain = outputEnvelope();
+        wetLeft *= gain;
+        wetRight *= gain;
+    }
 
     float sampleRate() const { return sampleRate_; }
 

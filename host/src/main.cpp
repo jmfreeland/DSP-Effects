@@ -1,5 +1,6 @@
 #include "dsp/algorithms/Chamber.h"
 #include "dsp/algorithms/Infinite.h"
+#include "dsp/algorithms/Inverse.h"
 #include "dsp/algorithms/Plate.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "host/WavWriter.h"
@@ -397,6 +398,79 @@ RunResult renderInfinite(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderInverse(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::algorithms::Inverse::requiredWorkingBufferSize());
+    dsp::algorithms::Inverse engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDuration(1.5f);
+    engine.setLowSlope(0.4f);
+    engine.setMidSlope(0.4f);
+    engine.setDiffusion(0.6f);
+    engine.setMix(1.0f);
+
+    // Impulse response: unit impulse into an otherwise silent buffer -
+    // shows the decay-slope envelope's shape and hard cutoff at Duration.
+    {
+        const int seconds = 4;
+        std::vector<float> left(kSampleRate * seconds, 0.0f);
+        std::vector<float> right(kSampleRate * seconds, 0.0f);
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        engine.process(left, right);
+        checkFinite(left, right, result);
+
+        std::printf("inverse impulse response (Duration=1.5s, decay slope):\n");
+        printDecayCurve(left, right, seconds);
+
+        auto path = outDir + "/inverse_impulse.wav";
+        if (!host::writeStereoWav(path, left, right, kSampleRate))
+        {
+            std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+            result.ok = false;
+        }
+        else
+        {
+            std::printf("wrote %s\n", path.c_str());
+        }
+    }
+
+    // Same again with a rising (gated-reverse) envelope, for comparison.
+    {
+        engine.reset();
+        engine.setLowSlope(-0.6f);
+        engine.setMidSlope(-0.6f);
+
+        const int seconds = 4;
+        std::vector<float> left(kSampleRate * seconds, 0.0f);
+        std::vector<float> right(kSampleRate * seconds, 0.0f);
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        engine.process(left, right);
+        checkFinite(left, right, result);
+
+        std::printf("inverse impulse response (Duration=1.5s, rise slope):\n");
+        printDecayCurve(left, right, seconds);
+
+        auto path = outDir + "/inverse_rise_impulse.wav";
+        if (!host::writeStereoWav(path, left, right, kSampleRate))
+        {
+            std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+            result.ok = false;
+        }
+        else
+        {
+            std::printf("wrote %s\n", path.c_str());
+        }
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -435,6 +509,10 @@ int main(int argc, char** argv)
     else if (algorithm == "infinite")
     {
         result = renderInfinite(outDir);
+    }
+    else if (algorithm == "inverse")
+    {
+        result = renderInverse(outDir);
     }
     else
     {
