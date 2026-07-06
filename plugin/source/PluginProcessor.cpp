@@ -1,5 +1,8 @@
 #include "PluginProcessor.h"
 
+#include "LoomPluginEditor.h"
+#include "dsp/schema/ReverbCoreSchemas.h"
+
 #include <span>
 
 namespace
@@ -232,7 +235,7 @@ void LexiconHallAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 
 juce::AudioProcessorEditor* LexiconHallAudioProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new LoomPluginEditor(*this, dsp::schema::concertHallSchema());
 }
 
 void LexiconHallAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

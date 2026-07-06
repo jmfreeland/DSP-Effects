@@ -1,10 +1,27 @@
-# Future direction: a declarative algorithm schema
+# Declarative algorithm schema: topology, implemented
 
 Idea: describe each engine's topology and parameters in a markup/schema
 format (e.g. YAML or JSON) alongside its hand-written C++, so the same
 description can drive documentation, visualization, a generic plugin UI,
 and AI tooling reasoning about the algorithm — without re-deriving that
 structure from source or primary-source PDFs each time.
+
+**Update:** the topology half of tier 1 (below) is now built, once 5
+reverb cores existed to show real variety rather than one shape -
+`dsp/include/dsp/schema/AlgorithmSchema.h` (the struct) and
+`ReverbCoreSchemas.h` (one instance per core), driving the JUCE plugins'
+"Show Architecture" button (`plugin/source/ArchitectureView.*` renders
+the diagram, `plugin/source/LoomPluginEditor.*` is the shared editor
+shell every plugin now uses). See that header's doc comment for why it's
+plain C++ (spans over static arrays) rather than an external YAML/JSON
+file: it's consumed entirely by C++, so this keeps it a single compiled,
+type-checked source of truth with no parser dependency - a deliberate
+narrowing of the original idea below, not a rejection of it.
+
+Not yet done: the *parameter* half (name/range/default/unit/setter, to
+drive a generic cross-algorithm UI) - only topology exists so far. And
+the schema is still hand/AI-authored prose-derived, not generated from
+or generating the C++, per the original tier-1 framing.
 
 ## Is this achievable?
 
@@ -41,9 +58,17 @@ topology description carrying real DSP meaning, not just prose) holds up.
    parameters for AI/viz/UI purposes while keeping the DSP itself
    hand-written.
 
-**Recommendation:** pursue tier 1, but not yet — designing the schema's
-shape off a single example (Concert Hall) risks baking in the wrong
-abstraction. Worth revisiting once 2-3 more algorithms exist (e.g. a
-second reverb core plus the first H3000 pitch-shifter primitive) so the
-schema reflects real variety in topology and parameter types rather than
-one algorithm's specific shape.
+**Original recommendation (done):** pursue tier 1, but not yet —
+designing the schema's shape off a single example (Concert Hall) risks
+baking in the wrong abstraction. Worth revisiting once 2-3 more
+algorithms exist (e.g. a second reverb core plus the first H3000
+pitch-shifter primitive) so the schema reflects real variety in topology
+and parameter types rather than one algorithm's specific shape.
+
+**Next step, if picked back up:** extend the schema with the parameter
+list (not just topology) so a generic cross-algorithm "Loom" UI (the
+future-direction note in `CLAUDE.md`) doesn't need per-plugin
+`createParameterLayout()` code either - probably worth waiting for the
+H3000's first algorithm to exist first, same reasoning as above, since
+its parameter *types* (pitch ratios, mailbox routing) will look nothing
+like a reverb's.

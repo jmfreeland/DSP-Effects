@@ -1,5 +1,8 @@
 #include "InfinitePluginProcessor.h"
 
+#include "LoomPluginEditor.h"
+#include "dsp/schema/ReverbCoreSchemas.h"
+
 #include <span>
 
 namespace
@@ -250,7 +253,7 @@ void LexiconInfiniteAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 
 juce::AudioProcessorEditor* LexiconInfiniteAudioProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new LoomPluginEditor(*this, dsp::schema::infiniteSchema());
 }
 
 void LexiconInfiniteAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

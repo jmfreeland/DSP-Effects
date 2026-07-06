@@ -20,6 +20,8 @@ juce_add_plugin(LexiconHallPlugin
 
 target_sources(LexiconHallPlugin PRIVATE
     source/PluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
 )
 
 target_include_directories(LexiconHallPlugin PRIVATE
@@ -54,6 +56,8 @@ juce_add_plugin(LexiconPlatePlugin
 
 target_sources(LexiconPlatePlugin PRIVATE
     source/PlatePluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
 )
 
 target_include_directories(LexiconPlatePlugin PRIVATE
@@ -88,6 +92,8 @@ juce_add_plugin(LexiconChamberPlugin
 
 target_sources(LexiconChamberPlugin PRIVATE
     source/ChamberPluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
 )
 
 target_include_directories(LexiconChamberPlugin PRIVATE
@@ -122,6 +128,8 @@ juce_add_plugin(LexiconInfinitePlugin
 
 target_sources(LexiconInfinitePlugin PRIVATE
     source/InfinitePluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
 )
 
 target_include_directories(LexiconInfinitePlugin PRIVATE
@@ -156,6 +164,8 @@ juce_add_plugin(LexiconInversePlugin
 
 target_sources(LexiconInversePlugin PRIVATE
     source/InversePluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
 )
 
 target_include_directories(LexiconInversePlugin PRIVATE

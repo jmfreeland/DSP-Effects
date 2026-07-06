@@ -1,5 +1,8 @@
 #include "PlatePluginProcessor.h"
 
+#include "LoomPluginEditor.h"
+#include "dsp/schema/ReverbCoreSchemas.h"
+
 #include <span>
 
 namespace
@@ -247,7 +250,7 @@ void LexiconPlateAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
 
 juce::AudioProcessorEditor* LexiconPlateAudioProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new LoomPluginEditor(*this, dsp::schema::plateSchema());
 }
 
 void LexiconPlateAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

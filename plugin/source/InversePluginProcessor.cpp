@@ -1,5 +1,8 @@
 #include "InversePluginProcessor.h"
 
+#include "LoomPluginEditor.h"
+#include "dsp/schema/ReverbCoreSchemas.h"
+
 #include <span>
 
 namespace
@@ -235,7 +238,7 @@ void LexiconInverseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
 juce::AudioProcessorEditor* LexiconInverseAudioProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new LoomPluginEditor(*this, dsp::schema::inverseSchema());
 }
 
 void LexiconInverseAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
