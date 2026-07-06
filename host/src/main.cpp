@@ -1,3 +1,4 @@
+#include "dsp/algorithms/Chamber.h"
 #include "dsp/algorithms/Plate.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "host/WavWriter.h"
@@ -256,6 +257,98 @@ RunResult renderPlate(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderChamber(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::algorithms::Chamber::requiredWorkingBufferSize());
+    dsp::algorithms::Chamber engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDecaySeconds(2.8f);
+    engine.setLowRatio(1.0f);
+    engine.setCrossoverFrequency(400.0f);
+    engine.setPreDelaySeconds(0.01f);
+    engine.setEarlyReflectionLevel(0.2f, 0.2f);
+    engine.setMix(1.0f);
+
+    // Impulse response: unit impulse into an otherwise silent buffer.
+    {
+        const int seconds = 5;
+        std::vector<float> left(kSampleRate * seconds, 0.0f);
+        std::vector<float> right(kSampleRate * seconds, 0.0f);
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        engine.process(left, right);
+        checkFinite(left, right, result);
+
+        std::printf("chamber impulse response decay:\n");
+        printDecayCurve(left, right, seconds);
+
+        auto path = outDir + "/chamber_impulse.wav";
+        if (!host::writeStereoWav(path, left, right, kSampleRate))
+        {
+            std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+            result.ok = false;
+        }
+        else
+        {
+            std::printf("wrote %s\n", path.c_str());
+        }
+    }
+
+    // Test tone: a short dry chord-like burst so the Shape/Spread swell
+    // on the onset is audible against the sustained tail.
+    {
+        engine.reset();
+        engine.setMix(0.4f);
+
+        const int seconds = 4;
+        const int burstSamples = kSampleRate / 2; // 500ms tone burst
+        std::vector<float> left(kSampleRate * seconds, 0.0f);
+        std::vector<float> right(kSampleRate * seconds, 0.0f);
+
+        const float freqs[3] = { 220.0f, 277.18f, 329.63f }; // A3 minor-ish triad
+        for (int i = 0; i < burstSamples; ++i)
+        {
+            float sample = 0.0f;
+            for (float freq : freqs)
+            {
+                sample += std::sin(2.0f * 3.14159265f * freq * static_cast<float>(i) / kSampleRate);
+            }
+            sample *= 0.15f;
+            float envelope = 1.0f;
+            const int fadeSamples = kSampleRate / 50;
+            if (i < fadeSamples)
+            {
+                envelope = static_cast<float>(i) / fadeSamples;
+            }
+            else if (i > burstSamples - fadeSamples)
+            {
+                envelope = static_cast<float>(burstSamples - i) / fadeSamples;
+            }
+            left[i] = sample * envelope;
+            right[i] = sample * envelope;
+        }
+
+        engine.process(left, right);
+        checkFinite(left, right, result);
+
+        auto path2 = outDir + "/chamber_tone.wav";
+        if (!host::writeStereoWav(path2, left, right, kSampleRate))
+        {
+            std::fprintf(stderr, "FAIL: could not write %s\n", path2.c_str());
+            result.ok = false;
+        }
+        else
+        {
+            std::printf("wrote %s\n", path2.c_str());
+        }
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -286,6 +379,10 @@ int main(int argc, char** argv)
     else if (algorithm == "plate")
     {
         result = renderPlate(outDir);
+    }
+    else if (algorithm == "chamber")
+    {
+        result = renderChamber(outDir);
     }
     else
     {

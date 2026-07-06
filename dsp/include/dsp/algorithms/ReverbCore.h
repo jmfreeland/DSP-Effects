@@ -398,6 +398,10 @@ class ReverbCore
         wetLeft = wetLeft * tankGain + earlyTapLeft * earlyReflectionLevelLeft_ * earlyGain;
         wetRight = wetRight * tankGain + earlyTapRight * earlyReflectionLevelRight_ * earlyGain;
 
+        auto envelopeGain = outputEnvelope();
+        wetLeft *= envelopeGain;
+        wetRight *= envelopeGain;
+
         auto muteGain = sizeMuteEnvelope_.next();
         wetLeft *= muteGain;
         wetRight *= muteGain;
@@ -418,6 +422,11 @@ class ReverbCore
     // the first ~50ms). Called every sample; default passes the set
     // Diffusion amount through unchanged.
     virtual float effectiveDiffusion(float baseAmount) { return baseAmount; }
+
+    // Lets a subclass scale the final wet output over time (e.g.
+    // Chamber/Infinite's Shape+Spread onset swell). Called once per
+    // sample; default passes the wet signal through unchanged.
+    virtual float outputEnvelope() { return 1.0f; }
 
     float sampleRate() const { return sampleRate_; }
 
