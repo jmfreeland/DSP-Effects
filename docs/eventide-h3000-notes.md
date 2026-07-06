@@ -50,10 +50,21 @@ diatonic scale-quantized shift amount, and modest polyphony (three PELs
 total, often split across shift + mix + a second voice for MicroPitch's
 detuned pair).
 
+## Status
+
+The PCM81 User Guide did turn up and all five of that box's reverb cores
+are now built (see docs/lexicon-pcm81-reference.md). Stage 1 work on this
+box has now started too: Diatonic Shift (the factory default program
+named above) is built end-to-end - see docs/eventide-diatonic-shift.md
+for the Block/Graph/Patch/plugin and its known simplifications, chief
+among them no real-time pitch tracking of the input (needed for *true*
+per-note-correct diatonic harmony) and no H3000-equivalent user/parameter
+manual to verify a front-end against the way the PCM81 one could be.
+
 ## Open item
 
-Waiting on the PCM81 User Guide (Lexicon) for equivalent primary-source
-grounding on that box's algorithm/parameter set before Stage 1 work
-starts there — see docs/lexicon-pcm81-hall.md for the reverb work already
-done, which was designed from general DSP reverb theory rather than a
-Lexicon-specific source document.
+Still waiting on an H3000 *user* guide (this doc is built from the
+*service* manual - hardware architecture, not the UI/parameter surface)
+to check Diatonic Shift's front end and any other H3000 algorithm's
+parameter set against, the way the PCM81 User Guide let us verify the
+Lexicon side's control surfaces directly.

@@ -3,6 +3,7 @@
 #include "dsp/algorithms/Inverse.h"
 #include "dsp/algorithms/Plate.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
+#include "dsp/graphs/DiatonicShiftAlgorithm.h"
 #include "host/WavWriter.h"
 
 #include <cmath>
@@ -471,6 +472,51 @@ RunResult renderInverse(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderDiatonicShift(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::DiatonicShiftAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::DiatonicShiftAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setScale(dsp::Scale::kMajor);
+    engine.setScaleDegree(2); // a diatonic 3rd up
+    engine.setRegen(0.55f);
+    engine.setMix(1.0f);
+
+    // A short tone burst, then silence - the Regen feedback loop should
+    // keep cascading shifted repeats of the note after it stops, each one
+    // another diatonic step up from the last.
+    const int seconds = 3;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate / 2; ++n)
+    {
+        auto sample = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        left[static_cast<std::size_t>(n)] = sample;
+        right[static_cast<std::size_t>(n)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("diatonic shift tone burst (Major, +3rd, Regen=0.55):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/diatonic_shift_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -513,6 +559,10 @@ int main(int argc, char** argv)
     else if (algorithm == "inverse")
     {
         result = renderInverse(outDir);
+    }
+    else if (algorithm == "diatonic_shift")
+    {
+        result = renderDiatonicShift(outDir);
     }
     else
     {
