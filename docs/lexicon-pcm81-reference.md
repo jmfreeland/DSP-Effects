@@ -7,6 +7,19 @@ just Hall) — the actual PEL/DSP code is proprietary and not reproduced
 here; this is the *interface* Lexicon exposed, which tells us the
 structural design of the algorithm behind it.
 
+A scanned excerpt (chapters 2-3: Basic Operation, and The Algorithms and
+Their Parameters - the block diagrams for the Reverb Shell and all 5
+reverb cores) now lives in the repo at
+`docs/references/lexicon-pcm81-user-guide-rev1.pdf`, so specific claims
+below can be checked directly rather than taken on trust. Reading it
+confirmed our overall topology closely (the shared signal path below,
+and each core's unique-control table) and turned up two corrections,
+now fixed: Inverse's Low Slope/Mid Slope sign convention was backwards
+(see `docs/lexicon-pcm81-inverse.md`), and Inverse has a real `Shape`
+parameter (Rvb Design row) we hadn't implemented or even known about -
+its glossary entry isn't in this excerpt yet, so it's flagged as an open
+gap rather than guessed at.
+
 ## The 17 algorithms
 
 Three classes, each wrapping one of 5 reverb "cores" with a class-specific
@@ -46,7 +59,7 @@ Per-algorithm character and unique third/fourth slot:
 | Concert Hall | Clean, stays behind the source; low initial density building gradually | **Definition** (echo-density buildup rate in the *latter* part of decay), **Depth** (front-to-rear listener perspective), **Chorus** (randomizes delay times to kill metallic ringing) |
 | Plate | High initial diffusion, bright; good on percussion | **Attack** (sharpness of initial response, first 50ms only) |
 | Chamber | Even, "dimensionless," little color change over decay; good on vocals | **Shape** (envelope contour) + **Spread** (sustain) |
-| Inverse | Envelope slope is controllable — decay, gate, or rise | **Duration** (time before cutoff), **Low Slope**/**Mid Slope** (envelope shape per band, replacing Low Rt/Mid Rt) |
+| Inverse | Envelope slope is controllable — decay, gate, or rise | **Duration** (time before cutoff), **Low Slope**/**Mid Slope** (envelope shape per band, replacing Low Rt/Mid Rt; negative=natural decay tail, 0=gate, positive=inverse/rise, confirmed by the manual text), **Shape** (Rvb Design row, distinct from the Slopes - glossary entry not yet in this repo's excerpt, not implemented) |
 | Infinite | Chamber + a freeze switch; tail rings forever, reverb input ramps off | **Infinite** (on/off) — validates this repo's existing footswitch-hold "freeze" design |
 
 ## Parameter glossary (the parts worth carrying forward)
@@ -77,7 +90,17 @@ Per-algorithm character and unique third/fourth slot:
 - Max reverb-related delay in the 4-Voice/6-Voice algorithms: up to 1.365s (individual voices), pre-delay up to 930ms, early reflections/echo up to 1.2s.
 - Pitch range context (not PCM81-specific, general pitch-shifting theory the manual states directly): raising pitch = compress + duplicate a segment; lowering = expand + remove a segment; splice points are the artifact source; large shifts, low-frequency content, and dense transients all increase splice audibility.
 
-## Gap vs. this repo's current Hall implementation
+## Gap vs. this repo's current implementation
 
-See `docs/lexicon-pcm81-hall.md` for how `dsp/algorithms/LexiconHall.h`
-compares to this reference and what a Stage 2 pass would change.
+All five reverb cores are now built (`docs/lexicon-pcm81-hall.md`,
+`-plate.md`, `-chamber.md`, `-infinite.md`, `-inverse.md` for each one's
+specifics and known simplifications). One architectural note worth
+tracking: the manual's own tables show `Definition`, `Depth`, and
+`Chorus` as Concert Hall-*exclusive* (Plate/Chamber/Infinite/Inverse's
+Rvb Design rows don't list them), but this repo's code keeps all three
+as generic mechanisms on the shared `ReverbCore` base for implementation
+simplicity - harmlessly inherited-but-unexposed by the other four cores'
+Graphs/Patches/plugins, not a functional bug, just not matching the real
+hardware's per-algorithm control surface exactly. Revisit if that
+distinction ever matters (e.g. exposing them to Plate/Chamber would be a
+one-line change to those Graphs, should someone want to experiment).

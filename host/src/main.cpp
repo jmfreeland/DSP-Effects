@@ -407,8 +407,8 @@ RunResult renderInverse(const std::string& outDir)
     dsp::algorithms::Inverse engine;
     engine.prepare(static_cast<float>(kSampleRate), working);
     engine.setDuration(1.5f);
-    engine.setLowSlope(0.4f);
-    engine.setMidSlope(0.4f);
+    engine.setLowSlope(-0.4f);
+    engine.setMidSlope(-0.4f);
     engine.setDiffusion(0.6f);
     engine.setMix(1.0f);
 
@@ -442,8 +442,8 @@ RunResult renderInverse(const std::string& outDir)
     // Same again with a rising (gated-reverse) envelope, for comparison.
     {
         engine.reset();
-        engine.setLowSlope(-0.6f);
-        engine.setMidSlope(-0.6f);
+        engine.setLowSlope(0.6f);
+        engine.setMidSlope(0.6f);
 
         const int seconds = 4;
         std::vector<float> left(kSampleRate * seconds, 0.0f);

@@ -137,7 +137,7 @@ class InverseAlgorithm
     // -- Inverse-specific reverb Block pass-throughs --
     // Time from onset to the hard cutoff, in seconds.
     void setDuration(float seconds) { reverb_.setDuration(seconds); }
-    // -1 (rise) .. 0 (gate) .. +1 (decay), independent per band.
+    // -1 (natural decay tail) .. 0 (gate) .. +1 (inverse/rise), independent per band.
     void setLowSlope(float slope) { reverb_.setLowSlope(slope); }
     void setMidSlope(float slope) { reverb_.setMidSlope(slope); }
 

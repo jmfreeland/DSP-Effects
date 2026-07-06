@@ -11,7 +11,8 @@
 // Knob mapping:
 //   Left  - Duration (time from onset to the hard cutoff), ~0.05s to 8s.
 //   Mid   - Slope, applied to both Low and Mid Slope together since the
-//           hardware only has 3 knobs (-1 rise .. 0 gate .. +1 decay).
+//           hardware only has 3 knobs (-1 natural decay tail .. 0 gate
+//           .. +1 inverse/rise - the manual's own sign convention).
 //   Right - Dry/wet mix.
 //
 // Footswitch:
@@ -55,7 +56,7 @@ class PatchImpl : public Patch
             case endless::ParamId::kParamLeft:
                 return ParameterMetadata{ 0.05f, 8.0f, 1.0f };
             case endless::ParamId::kParamMid:
-                return ParameterMetadata{ -1.0f, 1.0f, 0.3f };
+                return ParameterMetadata{ -1.0f, 1.0f, -0.3f };
             case endless::ParamId::kParamRight:
                 return ParameterMetadata{ 0.0f, 1.0f, 0.4f };
         }

@@ -32,6 +32,20 @@ reconstructions of a described behavior** rather than a verified match to
 Lexicon's exact implementation — called out explicitly below (Definition,
 Depth, and the Width controls).
 
+A scanned excerpt of the manual now lives at
+`docs/references/lexicon-pcm81-user-guide-rev1.pdf` (see
+`docs/lexicon-pcm81-reference.md`). Its Concert Hall block diagram
+confirms this topology closely - Diffusion/PreDelay/the tank's Low
+Rt/Mid Rt/Crossover/Rt HC/Size/Spin/Chorus/Link grid/Depth/RvbOut, plus
+the independent RefDly/RefLvl taps - and confirms Definition/Depth/
+Chorus really are Concert Hall's own three unique controls, not shared
+across the other reverb cores (see `docs/lexicon-pcm81-reference.md`'s
+"Gap" section for how this repo's code differs from that in practice).
+What the manual doesn't give is the internal *formula* for any of
+these, so "original reconstruction" still applies to exactly how
+Definition/Depth/Width behave, just not to whether they exist or where
+they sit in the signal chain.
+
 ## Block topology (the reverb core)
 
 ```

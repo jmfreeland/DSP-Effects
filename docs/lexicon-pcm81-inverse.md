@@ -60,18 +60,26 @@ Given normalized position `t = elapsedSamples / durationSamples` in
 `[0, 1]`, retriggered by the same rising-edge transient detector Plate's
 Attack/Chamber's Shape use:
 
-- `slope > 0` (**decay**): `envelope = (1-t)^(1+3*slope)` - front-loaded,
-  steeper for larger slope.
+- `slope < 0` (**natural decay tail**): `envelope = (1-t)^(1+3*|slope|)`
+  - front-loaded, steeper the more negative.
 - `slope == 0` (**gate**): `envelope = 1` - flat until the cutoff.
-- `slope < 0` (**rise**): `envelope = t^(1+3*|slope|)` - builds toward
-  the cutoff.
+- `slope > 0` (**inverse/rise**): `envelope = t^(1+3*slope)` - builds
+  toward the cutoff.
 
 and `envelope` snaps to 0 the instant `elapsedSamples >= durationSamples`
 (the hard cutoff every shape needs, and decay's natural endpoint anyway).
-This is an **original reconstruction** - the manual gives no curve
-shape, only "decay, gate, or rise" - not a verified match to Lexicon's
-own Inverse. No pre-echo (EkoDly/EkoFbk): the manual scopes that to
-Plate/Chamber/Infinite only.
+
+The sign convention above is **verified against the primary source**
+(`docs/references/lexicon-pcm81-user-guide-rev1.pdf`, p.3-6: "Positive
+slopes create inverse effects, while more even slopes create gated
+effects. Negative slope values have rather natural reverb tails.") - an
+earlier version of this code had the sign backwards (built before the
+manual was available, from the summary text alone, which doesn't state
+the sign explicitly). The curve *shape* itself (the exponent formula) is
+still an **original reconstruction** - the manual doesn't specify one,
+only the three qualitative behaviors. No pre-echo (EkoDly/EkoFbk): the
+manual's block diagram confirms this is scoped to Plate/Chamber/Infinite
+only (Inverse's diagram has no EkoDly/EkoFbk boxes).
 
 ## Known simplifications
 
@@ -83,6 +91,17 @@ Plate/Chamber/Infinite only.
 - The fixed internal sustain decay (2.5s) is a flat constant, not
   exposed or tuned per Size/other parameters the way the other four
   cores' Decay is.
+- **Gap found in the manual, not yet implemented**: Inverse's real Rvb
+  Design row has a `Shape` parameter (matrix position 2.2, alongside
+  Duration and Diffusion) distinct from Low Slope/Mid Slope (which live
+  in the Rvb Time row) - visible in the block diagram as its own box
+  next to Rt HC/Duration. The parameter glossary text explaining what it
+  does isn't in the manual excerpt available so far (page numbers jump
+  from the block diagrams straight to Chorus/Controls/Delay Time in the
+  alphabetical parameter glossary - Rvb Design's entry, which would
+  cover Shape, is on a later page not yet in this repo). Until that page
+  is available, Shape is not implemented here - flagging rather than
+  guessing.
 
 ## Status
 

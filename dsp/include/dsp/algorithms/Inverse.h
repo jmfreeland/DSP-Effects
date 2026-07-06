@@ -37,19 +37,24 @@ namespace dsp::algorithms
  * already-computed wet stereo signal into low/high bands with its own
  * Crossover pair, shapes each band by its own envelope, and recombines.
  *
- * Given normalized position t = elapsedSamples/durationSamples in [0, 1]:
+ * Sign convention is the manual's own, confirmed by the primary source
+ * (docs/references/lexicon-pcm81-user-guide-rev1.pdf, p.3-6): "Positive
+ * slopes create inverse effects, while more even slopes create gated
+ * effects. Negative slope values have rather natural reverb tails." So,
+ * given normalized position t = elapsedSamples/durationSamples in [0, 1]:
  *
- *   slope > 0 (decay):  envelope = (1-t)^(1+3*slope)   - front-loaded, steeper for larger slope
- *   slope == 0 (gate):  envelope = 1                   - flat until the cutoff
- *   slope < 0 (rise):   envelope = t^(1+3*|slope|)     - builds toward the cutoff
+ *   slope < 0 (natural decay tail):  envelope = (1-t)^(1+3*|slope|)   - front-loaded, steeper for larger |slope|
+ *   slope == 0 (gate):               envelope = 1                    - flat until the cutoff
+ *   slope > 0 (inverse/rise):        envelope = t^(1+3*slope)         - builds toward the cutoff
  *
  * and envelope snaps to 0 once elapsedSamples >= durationSamples (the
  * hard cutoff both gate and rise need, and decay's natural endpoint
  * anyway), retriggered by the same rising-edge transient detector Plate/
- * Chamber use. This is an original reconstruction - the manual doesn't
- * specify a curve shape - not a verified match to Lexicon's own Inverse.
- * No pre-echo (EkoDly/EkoFbk): the manual scopes that to
- * Plate/Chamber/Infinite only.
+ * Chamber use. The curve shape itself (the exponent formula) is an
+ * original reconstruction - the manual doesn't specify one - but the
+ * sign convention and the decay/gate/rise behavior it produces are
+ * verified against the primary source, not guessed. No pre-echo
+ * (EkoDly/EkoFbk): the manual scopes that to Plate/Chamber/Infinite only.
  */
 class Inverse : public ReverbCore
 {
@@ -68,8 +73,8 @@ class Inverse : public ReverbCore
         outputCrossoverRight_.setFrequency(400.0f, sampleRate);
         transientFollower_.setCoefficient(onePoleLowpassCoefficient(15.0f, sampleRate));
         setDuration(1.0f);
-        setLowSlope(0.3f);
-        setMidSlope(0.3f);
+        setLowSlope(-0.3f);
+        setMidSlope(-0.3f);
         reset();
     }
 
@@ -77,8 +82,9 @@ class Inverse : public ReverbCore
     // the same practical range as the other cores' Decay).
     void setDuration(float seconds) { durationSamples_ = std::max(seconds, 0.05f) * sampleRate(); }
 
-    // -1 (rise: builds toward the cutoff) .. 0 (gate: flat, then cuts)
-    // .. +1 (decay: front-loaded, steeper the higher the value).
+    // -1 (natural decay tail: front-loaded, steeper the more negative)
+    // .. 0 (gate: flat, then cuts) .. +1 (inverse/rise: builds toward
+    // the cutoff) - matches the manual's own sign convention.
     void setLowSlope(float slope) { lowSlope_ = std::clamp(slope, -1.0f, 1.0f); }
     void setMidSlope(float slope) { midSlope_ = std::clamp(slope, -1.0f, 1.0f); }
 
@@ -130,13 +136,13 @@ class Inverse : public ReverbCore
             return 0.0f;
         }
         auto t = clamp01(elapsedSamples_ / durationSamples_);
-        if (slope > 0.0f)
-        {
-            return std::pow(1.0f - t, 1.0f + 3.0f * slope);
-        }
         if (slope < 0.0f)
         {
-            return std::pow(t, 1.0f + 3.0f * -slope);
+            return std::pow(1.0f - t, 1.0f + 3.0f * -slope);
+        }
+        if (slope > 0.0f)
+        {
+            return std::pow(t, 1.0f + 3.0f * slope);
         }
         return 1.0f;
     }

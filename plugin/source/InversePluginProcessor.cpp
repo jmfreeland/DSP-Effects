@@ -118,8 +118,8 @@ LexiconInverseAudioProcessor::createParameterLayout()
 
     // -- Inverse-specific: Duration + independent Low Slope/Mid Slope --
     params.push_back(floatParam(kDurationId, "Duration", 0.05f, 8.0f, 1.0f, "s", 0.5f));
-    params.push_back(floatParam(kLowSlopeId, "Low Slope", -1.0f, 1.0f, 0.3f));
-    params.push_back(floatParam(kMidSlopeId, "Mid Slope", -1.0f, 1.0f, 0.3f));
+    params.push_back(floatParam(kLowSlopeId, "Low Slope", -1.0f, 1.0f, -0.3f));
+    params.push_back(floatParam(kMidSlopeId, "Mid Slope", -1.0f, 1.0f, -0.3f));
 
     // -- Voice Diffusion + four delay Voices, matching the PCM81's 4-Voice Reverb Shell --
     params.push_back(floatParam(kVoiceDiffusionId, "Voice Diffusion", 0.0f, 1.0f, 0.0f));

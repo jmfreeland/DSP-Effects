@@ -13,6 +13,8 @@ Roadmap, not necessarily sequential — work can interleave across stages and de
 
 Algorithms here are documented as **inspired by** the topology/character of the original hardware, never claimed as reverse-engineered or bit-exact clones — the proprietary algorithms aren't public.
 
+`docs/references/` holds primary-source manuals/scans (e.g. the PCM81 User Guide excerpt) so specific claims in `docs/*.md` can be checked directly against them rather than taken on trust.
+
 ## Branding & versioning
 
 The repo stays `DSP-Effects`, but the effect line itself is branded **Loom**
