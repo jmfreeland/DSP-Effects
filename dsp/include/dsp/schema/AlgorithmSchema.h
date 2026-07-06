@@ -29,6 +29,8 @@ enum class StageKind
     kOutput,      // where the diagram's result is produced
 };
 
+struct AlgorithmSchema;
+
 struct Stage
 {
     const char* id;
@@ -37,6 +39,13 @@ struct Stage
     // Free-form detail shown alongside the stage (e.g. which control(s)
     // drive it) - may be nullptr.
     const char* detail = nullptr;
+    // Optional: a more detailed sub-topology "inside" this stage (e.g.
+    // the Tank stage's own 8-line internals), navigable by clicking the
+    // stage in the UI. Shared across algorithms where the internal
+    // mechanism is identical (only parameter values differ) - see
+    // ReverbCoreSchemas.h's tankDetailSchema()/diffusionDetailSchema().
+    // nullptr means the stage has no drill-down.
+    const AlgorithmSchema* drillDown = nullptr;
 };
 
 struct Connection

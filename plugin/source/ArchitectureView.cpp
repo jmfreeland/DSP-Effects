@@ -26,7 +26,11 @@ bool sameId(const char* a, const char* b)
 }
 }
 
-ArchitectureView::ArchitectureView(const dsp::schema::AlgorithmSchema& schema) : schema_(schema) {}
+ArchitectureView::ArchitectureView(const dsp::schema::AlgorithmSchema& rootSchema)
+  : currentSchema_(&rootSchema)
+{
+    setInterceptsMouseClicks(true, true);
+}
 
 const ArchitectureView::BoxLayout* ArchitectureView::findBox(const char* id) const
 {
@@ -40,13 +44,30 @@ const ArchitectureView::BoxLayout* ArchitectureView::findBox(const char* id) con
     return nullptr;
 }
 
+const ArchitectureView::BoxLayout* ArchitectureView::boxAt(juce::Point<float> position) const
+{
+    for (auto& box : boxes_)
+    {
+        if (box.bounds.contains(position))
+        {
+            return &box;
+        }
+    }
+    return nullptr;
+}
+
+juce::Rectangle<float> ArchitectureView::backButtonBounds() const
+{
+    return { kMargin, 4.0f, 70.0f, 20.0f };
+}
+
 void ArchitectureView::layoutBoxes(int width)
 {
     boxes_.clear();
     auto boxX = kMargin + kSideLaneWidth;
     auto boxWidth = static_cast<float>(width) - 2.0f * boxX;
     float y = kHeaderHeight;
-    for (auto& stage : schema_.stages)
+    for (auto& stage : currentSchema_->stages)
     {
         boxes_.push_back({ &stage, { boxX, y, boxWidth, kBoxHeight } });
         y += kBoxHeight + kBoxGap;
@@ -56,13 +77,53 @@ void ArchitectureView::layoutBoxes(int width)
 int ArchitectureView::preferredHeightForWidth(int width) const
 {
     juce::ignoreUnused(width);
-    return static_cast<int>(kHeaderHeight +
-                             static_cast<float>(schema_.stages.size()) * (kBoxHeight + kBoxGap) + kMargin);
+    return static_cast<int>(
+      kHeaderHeight + static_cast<float>(currentSchema_->stages.size()) * (kBoxHeight + kBoxGap) + kMargin);
 }
 
 void ArchitectureView::resized()
 {
     layoutBoxes(getWidth());
+}
+
+void ArchitectureView::mouseMove(const juce::MouseEvent& event)
+{
+    auto position = event.position;
+    auto clickable = boxAt(position) != nullptr && boxAt(position)->stage->drillDown != nullptr;
+    if (!clickable && !history_.empty())
+    {
+        clickable = backButtonBounds().contains(position);
+    }
+    setMouseCursor(clickable ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
+}
+
+void ArchitectureView::mouseUp(const juce::MouseEvent& event)
+{
+    if (!history_.empty() && backButtonBounds().contains(event.position))
+    {
+        currentSchema_ = history_.back();
+        history_.pop_back();
+        resized();
+        repaint();
+        if (onContentSizeChanged != nullptr)
+        {
+            onContentSizeChanged();
+        }
+        return;
+    }
+
+    auto* box = boxAt(event.position);
+    if (box != nullptr && box->stage->drillDown != nullptr)
+    {
+        history_.push_back(currentSchema_);
+        currentSchema_ = box->stage->drillDown;
+        resized();
+        repaint();
+        if (onContentSizeChanged != nullptr)
+        {
+            onContentSizeChanged();
+        }
+    }
 }
 
 void ArchitectureView::paint(juce::Graphics& g)
@@ -71,30 +132,48 @@ void ArchitectureView::paint(juce::Graphics& g)
 
     juce::Rectangle<float> header(kMargin, 4.0f, static_cast<float>(getWidth()) - 2.0f * kMargin,
                                    kHeaderHeight - 8.0f);
+    if (!history_.empty())
+    {
+        g.setColour(juce::Colours::lightblue);
+        g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
+        g.drawText("< Back", backButtonBounds(), juce::Justification::centredLeft);
+        header.removeFromTop(22.0f);
+    }
     g.setColour(juce::Colours::white);
     g.setFont(juce::Font(juce::FontOptions(18.0f, juce::Font::bold)));
-    g.drawText(schema_.name, header.removeFromTop(24.0f), juce::Justification::centredLeft);
+    g.drawText(currentSchema_->name, header.removeFromTop(24.0f), juce::Justification::centredLeft);
     g.setFont(juce::Font(juce::FontOptions(13.0f)));
     g.setColour(juce::Colours::lightgrey);
-    g.drawFittedText(schema_.characterNote, header.toNearestInt(), juce::Justification::topLeft, 2);
+    g.drawFittedText(currentSchema_->characterNote, header.toNearestInt(), juce::Justification::topLeft, 2);
 
     // Connections first so boxes + labels draw on top of the arrows.
-    for (auto& connection : schema_.connections)
+    for (auto& connection : currentSchema_->connections)
     {
         drawConnection(g, connection);
     }
 
     for (auto& box : boxes_)
     {
+        auto clickable = box.stage->drillDown != nullptr;
         g.setColour(colourForKind(box.stage->kind));
         g.fillRoundedRectangle(box.bounds, 8.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.35f));
-        g.drawRoundedRectangle(box.bounds, 8.0f, 1.5f);
+        g.setColour(clickable ? juce::Colours::lightblue.withAlpha(0.8f)
+                               : juce::Colours::white.withAlpha(0.35f));
+        g.drawRoundedRectangle(box.bounds, 8.0f, clickable ? 2.0f : 1.5f);
 
         auto textArea = box.bounds.reduced(10.0f, 6.0f);
         g.setColour(juce::Colours::white);
         g.setFont(juce::Font(juce::FontOptions(15.0f, juce::Font::bold)));
-        g.drawText(box.stage->label, textArea.removeFromTop(20.0f), juce::Justification::centredLeft);
+        auto labelArea = textArea.removeFromTop(20.0f);
+        if (clickable)
+        {
+            g.drawText(juce::String(box.stage->label) + "  \xe2\x8c\x95", labelArea,
+                        juce::Justification::centredLeft);
+        }
+        else
+        {
+            g.drawText(box.stage->label, labelArea, juce::Justification::centredLeft);
+        }
         if (box.stage->detail != nullptr)
         {
             g.setFont(juce::Font(juce::FontOptions(12.0f)));

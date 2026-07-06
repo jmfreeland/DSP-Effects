@@ -18,6 +18,15 @@ file: it's consumed entirely by C++, so this keeps it a single compiled,
 type-checked source of truth with no parser dependency - a deliberate
 narrowing of the original idea below, not a rejection of it.
 
+A `Stage` can also carry an optional `drillDown` pointer to a *nested*
+`AlgorithmSchema` - clicking that stage in the UI navigates into a more
+detailed sub-diagram (with a "< Back" breadcrumb), rather than every
+stage being a dead-end label. `ReverbCoreSchemas.h`'s Tank and Diffusion
+stages both drill into shared detail schemas (`tankDetailSchema()`/
+`diffusionDetailSchema()`) since those internals are identical across
+all 5 cores - only parameter values differ, so one detail schema each
+is reused by every top-level schema rather than duplicated 5 times.
+
 Not yet done: the *parameter* half (name/range/default/unit/setter, to
 drive a generic cross-algorithm UI) - only topology exists so far. And
 the schema is still hand/AI-authored prose-derived, not generated from

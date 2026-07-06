@@ -21,6 +21,7 @@ class LoomPluginEditor : public juce::AudioProcessorEditor
 
   private:
     void toggleView();
+    void updateArchitectureViewSize();
 
     juce::GenericAudioProcessorEditor parametersEditor_;
     juce::Viewport parametersViewport_;

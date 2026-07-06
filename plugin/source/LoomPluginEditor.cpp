@@ -20,6 +20,7 @@ LoomPluginEditor::LoomPluginEditor(juce::AudioProcessor& audioProcessor,
 
     addChildComponent(architectureViewport_);
     architectureViewport_.setViewedComponent(&architectureView_, false);
+    architectureView_.onContentSizeChanged = [this] { updateArchitectureViewSize(); };
 
     setResizable(true, true);
     setSize(kEditorWidth, kEditorHeight);
@@ -35,6 +36,11 @@ void LoomPluginEditor::resized()
                                parametersEditor_.getHeight());
 
     architectureViewport_.setBounds(bounds);
+    updateArchitectureViewSize();
+}
+
+void LoomPluginEditor::updateArchitectureViewSize()
+{
     auto architectureWidth = architectureViewport_.getWidth() - architectureViewport_.getScrollBarThickness();
     architectureView_.setSize(architectureWidth, architectureView_.preferredHeightForWidth(architectureWidth));
 }
