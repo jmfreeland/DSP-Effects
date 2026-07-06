@@ -1,6 +1,6 @@
 # Lexicon PCM81-style Plate Algorithm
 
-Block-tier only so far — no Graph/Patch/JUCE plugin yet (see "Status"
+Wired up end-to-end (Block + Graph + Patch + JUCE plugin, see "Status"
 below). Per `CLAUDE.md`'s Primitive → Component → Block → Graph layering:
 
 - **Block**: `dsp/include/dsp/algorithms/Plate.h` — a subclass of the
@@ -8,6 +8,12 @@ below). Per `CLAUDE.md`'s Primitive → Component → Block → Graph layering:
   `docs/lexicon-pcm81-hall.md` for that shared topology), adding the two
   things `docs/lexicon-pcm81-reference.md` calls out as Plate-specific:
   **Attack** and a recirculating **EkoDly/EkoFbk** pre-echo.
+- **Graph**: `dsp/include/dsp/graphs/PlateAlgorithm.h` — the Block above
+  wrapped in the same 4-Voice "Reverb Shell" front end as
+  `ConcertHallAlgorithm.h` (see that file's topology diagram), plus
+  pass-throughs for Attack/EkoDly/EkoFbk. Currently a near-duplicate of
+  `ConcertHallAlgorithm.h` rather than sharing a templated front end -
+  see that file's doc comment for why.
 
 ## What Plate adds on top of ReverbCore
 
@@ -35,12 +41,19 @@ below). Per `CLAUDE.md`'s Primitive → Component → Block → Graph layering:
 
 ## Status
 
-Verified at the Block level only, via `dsp_host_render plate` (impulse
-response, decay curve, finite-sample check) and a standalone smoke test
-confirming the Attack mechanism's effective-diffusion trajectory matches
-the design (dips to the floor at onset, releases linearly back to the
-set amount by exactly 50ms, holds afterward; `Attack=1` shows no dip at
-all). Not yet wired into a Graph (the 4-Voice "Reverb Shell" front end
-that `ConcertHallAlgorithm.h` provides), a Polyend `Patch` adapter, or the
-JUCE plugin — that reuse is the point of `ReverbCore.h` existing, but
-doing it is follow-up work, along with Chamber, Inverse, and Infinite.
+Block level: verified via `dsp_host_render plate` (impulse response,
+decay curve, finite-sample check) and a standalone smoke test confirming
+the Attack mechanism's effective-diffusion trajectory matches the design
+(dips to the floor at onset, releases linearly back to the set amount by
+exactly 50ms, holds afterward; `Attack=1` shows no dip at all).
+
+End-to-end: `patches/lexicon/plate/` (3-knob mapping: Left=Decay,
+Mid=Attack, Right=Mix; footswitch Press=bypass, Hold=freeze) and the
+`LexiconPlatePlugin` JUCE target (`plugin/source/PlatePluginProcessor.*`,
+full parameter set via `AudioProcessorValueTreeState`) both build clean
+alongside the existing Concert Hall patch/plugin. The ARM cross-toolchain
+isn't available in this sandbox, so `patches/lexicon/plate/` is verified
+via `make -n` (build graph) plus compiling `PatchImpl.cpp` on the host
+with the same `-fno-exceptions -fno-rtti` flags the real cross-compile
+uses, not an actual `.endl` build - that still needs real hardware or a
+toolchain to confirm. Chamber, Inverse, and Infinite are still open.
