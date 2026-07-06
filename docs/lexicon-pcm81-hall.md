@@ -203,10 +203,12 @@ Normal/active LED color is dim cobalt.
   tuned for 48kHz and reused as-is by the JUCE plugin at other sample
   rates — actual delay *time* will drift slightly off-48kHz-tuning at
   other rates.
-- Three of the five reverb cores (Concert Hall, Plate, Chamber) are wired
-  up end-to-end (Graph + Patch + JUCE plugin) - see
-  `docs/lexicon-pcm81-plate.md` and `docs/lexicon-pcm81-chamber.md`. The
-  shared plumbing below now lives in
-  `dsp/include/dsp/algorithms/ReverbCore.h`, with `ConcertHall.h` a thin
-  subclass adding nothing. Inverse and Infinite are still open; see
-  `docs/lexicon-pcm81-reference.md` for what each needs.
+- Four of the five reverb cores (Concert Hall, Plate, Chamber, Infinite)
+  are wired up end-to-end (Graph + Patch + JUCE plugin) - see
+  `docs/lexicon-pcm81-plate.md`, `docs/lexicon-pcm81-chamber.md`, and
+  `docs/lexicon-pcm81-infinite.md`. The shared plumbing below now lives
+  in `dsp/include/dsp/algorithms/ReverbCore.h`, with `ConcertHall.h` a
+  thin subclass adding nothing. Inverse is the only one still open - its
+  envelope-driven decay (Duration, Low Slope/Mid Slope replacing Low
+  Rt/Mid Rt) is structurally different from the other four; see
+  `docs/lexicon-pcm81-reference.md`.

@@ -1,4 +1,5 @@
 #include "dsp/algorithms/Chamber.h"
+#include "dsp/algorithms/Infinite.h"
 #include "dsp/algorithms/Plate.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "host/WavWriter.h"
@@ -349,6 +350,53 @@ RunResult renderChamber(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderInfinite(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::algorithms::Infinite::requiredWorkingBufferSize());
+    dsp::algorithms::Infinite engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(1.0f);
+
+    // Impulse, then freeze partway through and confirm the tail holds
+    // near-losslessly rather than continuing to decay to silence.
+    {
+        const int seconds = 6;
+        std::vector<float> left(kSampleRate * seconds, 0.0f);
+        std::vector<float> right(kSampleRate * seconds, 0.0f);
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        const int freezeAtSample = kSampleRate; // freeze 1s in
+        for (int n = 0; n < static_cast<int>(left.size()); ++n)
+        {
+            if (n == freezeAtSample)
+            {
+                engine.setFrozen(true);
+            }
+            engine.processSample(left[n], right[n]);
+        }
+        checkFinite(left, right, result);
+
+        std::printf("infinite impulse response (frozen at t=1s):\n");
+        printDecayCurve(left, right, seconds);
+
+        auto path = outDir + "/infinite_impulse.wav";
+        if (!host::writeStereoWav(path, left, right, kSampleRate))
+        {
+            std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+            result.ok = false;
+        }
+        else
+        {
+            std::printf("wrote %s\n", path.c_str());
+        }
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -383,6 +431,10 @@ int main(int argc, char** argv)
     else if (algorithm == "chamber")
     {
         result = renderChamber(outDir);
+    }
+    else if (algorithm == "infinite")
+    {
+        result = renderInfinite(outDir);
     }
     else
     {

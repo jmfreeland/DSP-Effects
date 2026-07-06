@@ -350,7 +350,13 @@ class ReverbCore
         std::array<float, kNumLines> decayed{};
         for (int i = 0; i < kNumLines; ++i)
         {
-            auto damped = damping_[i].process(tapped[i]);
+            // While frozen, bypass the damping filter too - otherwise
+            // Rt HC keeps eroding the tail every sample even though the
+            // decay gains below are pushed to near-unity, so "freeze"
+            // would still audibly decay over a few seconds instead of
+            // ringing indefinitely (the behavior Infinite is built to
+            // validate - see dsp/algorithms/Infinite.h).
+            auto damped = frozen_ ? tapped[i] : damping_[i].process(tapped[i]);
             auto bands = crossover_[i].process(damped);
             auto lowGain = frozen_ ? 0.9999f : lowGain_[i];
             auto midGain = frozen_ ? 0.9999f : midGain_[i];
