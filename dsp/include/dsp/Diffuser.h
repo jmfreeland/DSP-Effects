@@ -24,6 +24,14 @@ class DiffuserChain
         stages_[index].setBuffer(buffer);
     }
 
+    // Opt-in per-stage delay override - see Allpass::setDelaySamples().
+    // Chains that never call this keep each stage's fixed (buffer-
+    // capacity-determined) delay length unchanged.
+    void setStageDelaySamples(std::size_t index, float samples)
+    {
+        stages_[index].setDelaySamples(samples);
+    }
+
     // amount in [0, 1]; maps to the allpass coefficient range typical for
     // diffusion (0 = no diffusion, 1 = maximum density/smear).
     void setDiffusion(float amount)

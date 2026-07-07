@@ -11,6 +11,7 @@
 #include "dsp/graphs/StereoShiftAlgorithm.h"
 #include "dsp/graphs/SweptCombsAlgorithm.h"
 #include "dsp/graphs/SweptReverbAlgorithm.h"
+#include "dsp/graphs/UltraTapAlgorithm.h"
 #include "host/WavWriter.h"
 
 #include <cmath>
@@ -857,6 +858,44 @@ RunResult renderReverbFactory(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderUltraTap(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::UltraTapAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::UltraTapAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(1.0f);
+
+    // An impulse through the diffusor (4 cascaded Allpasses) then the
+    // 12-tap cumulative delay line should spread into a dense field of
+    // delays over time rather than staying a single click - see
+    // dsp/algorithms/UltraTap.h.
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    left[0] = right[0] = 0.8f;
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("ultra-tap impulse response:\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/ultra_tap_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -931,6 +970,10 @@ int main(int argc, char** argv)
     else if (algorithm == "reverb_factory")
     {
         result = renderReverbFactory(outDir);
+    }
+    else if (algorithm == "ultra_tap")
+    {
+        result = renderUltraTap(outDir);
     }
     else
     {

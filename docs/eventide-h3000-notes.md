@@ -116,7 +116,7 @@ for planning the rest of this archive's H3000 work:
 105 Swept Combs        (built)     114 Dense Room         123 mod factory|two
 106 Swept Reverb       (built)     115 Vocoder
 107 Reverb Factory     (built)     116 Multi-Shift
-108 Ultra-Tap
+108 Ultra-Tap          (built)
 ```
 
 (121 is absent from the manual's own TOC - a gap to confirm, not a
@@ -167,9 +167,17 @@ between two independent decay/EQ settings - reuses `rt60ToGain()` and
 family, continuing the cross-device-reuse pattern Swept Reverb started
 with `householderMix()`.
 
+Algorithm 108, Ultra-Tap, is built too - see docs/eventide-ultra-tap.md.
+Reuses `DiffuserChain<4>` from the PCM81 side for its own 4-stage
+diffusor, and along the way caught a real bug: `Allpass`'s delay length
+was never actually runtime-settable despite this Block's own
+`setAllpassDelayMs()` expecting it to be - fixed with an opt-in
+`setDelaySamples()` extension verified not to disturb any of the 5
+already-shipped PCM81 reverb cores.
+
 ## Open item
 
-Algorithms 108-123 (everything past Reverb Factory) are read for reference
+Algorithms 109-123 (everything past Ultra-Tap) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further
 if new manual pages turn up; otherwise the table above is the working
 roadmap.

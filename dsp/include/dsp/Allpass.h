@@ -21,9 +21,21 @@ class Allpass
     // Feedback/feedforward coefficient, |g| < 1. Typical diffusion values: 0.5-0.7.
     void setCoefficient(float g) { g_ = g; }
 
+    // Opt-in: makes the delay length runtime-settable (fractionally
+    // interpolated) instead of the default fixed length (the buffer's
+    // own capacity minus one) - used by algorithms whose own "Delay"
+    // parameter tunes each diffusor stage independently of buffer size
+    // (e.g. the H3000's Ultra-Tap). Callers that never call this keep
+    // the original fixed-length behavior unchanged.
+    void setDelaySamples(float samples)
+    {
+        delaySamples_ = samples;
+        useVariableDelay_ = true;
+    }
+
     float process(float input)
     {
-        auto delayed = delay_.read(delay_.size() - 1);
+        auto delayed = useVariableDelay_ ? delay_.readLinear(delaySamples_) : delay_.read(delay_.size() - 1);
         auto w = input + g_ * delayed;
         delay_.write(w);
         return delayed - g_ * w;
@@ -34,6 +46,8 @@ class Allpass
   private:
     DelayLine delay_;
     float g_ = 0.5f;
+    float delaySamples_ = 0.0f;
+    bool useVariableDelay_ = false;
 };
 
 /**
