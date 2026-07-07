@@ -108,7 +108,7 @@ definitive list and page numbers for every H3000 algorithm, now in hand
 for planning the rest of this archive's H3000 work:
 
 ```
-100 Diatonic Shift    (built)      109 Long Digiplex    117 Band Delay
+100 Diatonic Shift    (built)      109 Long Digiplex     (built)      117 Band Delay
 101 Layered Shift      (built)     110 Dual Digiplex     118 String Modeller
 102 Dual Shift          (built)    111 Patch Factory     119 Phaser
 103 Stereo Shift        (built)    112 Stutter           120 Studio Sampler
@@ -175,9 +175,14 @@ was never actually runtime-settable despite this Block's own
 `setDelaySamples()` extension verified not to disturb any of the 5
 already-shipped PCM81 reverb cores.
 
+Algorithm 109, Long Digiplex, is built too - see
+docs/eventide-long-digiplex.md, a deliberate change of pace after four
+increasingly complex algorithms: just `DelayLine` + `GlideParameter`
+(both already built for the PCM81 side), no new primitives.
+
 ## Open item
 
-Algorithms 109-123 (everything past Ultra-Tap) are read for reference
+Algorithms 110-123 (everything past Long Digiplex) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further
 if new manual pages turn up; otherwise the table above is the working
 roadmap.

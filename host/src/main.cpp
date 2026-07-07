@@ -6,6 +6,7 @@
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
+#include "dsp/graphs/LongDigiplexAlgorithm.h"
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
@@ -896,6 +897,48 @@ RunResult renderUltraTap(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderLongDigiplex(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::LongDigiplexAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::LongDigiplexAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDelaySeconds(0.4f);
+    engine.setFeedback(0.5f);
+    engine.setMix(1.0f);
+
+    // A short burst into the Left input only should come back as a
+    // cascade of repeats spaced 0.4s apart, decaying at Feedback=0.5, on
+    // both output channels equally - see dsp/algorithms/LongDigiplex.h.
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate / 10; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.5f;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("long digiplex tone burst (0.4s delay, 0.5 feedback):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/long_digiplex_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -974,6 +1017,10 @@ int main(int argc, char** argv)
     else if (algorithm == "ultra_tap")
     {
         result = renderUltraTap(outDir);
+    }
+    else if (algorithm == "long_digiplex")
+    {
+        result = renderLongDigiplex(outDir);
     }
     else
     {
