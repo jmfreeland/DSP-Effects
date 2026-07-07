@@ -6,6 +6,7 @@
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
+#include "dsp/graphs/ReverbFactoryAlgorithm.h"
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
 #include "dsp/graphs/SweptCombsAlgorithm.h"
@@ -811,6 +812,51 @@ RunResult renderSweptReverb(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderReverbFactory(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::ReverbFactoryAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::ReverbFactoryAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(0.7f);
+    engine.setOnDecaySeconds(2.5f);
+    engine.setOffDecaySeconds(0.6f);
+    engine.setGateThreshold(0.1f);
+    engine.setGateTimeSeconds(0.3f);
+
+    // A loud 100ms burst should trigger the Gate open (On decay/EQ, the
+    // longer 2.5s tail), then the Gate closes after Gate Time elapses and
+    // the tail continues at the shorter Off decay (0.6s) - see
+    // dsp/algorithms/ReverbFactory.h.
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate / 10; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = right[static_cast<std::size_t>(n)] = 0.5f;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("reverb factory gated burst (0.5 amplitude for 0.1s, On=2.5s/Off=0.6s decay):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/reverb_factory_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -881,6 +927,10 @@ int main(int argc, char** argv)
     else if (algorithm == "swept_reverb")
     {
         result = renderSweptReverb(outDir);
+    }
+    else if (algorithm == "reverb_factory")
+    {
+        result = renderReverbFactory(outDir);
     }
     else
     {

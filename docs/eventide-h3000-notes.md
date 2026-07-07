@@ -115,7 +115,7 @@ for planning the rest of this archive's H3000 work:
 104 Reverse Shift      (built)     113 Timesqueeze        122 mod factory|one
 105 Swept Combs        (built)     114 Dense Room         123 mod factory|two
 106 Swept Reverb       (built)     115 Vocoder
-107 Reverb Factory                 116 Multi-Shift
+107 Reverb Factory     (built)     116 Multi-Shift
 108 Ultra-Tap
 ```
 
@@ -159,9 +159,17 @@ PCM81 and Eventide device families in this archive - for the "Reverb
 Network" the manual describes but doesn't specify the internals of,
 since the real PEL firmware isn't public.
 
+Algorithm 107, Reverb Factory, is built too - see
+docs/eventide-reverb-factory.md, the last of the "six delay lines" family
+(105-107). Its distinguishing feature - a dynamics Gate crossfading
+between two independent decay/EQ settings - reuses `rt60ToGain()` and
+`Crossover` from the PCM81 side for the first time in the Eventide
+family, continuing the cross-device-reuse pattern Swept Reverb started
+with `householderMix()`.
+
 ## Open item
 
-Algorithms 107-123 (everything past Swept Reverb) are read for reference
+Algorithms 108-123 (everything past Reverb Factory) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further
 if new manual pages turn up; otherwise the table above is the working
 roadmap.
