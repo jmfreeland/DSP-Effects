@@ -12,6 +12,7 @@
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
+#include "dsp/graphs/StutterAlgorithm.h"
 #include "dsp/graphs/SweptCombsAlgorithm.h"
 #include "dsp/graphs/SweptReverbAlgorithm.h"
 #include "dsp/graphs/UltraTapAlgorithm.h"
@@ -21,6 +22,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -1031,6 +1033,62 @@ RunResult renderPatchFactory(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderStutter(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::StutterAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::StutterAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setLeftMix(1.0f);
+    engine.setRightMix(1.0f);
+    engine.setLength1(0.1f);
+    engine.setCount1(4);
+
+    // A steady tone, allowed to play normally for the first second, then
+    // stuttered for the second - the tone should sound "normal" up to
+    // the trigger, then repeat a short captured window (see
+    // dsp/algorithms/Stutter.h and dsp/StutterCapture.h).
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate * seconds; ++n)
+    {
+        auto sample =
+          0.5f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(n) / static_cast<float>(kSampleRate));
+        left[static_cast<std::size_t>(n)] = sample;
+        right[static_cast<std::size_t>(n)] = sample;
+    }
+
+    std::span<float> firstHalfLeft(left.data(), static_cast<std::size_t>(kSampleRate));
+    std::span<float> firstHalfRight(right.data(), static_cast<std::size_t>(kSampleRate));
+    engine.process(firstHalfLeft, firstHalfRight);
+
+    engine.triggerStutter1();
+
+    std::span<float> secondHalfLeft(left.data() + kSampleRate, static_cast<std::size_t>(kSampleRate));
+    std::span<float> secondHalfRight(right.data() + kSampleRate, static_cast<std::size_t>(kSampleRate));
+    engine.process(secondHalfLeft, secondHalfRight);
+
+    checkFinite(left, right, result);
+
+    std::printf("stutter tone burst (normal for 1s, then stutter1 triggered, Length=0.1s, Count=4):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/stutter_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1121,6 +1179,10 @@ int main(int argc, char** argv)
     else if (algorithm == "patch_factory")
     {
         result = renderPatchFactory(outDir);
+    }
+    else if (algorithm == "stutter")
+    {
+        result = renderStutter(outDir);
     }
     else
     {

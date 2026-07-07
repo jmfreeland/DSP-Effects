@@ -111,7 +111,7 @@ for planning the rest of this archive's H3000 work:
 100 Diatonic Shift    (built)      109 Long Digiplex     (built)      117 Band Delay
 101 Layered Shift      (built)     110 Dual Digiplex     (built)      118 String Modeller
 102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser
-103 Stereo Shift        (built)    112 Stutter           120 Studio Sampler
+103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler
 104 Reverse Shift      (built)     113 Timesqueeze        122 mod factory|one
 105 Swept Combs        (built)     114 Dense Room         123 mod factory|two
 106 Swept Reverb       (built)     115 Vocoder
@@ -194,9 +194,18 @@ matrix, the first H3000 algorithm in this archive whose defining feature
 is user-configurable routing itself. The JUCE plugin exposes the entire
 matrix as dropdown parameters, since the hardware's 3 knobs can't.
 
+Algorithm 112, Stutter, is built too - see docs/eventide-stutter.md. A
+new `StutterCapture` primitive (the manual's own "Stutter Control"
+block: freeze recording, loop the captured window exactly on trigger)
+plus two sweep generators and an Auto sequencer. Rather than building a
+*second* full patch matrix for the manual's own trigger-routing system
+(Patch Factory already built one general one), this Block exposes a
+fixed, representative set of eight trigger methods directly - documented
+as a deliberate scoping decision, not an oversight.
+
 ## Open item
 
-Algorithms 112-123 (everything past Patch Factory) are read for
-reference but not yet built. Revisit this doc's primary-source grounding
-further if new manual pages turn up; otherwise the table above is the
-working roadmap.
+Algorithms 113-123 (everything past Stutter) are read for reference but
+not yet built. Revisit this doc's primary-source grounding further if
+new manual pages turn up; otherwise the table above is the working
+roadmap.
