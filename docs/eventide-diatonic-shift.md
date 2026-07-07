@@ -130,12 +130,19 @@ separate.
 
 ## Known simplifications
 
-- **No fully-custom Scale 1/Scale 2 tables.** The manual's Left
-  Voice/Right Voice list includes two user-definable 12-entry interval
-  tables (one arbitrary cents offset per chromatic input note - expert
-  parameters `#11-22`/`#23-34`), richer than a diatonic-degree offset and
-  outside this engine's `HarmonicInterval` model. Not implemented; the 14
-  relative intervals plus 4 pedal tones are.
+- **No fully-custom Scale 1/Scale 2 tables**, and consequently **no just
+  intonation.** The manual's Left Voice/Right Voice list includes two
+  user-definable 12-entry interval tables (one arbitrary cents offset per
+  chromatic input note - expert parameters `#11-22`/`#23-34`), richer than
+  a diatonic-degree offset and outside this engine's `HarmonicInterval`
+  model. The factory preset catalog confirms this is a real, used feature,
+  not a hypothetical one: presets like "JUST 3RD & 5TH" and "JUST 4TH &
+  6TH" use Scale 1/Scale 2 to store pure-harmonic-ratio (just intonation)
+  cent offsets instead of the equal-tempered 100-cents-per-semitone this
+  engine always uses. Not implemented; the 14 relative intervals plus 4
+  pedal tones are - and are confirmed against real factory presets too
+  ("G MAJ MOD WHEEL" uses exactly this engine's default Left/Right Voice
+  pairing, a 3rd up and a 5th up).
 - **Pedal-tone octave placement is an original reconstruction.** The
   manual states "lo ton ped"/"hi ton ped"/"lo dom ped"/"hi dom ped" exist
   but doesn't specify the exact octave convention; this engine places
