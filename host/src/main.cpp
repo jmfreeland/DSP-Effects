@@ -4,6 +4,7 @@
 #include "dsp/algorithms/Plate.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
+#include "dsp/graphs/DualDigiplexAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
 #include "dsp/graphs/LongDigiplexAlgorithm.h"
@@ -939,6 +940,54 @@ RunResult renderLongDigiplex(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderDualDigiplex(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::DualDigiplexAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::DualDigiplexAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setGlide(50.0f, false);
+    engine.setLeftDelaySeconds(0.2f);
+    engine.setRightDelaySeconds(0.5f);
+    engine.setLeftFeedback(0.4f);
+    engine.setRightFeedback(0.4f);
+    engine.setLeftMix(1.0f);
+    engine.setRightMix(1.0f);
+    engine.setStereoInput(true);
+
+    // Independent bursts into Left (short delay) and Right (long delay)
+    // should echo at their own independent times - Dual Digiplex's two
+    // channels never interact, see dsp/algorithms/DualDigiplex.h.
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate / 10; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.5f;
+        right[static_cast<std::size_t>(n)] = 0.5f;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("dual digiplex tone burst (L delay=0.2s, R delay=0.5s, feedback=0.4):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/dual_digiplex_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1021,6 +1070,10 @@ int main(int argc, char** argv)
     else if (algorithm == "long_digiplex")
     {
         result = renderLongDigiplex(outDir);
+    }
+    else if (algorithm == "dual_digiplex")
+    {
+        result = renderDualDigiplex(outDir);
     }
     else
     {
