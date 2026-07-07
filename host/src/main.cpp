@@ -4,6 +4,7 @@
 #include "dsp/algorithms/Plate.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
+#include "dsp/graphs/LayeredShiftAlgorithm.h"
 #include "host/WavWriter.h"
 
 #include <cmath>
@@ -536,6 +537,53 @@ RunResult renderDiatonicShift(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderLayeredShift(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::LayeredShiftAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::LayeredShiftAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setLeftCents(400.0f);  // a major 3rd up
+    engine.setRightCents(700.0f); // a perfect 5th up
+    engine.setLeftFeedback(0.0f);
+    engine.setRightFeedback(0.0f);
+    engine.setLeftMix(1.0f);
+    engine.setRightMix(1.0f);
+
+    // A sustained 220Hz (A3) tone into the Left input only - the manual's
+    // own Description names "the left input" as the sole source (see
+    // dsp/algorithms/LayeredShift.h) - producing a fixed +400/+700 cent
+    // shift on Left/Right Voice: no pitch tracking, so the shift amount is
+    // constant regardless of the input note (unlike Diatonic Shift).
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("layered shift tone burst (Left In=220Hz, Left=+400c, Right=+700c):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/layered_shift_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -582,6 +630,10 @@ int main(int argc, char** argv)
     else if (algorithm == "diatonic_shift")
     {
         result = renderDiatonicShift(outDir);
+    }
+    else if (algorithm == "layered_shift")
+    {
+        result = renderLayeredShift(outDir);
     }
     else
     {

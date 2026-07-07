@@ -101,11 +101,33 @@ a zero-offset/pitch-correction-only mode on real hardware that this
 engine's named `HarmonicInterval` list doesn't expose - see that doc's
 "Known simplifications" for why it wasn't guessed at).
 
+Algorithm 101, Layered Shift, is now built too - see
+docs/eventide-layered-shift.md. The Instruction Manual's own Table of
+Contents (front matter, "The Algorithms" section, p.44) gives the full,
+definitive list and page numbers for every H3000 algorithm, now in hand
+for planning the rest of this archive's H3000 work:
+
+```
+100 Diatonic Shift    (built)      109 Long Digiplex    117 Band Delay
+101 Layered Shift      (built)     110 Dual Digiplex     118 String Modeller
+102 Dual Shift                     111 Patch Factory     119 Phaser
+103 Stereo Shift                   112 Stutter           120 Studio Sampler
+104 Reverse Shift                  113 Timesqueeze        122 mod factory|one
+105 Swept Combs                    114 Dense Room         123 mod factory|two
+106 Swept Reverb                   115 Vocoder
+107 Reverb Factory                 116 Multi-Shift
+108 Ultra-Tap
+```
+
+(121 is absent from the manual's own TOC - a gap to confirm, not a
+transcription error, when that page range is reached.) Algorithms
+100-117 (through Band Delay) have primary-source pages in hand already
+(`H3000_Series_Manualpages2.pdf`); 118-123 are in
+`H3000_Series_Manualpages3.pdf`.
+
 ## Open item
 
-The rest of the H3000 Instruction Manual (algorithms 101 onward - Layered
-Shift, Dual Shift, Stereo Shift, Reverse Shift, Swept Combs, Swept Reverb,
-Reverb Factory, Ultra-Tap, and more, through at least Band Delay at
-p.92-94) has been read for general reference but none of those algorithms
-are built yet. Revisit this doc's primary-source grounding if/when this
-archive expands to a second H3000 algorithm.
+Algorithms 102-123 (everything past Layered Shift) are read for
+reference but not yet built. Revisit this doc's primary-source grounding
+further if new manual pages turn up; otherwise the table above is the
+working roadmap.
