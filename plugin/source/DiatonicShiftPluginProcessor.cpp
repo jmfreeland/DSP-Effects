@@ -26,7 +26,7 @@ constexpr auto kInLevelRightId = "inLevelRight";
 const juce::StringArray kKeyNames = { "C",  "C#", "D",  "D#", "E",  "F",
                                        "F#", "G",  "G#", "A",  "A#", "B" };
 const juce::StringArray kScaleNames = { "Major", "Natural Minor", "Harmonic Minor", "Dorian",
-                                         "Mixolydian" };
+                                         "Mixolydian", "Lydian" };
 // Order matches dsp::HarmonicInterval exactly, so the AudioParameterChoice
 // index can be cast straight to the enum.
 const juce::StringArray kVoiceNames = { "Octave Down",       "7th Down",         "6th Down",
@@ -49,6 +49,8 @@ dsp::Scale scaleFromIndex(int index)
             return dsp::Scale::kDorian;
         case 4:
             return dsp::Scale::kMixolydian;
+        case 5:
+            return dsp::Scale::kLydian;
         case 0:
         default:
             return dsp::Scale::kMajor;

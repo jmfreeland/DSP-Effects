@@ -89,6 +89,18 @@ gaps against that page (custom Scale 1/Scale 2 tables, Source
 polyphonic/solo tracking tuning) are documented in
 docs/eventide-diatonic-shift.md rather than fixed silently.
 
+The Instruction Manual's factory preset "Quick Reference" catalog
+(`#1`-`#999`) has now been read in full across two further excerpts,
+covering every unit in the H3000 family (base H3000, H3000 D/SX, D/SE,
+H3500, and the later "35"/"Mod Factory"/"All Units" entries). Beyond the
+just-intonation and default-interval confirmations already noted in
+docs/eventide-diatonic-shift.md, it turned up one confirmed, low-risk
+fix (Lydian added as a `Scale` option, from preset #701 "A LYDIAN 6THS")
+and one open question left undecided (preset #623 "PITCH QUANTIZE" implies
+a zero-offset/pitch-correction-only mode on real hardware that this
+engine's named `HarmonicInterval` list doesn't expose - see that doc's
+"Known simplifications" for why it wasn't guessed at).
+
 ## Open item
 
 The rest of the H3000 Instruction Manual (algorithms 101 onward - Layered

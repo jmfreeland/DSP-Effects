@@ -168,6 +168,41 @@ separate.
 - No documented H3000 front-end beyond the Block's own parameters - see
   "Why no Width control" above for the one control this repo previously
   added that didn't belong.
+- **No zero-offset ("unison"/pitch-correction-only) relative interval.**
+  `HarmonicInterval` deliberately has no zero-degree entry, matching
+  Algorithm 100's own named Left/Right Voice interval list (2nd Down
+  through Octave Up, skipping unison, plus the four pedal tones) - see
+  `harmonicIntervalFromDegreeOffset()`'s comment in `DiatonicScale.h`.
+  The factory preset catalog complicates this: preset #623 "PITCH
+  QUANTIZE" is built on the DIATONIC SHIFT algorithm and its description
+  reads "This program quantizes the input to the nearest chromatic
+  interval" - i.e. straight pitch correction, no harmony, which needs a
+  zero (or near-zero) relative offset this engine's named-interval model
+  can't select. Left undecided rather than guessed: the catalog entry
+  doesn't say how the real unit reaches that state (most likely a
+  Scale 1/Scale 2 custom table set to an identity/0-cents mapping per
+  chromatic note, which would tie back to the already-documented
+  Scale 1/Scale 2 gap above, rather than a hole in the named-interval
+  list specifically) so no code change was made against this alone.
+
+The 630-preset factory catalog (`#1`-`#999`, read in full across two
+manual excerpts) also confirms several DIATONIC SHIFT usages beyond the
+"3rd up + 5th up" default already cited: #605 "A MINOR CHORDS" ("Play or
+sing a solo line in A minor. The H3500 will generate two perfect 'in-key'
+harmonies" - the two-Voice-harmony concept in the manual's own words),
+#609 "DIATONIC DANCE" (delayed harmony - "after half a second, you get a
+harmony," i.e. the Delay parameter used well above its default), #625
+"THIRD & FIFTH" (the same interval choice as this engine's own default,
+independently), and #626 "THIRD & OCTAVE" (one Voice up a third, the
+other down an octave - confirming the two Voices are meant to be set to
+unrelated/asymmetric directions, not just parallel harmonies). Preset
+#701 "A LYDIAN 6THS" ("Play solo lines using A Lydian modal scales")
+confirmed a real hardware scale option this engine was missing; Lydian
+has now been added to `Scale`/`scaleSteps()` and the plugin's Scale
+choice list as a direct, low-risk fix from that finding (whole-tone-up
+4th relative to Major: `{0,2,4,6,7,9,11}`), unlike the Scale 1/Scale 2
+and Pitch Quantize gaps above, which stay open pending clearer primary
+sources.
 
 ## Status
 

@@ -14,6 +14,7 @@ enum class Scale
     kHarmonicMinor,
     kDorian,
     kMixolydian,
+    kLydian,
 };
 
 namespace detail
@@ -25,6 +26,7 @@ inline const std::array<int, 7>& scaleSteps(Scale scale)
     static constexpr std::array<int, 7> kHarmonicMinor = { 0, 2, 3, 5, 7, 8, 11 };
     static constexpr std::array<int, 7> kDorian = { 0, 2, 3, 5, 7, 9, 10 };
     static constexpr std::array<int, 7> kMixolydian = { 0, 2, 4, 5, 7, 9, 10 };
+    static constexpr std::array<int, 7> kLydian = { 0, 2, 4, 6, 7, 9, 11 };
     switch (scale)
     {
         case Scale::kNaturalMinor:
@@ -35,6 +37,8 @@ inline const std::array<int, 7>& scaleSteps(Scale scale)
             return kDorian;
         case Scale::kMixolydian:
             return kMixolydian;
+        case Scale::kLydian:
+            return kLydian;
         case Scale::kMajor:
         default:
             return kMajor;
