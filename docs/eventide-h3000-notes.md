@@ -110,7 +110,7 @@ for planning the rest of this archive's H3000 work:
 ```
 100 Diatonic Shift    (built)      109 Long Digiplex    117 Band Delay
 101 Layered Shift      (built)     110 Dual Digiplex     118 String Modeller
-102 Dual Shift                     111 Patch Factory     119 Phaser
+102 Dual Shift          (built)    111 Patch Factory     119 Phaser
 103 Stereo Shift                   112 Stutter           120 Studio Sampler
 104 Reverse Shift                  113 Timesqueeze        122 mod factory|one
 105 Swept Combs                    114 Dense Room         123 mod factory|two
@@ -125,9 +125,15 @@ transcription error, when that page range is reached.) Algorithms
 (`H3000_Series_Manualpages2.pdf`); 118-123 are in
 `H3000_Series_Manualpages3.pdf`.
 
+Algorithm 102, Dual Shift, is built too - see
+docs/eventide-dual-shift.md. It reused the `PitchShiftVoice` Component
+built for Layered Shift unchanged, since Dual Shift's two channels are
+*more* independent (no shared input or feedback point at all) rather
+than needing anything new.
+
 ## Open item
 
-Algorithms 102-123 (everything past Layered Shift) are read for
-reference but not yet built. Revisit this doc's primary-source grounding
-further if new manual pages turn up; otherwise the table above is the
-working roadmap.
+Algorithms 103-123 (everything past Dual Shift) are read for reference
+but not yet built. Revisit this doc's primary-source grounding further
+if new manual pages turn up; otherwise the table above is the working
+roadmap.

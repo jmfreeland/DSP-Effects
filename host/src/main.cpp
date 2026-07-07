@@ -4,6 +4,7 @@
 #include "dsp/algorithms/Plate.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
+#include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
 #include "host/WavWriter.h"
 
@@ -584,6 +585,53 @@ RunResult renderLayeredShift(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderDualShift(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::DualShiftAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::DualShiftAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setLeftCents(-1200.0f);  // an octave down
+    engine.setRightCents(1200.0f);  // an octave up
+    engine.setLeftFeedback(0.0f);
+    engine.setRightFeedback(0.0f);
+    engine.setLeftMix(1.0f);
+    engine.setRightMix(1.0f);
+
+    // Independent tones into Left (220Hz) and Right (330Hz) - Dual Shift's
+    // two channels never interact (see dsp/algorithms/DualShift.h), so
+    // Left should come out an octave below 220Hz and Right an octave
+    // above 330Hz, regardless of each other.
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        right[static_cast<std::size_t>(n)] = 0.4f * std::sin(2.0f * 3.14159265f * 330.0f * n / kSampleRate);
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("dual shift tone burst (Left In=220Hz/-1oct, Right In=330Hz/+1oct):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/dual_shift_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -634,6 +682,10 @@ int main(int argc, char** argv)
     else if (algorithm == "layered_shift")
     {
         result = renderLayeredShift(outDir);
+    }
+    else if (algorithm == "dual_shift")
+    {
+        result = renderDualShift(outDir);
     }
     else
     {
