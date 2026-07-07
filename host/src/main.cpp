@@ -8,6 +8,7 @@
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
+#include "dsp/graphs/SweptCombsAlgorithm.h"
 #include "host/WavWriter.h"
 
 #include <cmath>
@@ -731,6 +732,45 @@ RunResult renderReverseShift(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderSweptCombs(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::SweptCombsAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::SweptCombsAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(0.6f);
+
+    // An impulse into six independently-swept feedback comb lines should
+    // produce a dense, wandering cloud of repeats rather than a single
+    // clean echo - the RMS/decay curve is the main signal here (this
+    // algorithm has no single "correct frequency" to check the way the
+    // pitch-shift algorithms do).
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    left[0] = right[0] = 0.8f;
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("swept combs impulse response:\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/swept_combs_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -793,6 +833,10 @@ int main(int argc, char** argv)
     else if (algorithm == "reverse_shift")
     {
         result = renderReverseShift(outDir);
+    }
+    else if (algorithm == "swept_combs")
+    {
+        result = renderSweptCombs(outDir);
     }
     else
     {

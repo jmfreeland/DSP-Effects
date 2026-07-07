@@ -113,7 +113,7 @@ for planning the rest of this archive's H3000 work:
 102 Dual Shift          (built)    111 Patch Factory     119 Phaser
 103 Stereo Shift        (built)    112 Stutter           120 Studio Sampler
 104 Reverse Shift      (built)     113 Timesqueeze        122 mod factory|one
-105 Swept Combs                    114 Dense Room         123 mod factory|two
+105 Swept Combs        (built)     114 Dense Room         123 mod factory|two
 106 Swept Reverb                   115 Vocoder
 107 Reverb Factory                 116 Multi-Shift
 108 Ultra-Tap
@@ -145,9 +145,16 @@ first three Shift algorithms (101-103) all reused `PitchShiftVoice`
 unchanged, since they're variations on smooth continuous shifting, but
 Reverse Shift's actual mechanism is qualitatively different.
 
+Algorithm 105, Swept Combs, is built too - see
+docs/eventide-swept-combs.md. First of a new "six swept delay lines"
+family shared with Swept Reverb (106) and Reverb Factory (107); added a
+`nextRandomWalk()` modulation source to `LFO` (the manual is explicit
+that this sweep uses random numbers, not a sine/triangle wave) and a new
+`SweptCombVoice` Component, both intended for reuse by 106/107.
+
 ## Open item
 
-Algorithms 105-123 (everything past Reverse Shift) are read for reference
+Algorithms 106-123 (everything past Swept Combs) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further
 if new manual pages turn up; otherwise the table above is the working
 roadmap.
