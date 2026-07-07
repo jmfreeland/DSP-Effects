@@ -28,7 +28,7 @@ archive.
 ## Topology
 
 ```
-input -> Delay (0-1.5s) -> Pitch Shifter -> output (Mix blends against dry)
+input -> Delay (0-1s) -> Pitch Shifter -> output (Mix blends against dry)
                               |
                               +--(* Regen)--> back into the Delay's input
 ```
@@ -52,41 +52,94 @@ delay-line-based pitch shifter... diatonic scale-quantized shift
 amount") describe the category of technique this belongs to, not a
 specific formula.
 
+## Confirmed against the primary source
+
+The H3000 Instruction Manual's own "Algorithm 100 - Diatonic Shift" page
+(p.45-47) turned up after this Block was already built, and the real
+topology differs from this one more substantially than the "known
+simplifications" below originally suggested - not in ways that were
+guessed and then hedged, but in ways now directly confirmed:
+
+- **Mono-in, stereo-out**, not stereo dual-mono. The real algorithm sums
+  Left+Right input, runs it through *one* shared Delay and *one* shared
+  Pitch Tracking stage, whose detected note then drives two independent
+  Voice generators (Left Voice, Right Voice) - this engine instead runs
+  two fully independent per-channel chains with no shared pitch analysis.
+- **Real-time monophonic pitch tracking is the actual mechanism**, not
+  an optional refinement. The manual's own description states it plainly:
+  "the H3000 tracks your pitch and plays the correct notes" - the correct
+  *number of semitones* for "a third up" depends on which scale degree is
+  currently sounding (4 semitones above the root, 3 above the 2nd degree,
+  in the same major scale), and there's even a `Shownote` display
+  parameter confirming the detected pitch is a first-class part of the
+  algorithm. This engine has no pitch detection at all: `setScaleDegree()`
+  computes a fixed transposition anchored at the scale's tonic
+  (`dsp::diatonicSemitones()`) and applies it uniformly regardless of what
+  note is actually playing - on-scale and musically coherent, but not
+  "diatonic shift" in the sense the name and the manual describe. This is
+  this engine's most significant gap, not a minor one.
+- **Left Voice / Right Voice are discrete interval choices** (`-octave,
+  -seventh, ... -second, +second, ... +octave unison, lo ton ped, hi ton
+  ped, lo dom ped, hi dom ped, scale 1, scale 2`), not a continuous
+  scale-degree integer - and `scale 1`/`scale 2` are fully custom,
+  user-defined 12-entry interval tables (one arbitrary cents offset per
+  chromatic input note, expert-mode parameters `#11-22`/`#23-34`), far
+  richer than this engine's fixed Major/Minor/Dorian/Mixolydian enum.
+- Independent `L Feedback`/`R Feedback` and `L Mix`/`R Mix` per channel
+  (this engine shares one `Regen` and one `Mix` across both).
+- A separate `Quantize` on/off (pitch-corrects the output to the nearest
+  equal-tempered note) and a `Tune` reference control (-50..+50 cents, to
+  match the H3000's A-440 to an external instrument) - neither exists
+  here.
+- Delay range is genuinely 0-1000ms (this engine's `kMaxDelaySeconds`,
+  1.5s, was carried over from the *service* manual's general 64K-word
+  delay-memory figure, not from this algorithm's own parameter range).
+
+None of this is fixed yet - see "Open item" below for the recommended
+next step if closer fidelity is wanted.
+
 ## Known simplifications
 
-- **No real-time pitch tracking of the input.** True H3000-style diatonic
-  harmonization needs to know which scale degree the currently-playing
-  note sits on, because the same "one third up" interval is a different
-  number of semitones depending on where you start (a major 3rd above the
-  root vs. a minor 3rd above the 2nd degree, in the same major scale).
-  That requires monophonic pitch detection - a substantial feature in its
-  own right (the PCM81 manual's own "Pitch Correct" algorithm needed the
-  same thing, see `docs/lexicon-pcm81-reference.md`). Without it, this
-  engine computes the shift as a fixed transposition of N diatonic scale
-  steps anchored at the scale's tonic (`dsp::diatonicSemitones()`) -
-  musically coherent and always on-scale, but it won't re-derive a
-  different interval size per input note the way the real hardware does.
-  Flagged here rather than glossed over; a monophonic pitch tracker is the
-  natural next Primitive/Component to build if this gets revisited.
+- **No real-time pitch tracking of the input** - see "Confirmed against
+  the primary source" above; this is now a confirmed core-mechanism gap,
+  not a hedged guess. A monophonic pitch tracker (e.g. autocorrelation or
+  a zero-crossing-based F0 estimator) would be the natural next
+  Primitive/Component if this gets revisited, alongside restructuring the
+  Block to mono-sum the input and drive independent Left/Right Voice
+  generators from one shared tracked pitch.
 - **Key is a stored parameter, not yet used by the shift math.** The math
   is anchored at the scale's own tonic regardless of the `Key` setting -
   wiring `Key` in is straightforward once real note tracking exists (today
   it would only rotate which absolute pitches count as "in scale" for a
   feature that isn't looking at absolute pitch yet).
-- **No documented H3000 front-end to match, yet.** An Instruction Manual
-  excerpt has turned up (see `docs/eventide-h3000-notes.md`), but it stops
-  one page short of "Algorithm 100 - Diatonic Shift" itself, so
-  `DiatonicShiftAlgorithm`'s front end (In Level, Width) is still an
-  honestly-generic wrapper, not a verified reconstruction of the real
-  box's control surface for this specific algorithm - unlike the PCM81
-  Graphs, which mirror a manual-confirmed "Reverb Shell". Revisit once
-  that algorithm's own page is available.
+- **Front end is a generic wrapper, not the real algorithm's control
+  surface.** Now that Algorithm 100's own page is available (see above),
+  `DiatonicShiftAlgorithm`'s front end (In Level, Width) is confirmed to
+  not match the real one - the real algorithm doesn't have a generic
+  "Width" control at all, since it's mono-in / genuinely-stereo-out via
+  independent Left/Right Voice generators rather than a stereo signal
+  whose width gets rotated.
 - Regen's cascade uses the same Delay/PitchShifter path for both
   directions of travel (feed-forward and feedback); the two stereo
   channels are independent dual-mono, not cross-coupled the way the
   PCM81 tank is - simpler than the real hardware's shared-bus/mailbox
   design (`docs/eventide-h3000-notes.md`), and a reasonable simplification
-  for a first pass.
+  for a first pass, though now superseded by the mono-in/dual-voice
+  topology point above as the more significant structural difference.
+
+## Open item
+
+Closing the pitch-tracking gap is a real Stage 1 correctness question,
+not Stage 2 polish - "tracks your pitch and plays the correct notes" is
+the algorithm's stated core mechanism, not a refinement of something
+that already works. Revisiting this would mean: (1) a monophonic pitch
+detector Primitive, (2) restructuring `DiatonicShift` to mono-sum input
+and drive independent Left/Right Voice generators from one shared
+tracked pitch, (3) a discrete interval-choice parameter (matching the
+real list) instead of a continuous scale-degree integer, and (4)
+independent per-channel Mix/Feedback. Not started - flagging the scope
+rather than doing it silently, since it's a substantially bigger rebuild
+than the rest of this file's simplifications.
 
 ## A bug this caught
 

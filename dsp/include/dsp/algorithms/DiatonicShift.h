@@ -45,9 +45,11 @@ namespace dsp::algorithms
 class DiatonicShift
 {
   public:
-    // 1.5s matches the H3000's own documented max delay memory capacity
-    // (docs/eventide-h3000-notes.md).
-    static constexpr float kMaxDelaySeconds = 1.5f;
+    // Matches Algorithm 100's own documented Delay parameter range
+    // (0-1000ms), confirmed against the H3000 Instruction Manual's
+    // "Algorithm 100 - Diatonic Shift" page - see
+    // docs/eventide-diatonic-shift.md.
+    static constexpr float kMaxDelaySeconds = 1.0f;
     static constexpr float kMaxSampleRate = 96000.0f;
     static constexpr std::size_t kDelayCapacitySamples =
       static_cast<std::size_t>(kMaxDelaySeconds * kMaxSampleRate);

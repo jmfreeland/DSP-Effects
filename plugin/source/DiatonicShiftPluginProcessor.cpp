@@ -77,7 +77,7 @@ EventideDiatonicShiftAudioProcessor::createParameterLayout()
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
     params.push_back(floatParam(kGrainId, "Grain", 0.01f, 0.3f, 0.07f, "s"));
-    params.push_back(floatParam(kDelayId, "Delay", 0.0f, 1.5f, 0.4f, "s"));
+    params.push_back(floatParam(kDelayId, "Delay", 0.0f, 1.0f, 0.4f, "s"));
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
       juce::ParameterID{ kKeyId, 1 }, "Key", kKeyNames, 0));
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
