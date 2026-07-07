@@ -112,7 +112,7 @@ for planning the rest of this archive's H3000 work:
 101 Layered Shift      (built)     110 Dual Digiplex     (built)      118 String Modeller
 102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser
 103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler
-104 Reverse Shift      (built)     113 Timesqueeze        122 mod factory|one
+104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one
 105 Swept Combs        (built)     114 Dense Room         123 mod factory|two
 106 Swept Reverb       (built)     115 Vocoder
 107 Reverb Factory     (built)     116 Multi-Shift
@@ -203,9 +203,23 @@ plus two sweep generators and an Auto sequencer. Rather than building a
 fixed, representative set of eight trigger methods directly - documented
 as a deliberate scoping decision, not an oversight.
 
+Algorithm 113, Timesqueeze, is built too - see
+docs/eventide-timesqueeze.md, a case where "assess, likely skip" turned
+into "built, scoped down" once the actual manual page turned up: unlike
+every other H3000 algorithm here, its own page has no Block Diagram and
+most of its parameters exist to drive a physical tape machine's speed
+via control voltage (no equivalent hardware exists on this software's
+targets, correctly out of scope) - but its Time/Pitch parameters are
+genuinely audio-domain (the H3000 computes and applies the compensating
+pitch shift internally regardless of whether a deck is attached), so
+this Block reuses `PitchShifter` unchanged to reproduce exactly that
+half, with two sanity checks (Time=100% -> exactly -1 octave;
+Time=-87.5% -> exactly +3 octaves, matching the H3000's own documented
+pitch range) falling out of the formula for free.
+
 ## Open item
 
-Algorithms 113-123 (everything past Stutter) are read for reference but
-not yet built. Revisit this doc's primary-source grounding further if
+Algorithms 114-123 (everything past Timesqueeze) are read for reference
+but not yet built. Revisit this doc's primary-source grounding further if
 new manual pages turn up; otherwise the table above is the working
 roadmap.

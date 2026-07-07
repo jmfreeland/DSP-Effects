@@ -654,3 +654,39 @@ target_link_libraries(EventideStutterPlugin
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+
+juce_add_plugin(EventideTimesqueezePlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Evde
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Eventide Timesqueeze"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(EventideTimesqueezePlugin PRIVATE
+    source/TimesqueezePluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(EventideTimesqueezePlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(EventideTimesqueezePlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(EventideTimesqueezePlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)

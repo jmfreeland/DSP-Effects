@@ -15,6 +15,7 @@
 #include "dsp/graphs/StutterAlgorithm.h"
 #include "dsp/graphs/SweptCombsAlgorithm.h"
 #include "dsp/graphs/SweptReverbAlgorithm.h"
+#include "dsp/graphs/TimesqueezeAlgorithm.h"
 #include "dsp/graphs/UltraTapAlgorithm.h"
 #include "host/WavWriter.h"
 
@@ -1089,6 +1090,47 @@ RunResult renderStutter(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderTimesqueeze(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::TimesqueezeAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::TimesqueezeAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setTimePercent(100.0f); // tape sped up 2x -> compensate down an octave
+    engine.setPitchRatio(1.0f);
+
+    const int seconds = 1;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate * seconds; ++n)
+    {
+        auto sample =
+          0.5f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(n) / static_cast<float>(kSampleRate));
+        left[static_cast<std::size_t>(n)] = sample;
+        right[static_cast<std::size_t>(n)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("timesqueeze tone burst (Time=100%%, compensating pitch shift down an octave):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/timesqueeze_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1183,6 +1225,10 @@ int main(int argc, char** argv)
     else if (algorithm == "stutter")
     {
         result = renderStutter(outDir);
+    }
+    else if (algorithm == "timesqueeze")
+    {
+        result = renderTimesqueeze(outDir);
     }
     else
     {
