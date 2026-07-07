@@ -9,6 +9,7 @@
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
 #include "dsp/graphs/SweptCombsAlgorithm.h"
+#include "dsp/graphs/SweptReverbAlgorithm.h"
 #include "host/WavWriter.h"
 
 #include <cmath>
@@ -771,6 +772,45 @@ RunResult renderSweptCombs(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderSweptReverb(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::SweptReverbAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::SweptReverbAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(0.7f);
+    engine.setFeedback(0.7f);
+
+    // An impulse into the six-line Householder-mixed feedback network
+    // (see dsp/algorithms/SweptReverb.h) should build into a dense,
+    // continuous reverb tail rather than six discrete echoes, then decay
+    // - the RMS/decay curve is the main signal here.
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    left[0] = right[0] = 0.8f;
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("swept reverb impulse response:\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/swept_reverb_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -837,6 +877,10 @@ int main(int argc, char** argv)
     else if (algorithm == "swept_combs")
     {
         result = renderSweptCombs(outDir);
+    }
+    else if (algorithm == "swept_reverb")
+    {
+        result = renderSweptReverb(outDir);
     }
     else
     {

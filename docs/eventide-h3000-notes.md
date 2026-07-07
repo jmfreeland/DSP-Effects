@@ -114,7 +114,7 @@ for planning the rest of this archive's H3000 work:
 103 Stereo Shift        (built)    112 Stutter           120 Studio Sampler
 104 Reverse Shift      (built)     113 Timesqueeze        122 mod factory|one
 105 Swept Combs        (built)     114 Dense Room         123 mod factory|two
-106 Swept Reverb                   115 Vocoder
+106 Swept Reverb       (built)     115 Vocoder
 107 Reverb Factory                 116 Multi-Shift
 108 Ultra-Tap
 ```
@@ -152,9 +152,16 @@ family shared with Swept Reverb (106) and Reverb Factory (107); added a
 that this sweep uses random numbers, not a sine/triangle wave) and a new
 `SweptCombVoice` Component, both intended for reuse by 106/107.
 
+Algorithm 106, Swept Reverb, is built too - see
+docs/eventide-swept-reverb.md. Reuses `LFO::nextRandomWalk()` from Swept
+Combs, plus `householderMix()` - the first Primitive shared across the
+PCM81 and Eventide device families in this archive - for the "Reverb
+Network" the manual describes but doesn't specify the internals of,
+since the real PEL firmware isn't public.
+
 ## Open item
 
-Algorithms 106-123 (everything past Swept Combs) are read for reference
+Algorithms 107-123 (everything past Swept Reverb) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further
 if new manual pages turn up; otherwise the table above is the working
 roadmap.
