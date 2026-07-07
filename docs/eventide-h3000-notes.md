@@ -111,7 +111,7 @@ for planning the rest of this archive's H3000 work:
 100 Diatonic Shift    (built)      109 Long Digiplex    117 Band Delay
 101 Layered Shift      (built)     110 Dual Digiplex     118 String Modeller
 102 Dual Shift          (built)    111 Patch Factory     119 Phaser
-103 Stereo Shift                   112 Stutter           120 Studio Sampler
+103 Stereo Shift        (built)    112 Stutter           120 Studio Sampler
 104 Reverse Shift                  113 Timesqueeze        122 mod factory|one
 105 Swept Combs                    114 Dense Room         123 mod factory|two
 106 Swept Reverb                   115 Vocoder
@@ -131,9 +131,15 @@ built for Layered Shift unchanged, since Dual Shift's two channels are
 *more* independent (no shared input or feedback point at all) rather
 than needing anything new.
 
+Algorithm 103, Stereo Shift, is built too - see
+docs/eventide-stereo-shift.md. Same `PitchShiftVoice` Component again,
+this time with one shared parameter set driving two independent
+per-channel signal paths - architecturally between Layered Shift (shared
+input) and Dual Shift (independent parameters).
+
 ## Open item
 
-Algorithms 103-123 (everything past Dual Shift) are read for reference
+Algorithms 104-123 (everything past Stereo Shift) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further
 if new manual pages turn up; otherwise the table above is the working
 roadmap.

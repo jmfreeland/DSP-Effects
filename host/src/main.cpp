@@ -6,6 +6,7 @@
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
+#include "dsp/graphs/StereoShiftAlgorithm.h"
 #include "host/WavWriter.h"
 
 #include <cmath>
@@ -632,6 +633,52 @@ RunResult renderDualShift(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderStereoShift(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::StereoShiftAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::StereoShiftAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setCents(700.0f); // a perfect 5th up, shared by both channels
+    engine.setFeedback(0.0f);
+    engine.setMix(1.0f);
+
+    // A true stereo pair (220Hz Left, 220Hz Right, in phase) shifted by
+    // the same shared interval on both channels - Stereo Shift's whole
+    // point is that one set of controls drives a genuine stereo pair
+    // identically (see dsp/algorithms/StereoShift.h), unlike Dual Shift's
+    // independently-settable channels.
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate; ++n)
+    {
+        auto sample = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        left[static_cast<std::size_t>(n)] = sample;
+        right[static_cast<std::size_t>(n)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("stereo shift tone burst (L=R=220Hz, shared +700c):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/stereo_shift_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -686,6 +733,10 @@ int main(int argc, char** argv)
     else if (algorithm == "dual_shift")
     {
         result = renderDualShift(outDir);
+    }
+    else if (algorithm == "stereo_shift")
+    {
+        result = renderStereoShift(outDir);
     }
     else
     {
