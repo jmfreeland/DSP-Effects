@@ -112,7 +112,7 @@ for planning the rest of this archive's H3000 work:
 101 Layered Shift      (built)     110 Dual Digiplex     118 String Modeller
 102 Dual Shift          (built)    111 Patch Factory     119 Phaser
 103 Stereo Shift        (built)    112 Stutter           120 Studio Sampler
-104 Reverse Shift                  113 Timesqueeze        122 mod factory|one
+104 Reverse Shift      (built)     113 Timesqueeze        122 mod factory|one
 105 Swept Combs                    114 Dense Room         123 mod factory|two
 106 Swept Reverb                   115 Vocoder
 107 Reverb Factory                 116 Multi-Shift
@@ -137,9 +137,17 @@ this time with one shared parameter set driving two independent
 per-channel signal paths - architecturally between Layered Shift (shared
 input) and Dual Shift (independent parameters).
 
+Algorithm 104, Reverse Shift, is built too - see
+docs/eventide-reverse-shift.md. This one needed genuinely new DSP: a
+`ReverseBuffer` primitive (ping-pong record/reverse-playback splice
+generator), the first new H3000 primitive since `PitchDetector` - the
+first three Shift algorithms (101-103) all reused `PitchShiftVoice`
+unchanged, since they're variations on smooth continuous shifting, but
+Reverse Shift's actual mechanism is qualitatively different.
+
 ## Open item
 
-Algorithms 104-123 (everything past Stereo Shift) are read for reference
+Algorithms 105-123 (everything past Reverse Shift) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further
 if new manual pages turn up; otherwise the table above is the working
 roadmap.

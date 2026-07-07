@@ -6,6 +6,7 @@
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
+#include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
 #include "host/WavWriter.h"
 
@@ -679,6 +680,57 @@ RunResult renderStereoShift(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderReverseShift(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::ReverseShiftAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::ReverseShiftAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setLeftLengthSeconds(0.15f);
+    engine.setRightLengthSeconds(0.15f);
+    engine.setLeftCents(0.0f);
+    engine.setRightCents(0.0f);
+    engine.setLeftFeedback(0.0f);
+    engine.setRightFeedback(0.0f);
+    engine.setLeftMix(1.0f);
+    engine.setRightMix(1.0f);
+
+    // A short tone burst (0.3s) followed by silence - each 150ms splice
+    // should come back reversed (see dsp/algorithms/ReverseShift.h), so
+    // this is mainly a finite-output/stability check rather than a
+    // frequency-accuracy one (reversing a steady sine is inaudible as a
+    // pitch difference by design, unlike the smooth-shift algorithms).
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate / 3; ++n)
+    {
+        auto sample = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        left[static_cast<std::size_t>(n)] = sample;
+        right[static_cast<std::size_t>(n)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("reverse shift tone burst (220Hz for 0.3s, 150ms splice length):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/reverse_shift_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -737,6 +789,10 @@ int main(int argc, char** argv)
     else if (algorithm == "stereo_shift")
     {
         result = renderStereoShift(outDir);
+    }
+    else if (algorithm == "reverse_shift")
+    {
+        result = renderReverseShift(outDir);
     }
     else
     {
