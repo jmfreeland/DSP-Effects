@@ -480,20 +480,38 @@ RunResult renderDiatonicShift(const std::string& outDir)
     static std::vector<float> working(dsp::graphs::DiatonicShiftAlgorithm::requiredWorkingBufferSize());
     dsp::graphs::DiatonicShiftAlgorithm engine;
     engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setKey(0); // C major
     engine.setScale(dsp::Scale::kMajor);
-    engine.setScaleDegree(2); // a diatonic 3rd up
-    engine.setRegen(0.55f);
-    engine.setMix(1.0f);
+    engine.setLeftVoice(dsp::HarmonicInterval::kThirdUp);
+    engine.setRightVoice(dsp::HarmonicInterval::kFifthUp);
+    // Feedback stays at 0 for this render: once nonzero, the shifted
+    // Voice outputs mix back into the shared mono input ahead of the
+    // pitch tracker (matching the real algorithm's own topology, see
+    // docs/eventide-diatonic-shift.md), and this engine's simple
+    // autocorrelation tracker - unlike the real hardware's own tunable
+    // "Source: polyphonic/solo" tracking, not implemented here - isn't
+    // robust to that self-generated second pitch. That's a documented
+    // simplification, not a bug, but it would just look like noise in a
+    // single-note demo render, so it's isolated out here to keep this
+    // render's story clean: pitch tracking driving per-note-correct
+    // diatonic harmony.
+    engine.setLeftFeedback(0.0f);
+    engine.setRightFeedback(0.0f);
+    engine.setLeftMix(1.0f);
+    engine.setRightMix(1.0f);
 
-    // A short tone burst, then silence - the Regen feedback loop should
-    // keep cascading shifted repeats of the note after it stops, each one
-    // another diatonic step up from the last.
-    const int seconds = 3;
+    // A sustained D (293.66Hz, the 2nd scale degree in C major), then
+    // silence - real-time pitch tracking should recognize D and harmonize
+    // Left Voice a diatonic 3rd up (F, 3 semitones - not the 4 semitones a
+    // fixed transposition from the root would give) and Right Voice a
+    // diatonic 5th up (A, 7 semitones), proving the shift is derived from
+    // the actual tracked note rather than a fixed interval.
+    const int seconds = 2;
     std::vector<float> left(kSampleRate * seconds, 0.0f);
     std::vector<float> right(kSampleRate * seconds, 0.0f);
-    for (int n = 0; n < kSampleRate / 2; ++n)
+    for (int n = 0; n < kSampleRate; ++n)
     {
-        auto sample = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        auto sample = 0.4f * std::sin(2.0f * 3.14159265f * 293.66f * n / kSampleRate);
         left[static_cast<std::size_t>(n)] = sample;
         right[static_cast<std::size_t>(n)] = sample;
     }
@@ -501,7 +519,8 @@ RunResult renderDiatonicShift(const std::string& outDir)
     engine.process(left, right);
     checkFinite(left, right, result);
 
-    std::printf("diatonic shift tone burst (Major, +3rd, Regen=0.55):\n");
+    std::printf("diatonic shift tone burst (D=293.66Hz, C major, Left=+3rd, Right=+5th):\n");
+    std::printf("  tracked frequency: %.1fHz\n", engine.trackedFrequencyHz());
     printDecayCurve(left, right, seconds);
 
     auto path = outDir + "/diatonic_shift_burst.wav";

@@ -3,22 +3,24 @@
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
 
 // Eventide H3000-inspired Diatonic Shift algorithm for the Polyend
-// Endless: a diatonically-quantized pitch shifter with a regenerating
-// feedback loop that cascades into an ascending/descending arpeggio. See
-// dsp/graphs/DiatonicShiftAlgorithm.h.
+// Endless: a real-time pitch-tracking harmonizer that plays the
+// diatonically-correct interval above or below whatever note is playing.
+// See dsp/graphs/DiatonicShiftAlgorithm.h.
 //
 // Knob mapping:
-//   Left  - Scale Degree: how many diatonic steps to shift per repeat,
-//           -7 (a 7th down) .. +7 (a 7th up). Scale is fixed to Major
-//           since the hardware only has 3 knobs.
-//   Mid   - Regen: feedback level for the cascading repeats.
-//   Right - Dry/wet mix.
+//   Left  - Left Voice interval, -7 (a 7th down) .. +7 (a 7th up) scale
+//           steps from the tracked note. Key/Scale fixed to C Major and
+//           Right Voice fixed a 5th above Left Voice, since the hardware
+//           only has 3 knobs (the JUCE plugin exposes independent
+//           Left/Right Voice, Key, and Scale).
+//   Mid   - Feedback: shared level for both voices' cascading repeats.
+//   Right - Dry/wet mix (applied to both channels equally).
 //
 // Footswitch:
 //   Press - toggle bypass.
-//   Hold  - toggle "freeze": latches Regen near 1 so the cascade rings
-//           indefinitely instead of decaying, the same footswitch-hold
-//           freeze idea used by every Lexicon core here.
+//   Hold  - toggle "freeze": latches Feedback near 1 so the harmony
+//           cascade rings indefinitely, the same footswitch-hold freeze
+//           idea used by every Lexicon core here.
 class PatchImpl : public Patch
 {
   public:
@@ -49,7 +51,7 @@ class PatchImpl : public Patch
             case endless::ParamId::kParamLeft:
                 return ParameterMetadata{ -7.0f, 7.0f, 2.0f };
             case endless::ParamId::kParamMid:
-                return ParameterMetadata{ 0.0f, 1.0f, 0.5f };
+                return ParameterMetadata{ 0.0f, 1.0f, 0.3f };
             case endless::ParamId::kParamRight:
                 return ParameterMetadata{ 0.0f, 1.0f, 0.5f };
         }
@@ -61,17 +63,27 @@ class PatchImpl : public Patch
         switch (static_cast<endless::ParamId>(paramIdx))
         {
             case endless::ParamId::kParamLeft:
-                engine_.setScaleDegree(static_cast<int>(value >= 0.0f ? value + 0.5f : value - 0.5f));
+            {
+                auto degree = static_cast<int>(value >= 0.0f ? value + 0.5f : value - 0.5f);
+                auto leftInterval = dsp::harmonicIntervalFromDegreeOffset(degree);
+                engine_.setLeftVoice(leftInterval);
+                // Right Voice trails a 5th above Left Voice for a simple
+                // built-in two-part harmony, clamped to stay in range.
+                auto rightDegree = degree + 4 > 7 ? 7 : degree + 4;
+                engine_.setRightVoice(dsp::harmonicIntervalFromDegreeOffset(rightDegree));
                 break;
+            }
             case endless::ParamId::kParamMid:
-                normalRegen_ = value;
+                normalFeedback_ = value;
                 if (!frozen_)
                 {
-                    engine_.setRegen(normalRegen_);
+                    engine_.setLeftFeedback(normalFeedback_);
+                    engine_.setRightFeedback(normalFeedback_);
                 }
                 break;
             case endless::ParamId::kParamRight:
-                engine_.setMix(value);
+                engine_.setLeftMix(value);
+                engine_.setRightMix(value);
                 break;
         }
     }
@@ -85,7 +97,16 @@ class PatchImpl : public Patch
                 break;
             case endless::ActionId::kLeftFootSwitchHold:
                 frozen_ = !frozen_;
-                engine_.setRegen(frozen_ ? 0.97f : normalRegen_);
+                if (frozen_)
+                {
+                    engine_.setLeftFeedback(0.97f);
+                    engine_.setRightFeedback(0.97f);
+                }
+                else
+                {
+                    engine_.setLeftFeedback(normalFeedback_);
+                    engine_.setRightFeedback(normalFeedback_);
+                }
                 break;
         }
     }
@@ -109,7 +130,7 @@ class PatchImpl : public Patch
     dsp::graphs::DiatonicShiftAlgorithm engine_;
     bool bypassed_ = false;
     bool frozen_ = false;
-    float normalRegen_ = 0.5f;
+    float normalFeedback_ = 0.3f;
 };
 
 static PatchImpl patch;

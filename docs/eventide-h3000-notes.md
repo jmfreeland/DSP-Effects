@@ -73,23 +73,27 @@ detuned pair).
 The PCM81 User Guide did turn up and all five of that box's reverb cores
 are now built (see docs/lexicon-pcm81-reference.md). Stage 1 work on this
 box has now started too: Diatonic Shift (the factory default program
-named above) is built end-to-end - see docs/eventide-diatonic-shift.md
-for the Block/Graph/Patch/plugin and its known simplifications, chief
-among them no real-time pitch tracking of the input (needed for *true*
-per-note-correct diatonic harmony).
+named above) is built end-to-end, now including genuine real-time
+monophonic pitch tracking - see docs/eventide-diatonic-shift.md for the
+full history (a first version without pitch tracking, why that turned out
+to be a real gap rather than a minor simplification, and the rebuild).
 
-An H3000 Instruction Manual excerpt has now turned up too (see Source
-above) - it corrected the pitch-range figure above and confirmed the
-front-panel/MIDI/parameter-modulation architecture in general, but the
-excerpt in hand stops one page short of "Algorithm 100 - Diatonic Shift"
-itself (manual p.45), so Diatonic Shift's front end and parameter set
-still aren't checked against a primary source the way the PCM81 Graphs
-could be.
+A second H3000 Instruction Manual excerpt reached "Algorithm 100 -
+Diatonic Shift" itself (p.45-47) - the primary source this doc's "Open
+item" was waiting on. That page's block diagram and parameter list are
+now the direct basis for the Block's topology (mono-in, shared Delay +
+Pitch Tracker, independent Left/Right Voice generators) and its
+`HarmonicInterval` parameter set, rather than an original design guessed
+from the service manual's general architecture notes alone. Remaining
+gaps against that page (custom Scale 1/Scale 2 tables, Source
+polyphonic/solo tracking tuning) are documented in
+docs/eventide-diatonic-shift.md rather than fixed silently.
 
 ## Open item
 
-Waiting on the rest of the H3000 Instruction Manual (starting at its
-p.45, "The Algorithms") to check Diatonic Shift's front end and
-parameter set - and any other H3000 algorithm's, should this archive
-cover more than one - against a primary source the way the PCM81 User
-Guide let us verify the Lexicon side's control surfaces directly.
+The rest of the H3000 Instruction Manual (algorithms 101 onward - Layered
+Shift, Dual Shift, Stereo Shift, Reverse Shift, Swept Combs, Swept Reverb,
+Reverb Factory, Ultra-Tap, and more, through at least Band Delay at
+p.92-94) has been read for general reference but none of those algorithms
+are built yet. Revisit this doc's primary-source grounding if/when this
+archive expands to a second H3000 algorithm.

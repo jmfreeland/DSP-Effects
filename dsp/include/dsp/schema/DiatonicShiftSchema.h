@@ -7,22 +7,39 @@ namespace dsp::schema
 inline const AlgorithmSchema& diatonicShiftSchema()
 {
     static const Stage stages[] = {
-        { "input", "Input L/R", StageKind::kInput },
-        { "delay", "Delay", StageKind::kProcessing, "0-1.5s, spaces out successive repeats" },
-        { "shifter", "Pitch Shifter", StageKind::kProcessing,
-          "Delay-line/grain based, shift = Scale Degree quantized to Key+Scale" },
-        { "output", "Output", StageKind::kOutput, "Mix blends shifted signal against dry" },
+        { "input", "Input L/R", StageKind::kInput, "Summed to mono" },
+        { "delay", "Delay", StageKind::kProcessing, "0-1s, shared ahead of tracking and both Voices" },
+        { "tracker", "Pitch Tracker", StageKind::kProcessing,
+          "Real-time monophonic detection (autocorrelation) - drives both Voices' shift amount" },
+        { "leftVoice", "Left Voice", StageKind::kProcessing,
+          "Pitch Shifter, interval relative to the tracked note's own scale degree" },
+        { "rightVoice", "Right Voice", StageKind::kProcessing,
+          "Pitch Shifter, interval relative to the tracked note's own scale degree" },
+        { "output", "Output", StageKind::kOutput, "L/R Mix blends each Voice against dry" },
     };
+    // Genuinely fan-out/fan-in (one delayed signal feeds three parallel
+    // consumers; both Voices independently reach Output) rather than the
+    // simpler linear-with-occasional-skip shape the other schemas have -
+    // this is a busier diagram than those, honestly reflecting a busier
+    // topology rather than trading accuracy for tidiness.
     static const Connection connections[] = {
         { "input", "delay", nullptr },
-        { "delay", "shifter", "tapped" },
-        { "shifter", "output", nullptr },
-        { "shifter", "delay", "* Regen - feeds back for another lap, one more diatonic step" },
+        { "delay", "tracker", "tapped" },
+        { "delay", "leftVoice", "tapped" },
+        { "delay", "rightVoice", "tapped" },
+        { "tracker", "leftVoice", "sets shift amount" },
+        { "tracker", "rightVoice", "sets shift amount" },
+        { "leftVoice", "output", nullptr },
+        { "rightVoice", "output", nullptr },
+        { "leftVoice", "input", "* L Feedback - cascades another lap" },
+        { "rightVoice", "input", "* R Feedback - cascades another lap" },
     };
     static const AlgorithmSchema schema = {
         "Diatonic Shift",
-        "Each lap through the Delay->Shifter->Regen loop adds another diatonic step, "
-        "producing a cascading ascending/descending arpeggio rather than a static reverb tail.",
+        "Both Voices shift the same tracked-and-delayed mono signal, each by its own harmonic "
+        "interval computed relative to whichever scale degree the input note actually lands on - "
+        "not a fixed transposition - so a 'third up' is the correct number of semitones whether "
+        "the note played is the root or the 2nd degree.",
         stages, connections
     };
     return schema;
