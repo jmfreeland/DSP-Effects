@@ -73,13 +73,14 @@ specific formula.
   wiring `Key` in is straightforward once real note tracking exists (today
   it would only rotate which absolute pitches count as "in scale" for a
   feature that isn't looking at absolute pitch yet).
-- **No documented H3000 front-end to match.** `docs/eventide-h3000-notes.md`
-  is built from the *service* manual (hardware architecture), not a
-  user/parameter guide, so `DiatonicShiftAlgorithm`'s front end (In
-  Level, Width) is an honestly-generic wrapper, not a verified
-  reconstruction of the real box's control surface - unlike the PCM81
-  Graphs, which mirror a manual-confirmed "Reverb Shell". Revisit if an
-  H3000 user guide turns up.
+- **No documented H3000 front-end to match, yet.** An Instruction Manual
+  excerpt has turned up (see `docs/eventide-h3000-notes.md`), but it stops
+  one page short of "Algorithm 100 - Diatonic Shift" itself, so
+  `DiatonicShiftAlgorithm`'s front end (In Level, Width) is still an
+  honestly-generic wrapper, not a verified reconstruction of the real
+  box's control surface for this specific algorithm - unlike the PCM81
+  Graphs, which mirror a manual-confirmed "Reverb Shell". Revisit once
+  that algorithm's own page is available.
 - Regen's cascade uses the same Delay/PitchShifter path for both
   directions of travel (feed-forward and feedback); the two stereo
   channels are independent dual-mono, not cross-coupled the way the
