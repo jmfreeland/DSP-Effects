@@ -110,7 +110,7 @@ for planning the rest of this archive's H3000 work:
 ```
 100 Diatonic Shift    (built)      109 Long Digiplex     (built)      117 Band Delay
 101 Layered Shift      (built)     110 Dual Digiplex     (built)      118 String Modeller
-102 Dual Shift          (built)    111 Patch Factory     119 Phaser
+102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser
 103 Stereo Shift        (built)    112 Stutter           120 Studio Sampler
 104 Reverse Shift      (built)     113 Timesqueeze        122 mod factory|one
 105 Swept Combs        (built)     114 Dense Room         123 mod factory|two
@@ -186,9 +186,17 @@ Long Digiplex - hand-rolled rather than composed from two `LongDigiplex`
 instances, since that Block's Left-In-only/dual-output behavior is
 hard-coded rather than a setting.
 
+Algorithm 111, Patch Factory, is built too - see
+docs/eventide-patch-factory.md, a genuine modular patch-bay rather than
+a fixed topology: two new primitives (`NoiseGenerator`,
+`StateVariableFilter`) plus a settable 16-source x 13-destination patch
+matrix, the first H3000 algorithm in this archive whose defining feature
+is user-configurable routing itself. The JUCE plugin exposes the entire
+matrix as dropdown parameters, since the hardware's 3 knobs can't.
+
 ## Open item
 
-Algorithms 111-123 (everything past Dual Digiplex) are read for
+Algorithms 112-123 (everything past Patch Factory) are read for
 reference but not yet built. Revisit this doc's primary-source grounding
 further if new manual pages turn up; otherwise the table above is the
 working roadmap.

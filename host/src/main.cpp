@@ -8,6 +8,7 @@
 #include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
 #include "dsp/graphs/LongDigiplexAlgorithm.h"
+#include "dsp/graphs/PatchFactoryAlgorithm.h"
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
@@ -988,6 +989,48 @@ RunResult renderDualDigiplex(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderPatchFactory(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::PatchFactoryAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::PatchFactoryAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setLeftMix(1.0f);
+    engine.setRightMix(1.0f);
+
+    // Factory-default patch: a burst into Left Input should reach Left
+    // Output via Scale2->Sum2->Delay1->Filter1(Lowpass), and Right Output
+    // via the pitch shifter and Filter2(Lowpass) - see
+    // dsp/algorithms/PatchFactory.h for the full default routing.
+    const int seconds = 1;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate / 10; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.5f;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("patch factory tone burst (factory default patch):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/patch_factory_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1074,6 +1117,10 @@ int main(int argc, char** argv)
     else if (algorithm == "dual_digiplex")
     {
         result = renderDualDigiplex(outDir);
+    }
+    else if (algorithm == "patch_factory")
+    {
+        result = renderPatchFactory(outDir);
     }
     else
     {
