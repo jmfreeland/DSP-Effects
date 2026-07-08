@@ -25,7 +25,12 @@ cmake -S "$REPO_ROOT" -B "$BUILD_DIR" -DDSP_EFFECTS_BUILD_PLUGIN=ON -DCMAKE_BUIL
 
 # Discover every plugin target name from plugin/CMakeLists.txt rather than
 # hardcoding a list, so this script stays correct as algorithms are added.
-mapfile -t TARGETS < <(grep -oE '^juce_add_plugin\(([A-Za-z0-9_]+)' "$REPO_ROOT/plugin/CMakeLists.txt" | sed 's/^juce_add_plugin(//')
+# (Built with a for-loop rather than `mapfile`/`readarray` since macOS
+# ships bash 3.2, which predates both.)
+TARGETS=()
+for name in $(grep -oE '^juce_add_plugin\(([A-Za-z0-9_]+)' "$REPO_ROOT/plugin/CMakeLists.txt" | sed 's/^juce_add_plugin(//'); do
+    TARGETS+=("$name")
+done
 
 if [[ ${#TARGETS[@]} -eq 0 ]]; then
     echo "error: found no juce_add_plugin(...) targets in plugin/CMakeLists.txt" >&2
