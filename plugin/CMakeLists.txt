@@ -259,6 +259,42 @@ target_link_libraries(LexiconChorusRvbPlugin
         juce::juce_recommended_warning_flags
 )
 
+juce_add_plugin(LexiconMBandRvbPlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Lxm1
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Lexicon M-Band+Rvb"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(LexiconMBandRvbPlugin PRIVATE
+    source/MBandRvbPluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(LexiconMBandRvbPlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(LexiconMBandRvbPlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(LexiconMBandRvbPlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
 juce_add_plugin(EventideDiatonicShiftPlugin
     COMPANY_NAME "Loom"
     PLUGIN_MANUFACTURER_CODE Loom

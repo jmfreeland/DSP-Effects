@@ -11,6 +11,7 @@
 #include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/GlideHallAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
+#include "dsp/graphs/MBandRvbAlgorithm.h"
 #include "dsp/graphs/LongDigiplexAlgorithm.h"
 #include "dsp/graphs/MultiShiftAlgorithm.h"
 #include "dsp/graphs/ModFactoryOneAlgorithm.h"
@@ -305,6 +306,62 @@ RunResult renderChorusRvb(const std::string& outDir)
     printDecayCurve(left, right, seconds);
 
     auto path = outDir + "/chorus_rvb_tone.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
+RunResult renderMBandRvb(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::MBandRvbAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::MBandRvbAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+
+    const float voiceDelays[6] = { 0.09f, 0.17f, 0.26f, 0.11f, 0.19f, 0.28f };
+    const float voicePans[6] = { -0.7f, -0.4f, -0.15f, 0.15f, 0.4f, 0.7f };
+    const float voiceHiCut[6] = { 7000.0f, 5500.0f, 4000.0f, 7200.0f, 5700.0f, 4200.0f };
+    const float voiceLoCut[6] = { 120.0f, 250.0f, 500.0f, 130.0f, 260.0f, 520.0f };
+    for (int i = 0; i < 6; ++i)
+    {
+        engine.setVoiceDelay(i, voiceDelays[static_cast<std::size_t>(i)]);
+        engine.setVoiceLevel(i, 0.55f);
+        engine.setVoicePan(i, voicePans[static_cast<std::size_t>(i)]);
+        engine.setVoiceFeedback(i, 0.25f);
+        engine.setVoiceHiCut(i, voiceHiCut[static_cast<std::size_t>(i)]);
+        engine.setVoiceLoCut(i, voiceLoCut[static_cast<std::size_t>(i)]);
+    }
+    engine.setDiffusion(0.5f);
+    engine.setDecaySeconds(2.5f);
+    engine.setSize(0.6f);
+    engine.setFxMix(0.5f);
+    engine.setMix(1.0f);
+
+    // Impulse response: exercises the diffuser-inside-the-feedback-loop
+    // topology (filtered echoes should grow progressively more diffuse,
+    // not stay as discrete clicks) and confirms a bounded decay.
+    const int seconds = 6;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    left[0] = 1.0f;
+    right[0] = 1.0f;
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("mband_rvb impulse response decay:\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/mband_rvb_impulse.wav";
     if (!host::writeStereoWav(path, left, right, kSampleRate))
     {
         std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
@@ -1714,6 +1771,10 @@ int main(int argc, char** argv)
     else if (algorithm == "chorus_rvb")
     {
         result = renderChorusRvb(outDir);
+    }
+    else if (algorithm == "mband_rvb")
+    {
+        result = renderMBandRvb(outDir);
     }
     else if (algorithm == "plate")
     {
