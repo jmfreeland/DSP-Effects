@@ -12,6 +12,7 @@
 #include "dsp/graphs/LongDigiplexAlgorithm.h"
 #include "dsp/graphs/MultiShiftAlgorithm.h"
 #include "dsp/graphs/ModFactoryOneAlgorithm.h"
+#include "dsp/graphs/ModFactoryTwoAlgorithm.h"
 #include "dsp/graphs/PatchFactoryAlgorithm.h"
 #include "dsp/graphs/PhaserAlgorithm.h"
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
@@ -1512,6 +1513,47 @@ RunResult renderModFactoryOne(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderModFactoryTwo(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::ModFactoryTwoAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::ModFactoryTwoAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    // Default patch (a +/-10 cent chorus) is already wired in prepare();
+    // just render a tone through it.
+
+    const int seconds = 1;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate * seconds; ++n)
+    {
+        auto sample =
+          0.4f * std::sin(2.0f * 3.14159265f * 300.0f * static_cast<float>(n) / static_cast<float>(kSampleRate));
+        left[static_cast<std::size_t>(n)] = sample;
+        right[static_cast<std::size_t>(n)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("mod factory two (default +/-10 cent chorus patch, 300Hz tone):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/mod_factory_two_chorus.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1642,6 +1684,10 @@ int main(int argc, char** argv)
     else if (algorithm == "mod_factory_one")
     {
         result = renderModFactoryOne(outDir);
+    }
+    else if (algorithm == "mod_factory_two")
+    {
+        result = renderModFactoryTwo(outDir);
     }
     else
     {

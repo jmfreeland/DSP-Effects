@@ -113,7 +113,7 @@ for planning the rest of this archive's H3000 work:
 102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser (built)
 103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler (built)
 104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one (built)
-105 Swept Combs        (built)     114 Dense Room (built)  123 mod factory|two
+105 Swept Combs        (built)     114 Dense Room (built)  123 mod factory|two (built)
 106 Swept Reverb       (built)     115 Vocoder (built)
 107 Reverb Factory     (built)     116 Multi-Shift (built)
 108 Ultra-Tap          (built)
@@ -335,8 +335,23 @@ fought its own one-shot completion check), and toggle waveforms that
 swept the wrong direction on their first trigger (a direction flag was
 flipped before being used to describe the sweep it was flipped for).
 
+Algorithm 123, mod factory|two, is built too - see
+docs/eventide-mod-factory-two.md, and it completes this archive's entire
+Eventide H3000 roadmap (100-123, with 121 resolved as not a distinct
+algorithm - see docs/eventide-studio-sampler.md). A smaller cousin to
+mod factory|one (28x22 patch matrix instead of 28x26 - one LFO and one
+envelope detector instead of two each, traded for two new module types:
+filtered delays, reusing `OnePoleLowpass` for a settable highcut on each
+delay's output, and detuners, which turned out to be exactly the "Delay
+feeding a PitchShifter" shape `PitchShiftVoice` already is - reused
+completely unchanged rather than hand-rolled again). Building it caught
+one more real bug: the default chorus patch (the manual's own suggested
+"+/- ten cents" recipe) routes through Mixer 2, but this Block's default
+mixer gains only un-muted Mixer 1, silently muting the entire right
+channel until both mixers actually used by the default patch were given
+real default gains.
+
 ## Open item
 
-Algorithm 123, mod factory|two, is the last remaining algorithm in this
-archive's roadmap - its manual pages are in hand (same source as 122)
-and it's next up.
+None - every algorithm in this archive's H3000 roadmap (100-123) is now
+built.
