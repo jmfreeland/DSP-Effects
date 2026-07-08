@@ -3,6 +3,7 @@
 #include "dsp/algorithms/Inverse.h"
 #include "dsp/algorithms/Plate.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
+#include "dsp/graphs/DenseRoomAlgorithm.h"
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
 #include "dsp/graphs/DualDigiplexAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
@@ -1131,6 +1132,41 @@ RunResult renderTimesqueeze(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderDenseRoom(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::DenseRoomAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::DenseRoomAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(1.0f);
+    engine.setRevTimeSeconds(2.5f);
+
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    left[0] = 0.6f;
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("dense room impulse (RevTime=2.5s):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/dense_room_impulse.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1229,6 +1265,10 @@ int main(int argc, char** argv)
     else if (algorithm == "timesqueeze")
     {
         result = renderTimesqueeze(outDir);
+    }
+    else if (algorithm == "dense_room")
+    {
+        result = renderDenseRoom(outDir);
     }
     else
     {

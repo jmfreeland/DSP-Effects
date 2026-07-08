@@ -113,7 +113,7 @@ for planning the rest of this archive's H3000 work:
 102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser
 103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler
 104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one
-105 Swept Combs        (built)     114 Dense Room         123 mod factory|two
+105 Swept Combs        (built)     114 Dense Room (built)  123 mod factory|two
 106 Swept Reverb       (built)     115 Vocoder
 107 Reverb Factory     (built)     116 Multi-Shift
 108 Ultra-Tap          (built)
@@ -217,9 +217,21 @@ half, with two sanity checks (Time=100% -> exactly -1 octave;
 Time=-87.5% -> exactly +3 octaves, matching the H3000's own documented
 pitch range) falling out of the formula for free.
 
+Algorithm 114, Dense Room, is built too - see docs/eventide-dense-room.md,
+a genuine named evolution of Reverb Factory's own 6-line
+Householder-tank family per its own manual page ("much improved early
+response... over the original 'Reverb Factory' program"), adding a
+`DiffuserChain<3>` diffusion stage and explicit per-line Pan/Level while
+dropping the Gate for a single Rev Time. Building it caught a real bug:
+the diffusion stages were left at their fixed buffer-capacity delay
+(~240ms) instead of the manual's own short Allpass Delay values, making
+the diffuser act as its own slow secondary reverb independent of Rev
+Time - fixed the same way Ultra-Tap's own delay bug was, via the
+opt-in `setDelaySamples()` extension.
+
 ## Open item
 
-Algorithms 114-123 (everything past Timesqueeze) are read for reference
+Algorithms 115-123 (everything past Dense Room) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further if
 new manual pages turn up; otherwise the table above is the working
 roadmap.
