@@ -8,6 +8,7 @@
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
 #include "dsp/graphs/DualDigiplexAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
+#include "dsp/graphs/GlideHallAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
 #include "dsp/graphs/LongDigiplexAlgorithm.h"
 #include "dsp/graphs/MultiShiftAlgorithm.h"
@@ -187,6 +188,68 @@ RunResult renderConcertHall(const std::string& outDir)
         {
             std::printf("wrote %s\n", path.c_str());
         }
+    }
+
+    return result;
+}
+
+RunResult renderGlideHall(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::GlideHallAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::GlideHallAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+
+    engine.setGlideLevel(0.8f);
+    engine.setGlideTapALeft(0.7f, 0.006f);
+    engine.setGlideTapARight(0.7f, 0.007f);
+    engine.setGlideTapBLeft(0.5f, 0.018f);
+    engine.setGlideTapBRight(0.5f, 0.02f);
+    engine.setGlideFeedback(0.2f, 0.2f);
+    engine.setGlideCrossFeedback(0.1f, 0.1f);
+
+    const float voiceDelays[6] = { 0.12f, 0.24f, 0.36f, 0.15f, 0.27f, 0.39f };
+    const float voicePans[6] = { -0.6f, -0.3f, -0.8f, 0.6f, 0.3f, 0.8f };
+    for (int i = 0; i < 6; ++i)
+    {
+        engine.setVoiceDelay(i, voiceDelays[static_cast<std::size_t>(i)]);
+        engine.setVoiceLevel(i, 0.5f);
+        engine.setVoicePan(i, voicePans[static_cast<std::size_t>(i)]);
+        engine.setVoiceFeedback(i, 0.15f);
+        engine.setVoiceCrossFeedback(i, 0.03f);
+    }
+    engine.setDecaySeconds(2.5f);
+    engine.setSize(0.6f);
+    engine.setDiffusion(0.6f);
+    engine.setVoiceDiffusion(0.3f);
+    engine.setFxMix(0.6f);
+    engine.setMix(1.0f);
+
+    // Impulse response: unit impulse into an otherwise silent buffer -
+    // exercises the glide taps' cross-feedback into the 6-voice bank and
+    // the series reverb tail together.
+    const int seconds = 5;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    left[0] = 1.0f;
+    right[0] = 1.0f;
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("glide_hall impulse response decay:\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/glide_hall_impulse.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
     }
 
     return result;
@@ -1580,6 +1643,10 @@ int main(int argc, char** argv)
     if (algorithm == "concert_hall")
     {
         result = renderConcertHall(outDir);
+    }
+    else if (algorithm == "glide_hall")
+    {
+        result = renderGlideHall(outDir);
     }
     else if (algorithm == "plate")
     {
