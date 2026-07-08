@@ -1,0 +1,37 @@
+#pragma once
+
+#include "dsp/schema/AlgorithmSchema.h"
+
+namespace dsp::schema
+{
+inline const AlgorithmSchema& stringModellerSchema()
+{
+    static const Stage stages[] = {
+        { "leftInput", "Left Input", StageKind::kInput, nullptr },
+        { "noise", "Noise Gen", StageKind::kInput, "excites the stimulation filter" },
+        { "stimFilter", "Stimulation Filter", StageKind::kProcessing,
+          "simultaneous Low/Band/High, mixed by Low/Band/High Amt" },
+        { "voices", "6 String Voices", StageKind::kFeedback,
+          "Karplus-Strong: Delay + damping Filter + feedback, own Note tuning" },
+        { "chorus", "Chorus", StageKind::kProcessing, "modulated delay, +/- combine to stereo" },
+        { "leftOutput", "Left Output", StageKind::kOutput, "Mix blends against dry" },
+        { "rightOutput", "Right Output", StageKind::kOutput, "Mix blends against dry" },
+    };
+    static const Connection connections[] = {
+        { "noise", "stimFilter", nullptr },
+        { "stimFilter", "voices", "Low/Band/High Amt" },
+        { "leftInput", "voices", "In Amt (passive resonator)" },
+        { "voices", "chorus", "6-voice sum" },
+        { "chorus", "leftOutput", "+delayed" },
+        { "chorus", "rightOutput", "-delayed" },
+    };
+    static const AlgorithmSchema schema = {
+        "String Modeller",
+        "Six Karplus-Strong string resonators, continuously excited by filtered noise and/or the "
+        "live input (a manual \"pluck\" trigger substitutes for the original's MIDI note-on), "
+        "feeding a modulated-delay Chorus that widens the mono resonator sum to stereo.",
+        stages, connections
+    };
+    return schema;
+}
+}

@@ -15,6 +15,7 @@
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
+#include "dsp/graphs/StringModellerAlgorithm.h"
 #include "dsp/graphs/StutterAlgorithm.h"
 #include "dsp/graphs/SweptCombsAlgorithm.h"
 #include "dsp/graphs/SweptReverbAlgorithm.h"
@@ -1300,6 +1301,51 @@ RunResult renderBandDelay(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderStringModeller(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::StringModellerAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::StringModellerAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(100.0f);
+    engine.setHighAmt(0.0f);
+    engine.setBandAmt(0.0f);
+    engine.setLowAmt(0.0f);
+    engine.setInAmt(0.0f);
+    engine.setChorus(40.0f);
+    engine.setDecay(75.0f);
+    engine.setBright(55.0f);
+
+    // Silence, then a manual "pluck" (trigger()) of all six strings - no
+    // continuous noise stimulation at all, so the six strings' Karplus-Strong
+    // ringing is the only thing audible (see dsp/algorithms/StringModeller.h
+    // for why triggering stands in for the manual's MIDI note-on).
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+
+    engine.trigger();
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("string modeller (six strings plucked, guitar tuning, Decay=75%%):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/string_modeller_pluck.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1414,6 +1460,10 @@ int main(int argc, char** argv)
     else if (algorithm == "band_delay")
     {
         result = renderBandDelay(outDir);
+    }
+    else if (algorithm == "string_modeller")
+    {
+        result = renderStringModeller(outDir);
     }
     else
     {

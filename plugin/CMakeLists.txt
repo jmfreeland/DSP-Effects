@@ -834,3 +834,39 @@ target_link_libraries(EventideBandDelayPlugin
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+
+juce_add_plugin(EventideStringModellerPlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Evdj
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Eventide String Modeller"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(EventideStringModellerPlugin PRIVATE
+    source/StringModellerPluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(EventideStringModellerPlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(EventideStringModellerPlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(EventideStringModellerPlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)

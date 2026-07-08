@@ -109,7 +109,7 @@ for planning the rest of this archive's H3000 work:
 
 ```
 100 Diatonic Shift    (built)      109 Long Digiplex     (built)      117 Band Delay (built)
-101 Layered Shift      (built)     110 Dual Digiplex     (built)      118 String Modeller
+101 Layered Shift      (built)     110 Dual Digiplex     (built)      118 String Modeller (built)
 102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser
 103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler
 104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one
@@ -261,9 +261,23 @@ consumers (every `PluginProcessor::acceptsMidi()` in this archive
 already returns `false`), so the manual's Note parameter is replaced
 with a direct settable base Hz per filter instead.
 
+Algorithm 118, String Modeller, is built too - see
+docs/eventide-string-modeller.md. The first algorithm in this archive to
+need a genuine Karplus-Strong topology (new `StringVoice` Component:
+`DelayLine` + damping `OnePoleLowpass` + a small DC-blocking stage, the
+last found necessary only once smoke-testing exposed a real bug - a
+plain one-pole lowpass has unity gain at DC regardless of cutoff, so at
+low `Bright` settings a plucked string outlived its own pitch as a slow
+DC droop). Six strings are excited by a shared noise/input stimulation
+signal and feed an `LFO`-modulated Chorus. Since no MIDI input pathway
+exists anywhere in this project, the manual's Gate Mode is always
+effectively "Open" (continuous stimulation, matching the only mode that
+produces sound without MIDI note-on events) and a `trigger()` method
+substitutes a manual "pluck" gesture for the missing keyboard.
+
 ## Open item
 
-Algorithms 118-123 (everything past Band Delay) are read for reference
-but not yet built. Revisit this doc's primary-source grounding further if
-new manual pages turn up; otherwise the table above is the working
-roadmap.
+Algorithms 119-123 (everything past String Modeller) are read for
+reference but not yet built. Revisit this doc's primary-source grounding
+further if new manual pages turn up; otherwise the table above is the
+working roadmap.
