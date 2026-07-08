@@ -17,6 +17,7 @@
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
 #include "dsp/graphs/StringModellerAlgorithm.h"
+#include "dsp/graphs/StudioSamplerAlgorithm.h"
 #include "dsp/graphs/StutterAlgorithm.h"
 #include "dsp/graphs/SweptCombsAlgorithm.h"
 #include "dsp/graphs/SweptReverbAlgorithm.h"
@@ -1393,6 +1394,66 @@ RunResult renderPhaser(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderStudioSampler(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::StudioSamplerAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::StudioSamplerAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(100.0f);
+    engine.setShiftMode(0, dsp::SamplerVoice::ShiftMode::kConstantLength);
+    engine.setShiftMode(1, dsp::SamplerVoice::ShiftMode::kConstantLength);
+    engine.setPitchCents(0, 1200.0f); // left: shift up an octave, same duration
+    engine.setPitchCents(1, 0.0f);    // right: pitch unchanged
+    engine.setTimePercent(0, 100.0f);
+    engine.setTimePercent(1, 200.0f); // right: play back twice as fast, same pitch
+
+    // Record half a second of a 300Hz tone into both channels, stop, then
+    // play both back - Left demonstrates independent Pitch (up an
+    // octave, same length), Right demonstrates independent Time (2x
+    // speed, same pitch).
+    const int recordSeconds = 1;
+    std::vector<float> recordLeft(kSampleRate * recordSeconds, 0.0f);
+    std::vector<float> recordRight(kSampleRate * recordSeconds, 0.0f);
+    for (int n = 0; n < kSampleRate * recordSeconds; ++n)
+    {
+        auto sample =
+          0.4f * std::sin(2.0f * 3.14159265f * 300.0f * static_cast<float>(n) / static_cast<float>(kSampleRate));
+        recordLeft[static_cast<std::size_t>(n)] = sample;
+        recordRight[static_cast<std::size_t>(n)] = sample;
+    }
+    engine.record(0);
+    engine.record(1);
+    engine.process(recordLeft, recordRight);
+    engine.stop(0);
+    engine.stop(1);
+    engine.play(0);
+    engine.play(1);
+
+    const int playSeconds = 1;
+    std::vector<float> left(kSampleRate * playSeconds, 0.0f);
+    std::vector<float> right(kSampleRate * playSeconds, 0.0f);
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("studio sampler (300Hz recorded, Left=Pitch+1200c, Right=Time200%%):\n");
+    printDecayCurve(left, right, playSeconds);
+
+    auto path = outDir + "/studio_sampler_playback.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1515,6 +1576,10 @@ int main(int argc, char** argv)
     else if (algorithm == "phaser")
     {
         result = renderPhaser(outDir);
+    }
+    else if (algorithm == "studio_sampler")
+    {
+        result = renderStudioSampler(outDir);
     }
     else
     {

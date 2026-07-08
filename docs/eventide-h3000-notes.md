@@ -111,7 +111,7 @@ for planning the rest of this archive's H3000 work:
 100 Diatonic Shift    (built)      109 Long Digiplex     (built)      117 Band Delay (built)
 101 Layered Shift      (built)     110 Dual Digiplex     (built)      118 String Modeller (built)
 102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser (built)
-103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler
+103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler (built)
 104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one
 105 Swept Combs        (built)     114 Dense Room (built)  123 mod factory|two
 106 Swept Reverb       (built)     115 Vocoder (built)
@@ -119,11 +119,19 @@ for planning the rest of this archive's H3000 work:
 108 Ultra-Tap          (built)
 ```
 
-(121 is absent from the manual's own TOC - a gap to confirm, not a
-transcription error, when that page range is reached.) Algorithms
-100-117 (through Band Delay) have primary-source pages in hand already
-(`H3000_Series_Manualpages2.pdf`); 118-123 are in
-`H3000_Series_Manualpages3.pdf`.
+(121 is absent from the manual's own TOC as its own entry - not a
+transcription error, but not a gap either: Studio Sampler's own manual
+page resolves it directly. Algorithm 121 is Algorithm 120 - "we have
+provided algorithm 121... the default of this algorithm is set to
+stereo" - the same program, shipped a second time with its Record Mode
+parameter defaulted to stereo instead of mono, purely so a user
+recording a stereo sample doesn't have to change that default by hand.
+See docs/eventide-studio-sampler.md.) Algorithms 100-117 (through Band
+Delay) have primary-source pages in hand already
+(`H3000_Series_Manualpages2.pdf`); 118-120 (through Studio Sampler) are
+in `H3000_Series_Manualpages3.pdf`, whose own pages resolved 121 as
+above; 122-123 (Mod Factory one/two) fall in a page range not yet in
+hand.
 
 Algorithm 102, Dual Shift, is built too - see
 docs/eventide-dual-shift.md. It reused the `PitchShiftVoice` Component
@@ -290,11 +298,27 @@ envelope follower, with a `trigger()` method (the same "manual gesture
 substitutes for MIDI" pattern as Stutter/String Modeller) standing in
 for the manual's MIDI-only ADSR Trigger.
 
+Algorithm 120, Studio Sampler, is built too - see
+docs/eventide-studio-sampler.md, including how reading its manual page to
+the end resolved the "121 gap" noted above (121 isn't a separate
+algorithm - it's 120 with Record Mode defaulted to stereo). Flagged going
+in as "likely partial/skip" given its heavy front-panel/MIDI recording
+workflow (physical record/stop/play buttons, an LCD VU meter, MIDI
+keyboard triggering, interactive "rock 'n' reel" point editing - none
+reachable by any of this project's three consumers), it turned out more
+buildable than expected: the manual's own "generic sampler" Shift Mode is
+a simple varispeed buffer read, and "constant length" mode reuses exactly
+the `PitchShifter`-based technique already proven for Timesqueeze. Two
+fully independent `SamplerVoice` Components (a new Component, no new
+Primitive) give real record/play/loop with independent Pitch and Time,
+plus audio-level record triggering (#9-11, genuinely audio-domain, no
+MIDI needed).
+
 ## Open item
 
-Algorithms 120-123 (everything past Phaser) are read for reference but
-not yet built (120, Studio Sampler, likely warrants only a partial build
-given its heavy MIDI/front-panel-recording-workflow dependence - to be
-assessed on its own page). Revisit this doc's primary-source grounding
-further if new manual pages turn up; otherwise the table above is the
-working roadmap.
+Algorithms 122-123 (Mod Factory one/two) are the last two algorithms in
+this archive's roadmap. Their manual pages fall in a range not yet in
+hand (the available scans jump from Studio Sampler's own page straight to
+a factory-presets appendix starting at printed page 171). Revisit this
+doc's primary-source grounding once those pages turn up; otherwise the
+table above is the working roadmap.
