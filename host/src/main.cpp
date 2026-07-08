@@ -7,6 +7,7 @@
 #include "dsp/graphs/DenseRoomAlgorithm.h"
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
 #include "dsp/graphs/DualDigiplexAlgorithm.h"
+#include "dsp/graphs/ChorusRvbAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/GlideHallAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
@@ -242,6 +243,68 @@ RunResult renderGlideHall(const std::string& outDir)
     printDecayCurve(left, right, seconds);
 
     auto path = outDir + "/glide_hall_impulse.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
+RunResult renderChorusRvb(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::ChorusRvbAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::ChorusRvbAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+
+    const float voiceDelays[6] = { 0.02f, 0.035f, 0.05f, 0.025f, 0.04f, 0.055f };
+    const float voicePans[6] = { -0.7f, -0.4f, -0.15f, 0.15f, 0.4f, 0.7f };
+    const float voiceDepths[6] = { 12.0f, 18.0f, 24.0f, 14.0f, 20.0f, 26.0f };
+    const float voiceRates[6] = { 0.25f, 0.31f, 0.19f, 0.28f, 0.22f, 0.34f };
+    for (int i = 0; i < 6; ++i)
+    {
+        engine.setVoiceDelay(i, voiceDelays[static_cast<std::size_t>(i)]);
+        engine.setVoiceLevel(i, 0.5f);
+        engine.setVoicePan(i, voicePans[static_cast<std::size_t>(i)]);
+        engine.setVoiceFeedback(i, 0.15f);
+        engine.setVoiceChorus(i, voiceDepths[static_cast<std::size_t>(i)], voiceRates[static_cast<std::size_t>(i)]);
+    }
+    engine.setDiffusion(0.5f);
+    engine.setChorusHighCut(10000.0f);
+    engine.setDecaySeconds(2.2f);
+    engine.setSize(0.6f);
+    engine.setFxMix(0.5f);
+    engine.setMix(1.0f);
+
+    // A sustained tone burst, not just an impulse - the chorus voices'
+    // per-voice LFO modulation only reveals itself against a continuous
+    // tone rather than a decaying transient.
+    const int seconds = 3;
+    const int burstSamples = kSampleRate * 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int i = 0; i < burstSamples; ++i)
+    {
+        auto sample =
+          0.3f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(i) / kSampleRate);
+        left[static_cast<std::size_t>(i)] = sample;
+        right[static_cast<std::size_t>(i)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("chorus_rvb (220Hz tone through 6-voice chorus + Plate):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/chorus_rvb_tone.wav";
     if (!host::writeStereoWav(path, left, right, kSampleRate))
     {
         std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
@@ -1647,6 +1710,10 @@ int main(int argc, char** argv)
     else if (algorithm == "glide_hall")
     {
         result = renderGlideHall(outDir);
+    }
+    else if (algorithm == "chorus_rvb")
+    {
+        result = renderChorusRvb(outDir);
     }
     else if (algorithm == "plate")
     {
