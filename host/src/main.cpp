@@ -18,9 +18,11 @@
 #include "dsp/graphs/SweptReverbAlgorithm.h"
 #include "dsp/graphs/TimesqueezeAlgorithm.h"
 #include "dsp/graphs/UltraTapAlgorithm.h"
+#include "dsp/graphs/VocoderAlgorithm.h"
 #include "host/WavWriter.h"
 
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -1167,6 +1169,54 @@ RunResult renderDenseRoom(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderVocoder(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::VocoderAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::VocoderAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(1.0f);
+
+    // Left (synthesis) = noise ("harmonically rich," per the manual's
+    // own Hint), Right (analysis) = a steady tone standing in for a
+    // voice - the vocoder should impress the analysis envelope onto the
+    // synthesis signal (see dsp/algorithms/Vocoder.h).
+    const int seconds = 1;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    uint32_t rngState = 0xC0FFEEu;
+    for (int n = 0; n < kSampleRate * seconds; ++n)
+    {
+        rngState ^= rngState << 13;
+        rngState ^= rngState >> 17;
+        rngState ^= rngState << 5;
+        auto noise = static_cast<float>(static_cast<int32_t>(rngState)) / 2147483648.0f;
+        left[static_cast<std::size_t>(n)] = noise * 0.5f;
+        right[static_cast<std::size_t>(n)] =
+          0.6f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(n) / static_cast<float>(kSampleRate));
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("vocoder (noise synthesis input, tone analysis input):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/vocoder_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1269,6 +1319,10 @@ int main(int argc, char** argv)
     else if (algorithm == "dense_room")
     {
         result = renderDenseRoom(outDir);
+    }
+    else if (algorithm == "vocoder")
+    {
+        result = renderVocoder(outDir);
     }
     else
     {

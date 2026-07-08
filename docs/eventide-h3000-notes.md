@@ -114,7 +114,7 @@ for planning the rest of this archive's H3000 work:
 103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler
 104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one
 105 Swept Combs        (built)     114 Dense Room (built)  123 mod factory|two
-106 Swept Reverb       (built)     115 Vocoder
+106 Swept Reverb       (built)     115 Vocoder (built)
 107 Reverb Factory     (built)     116 Multi-Shift
 108 Ultra-Tap          (built)
 ```
@@ -229,9 +229,22 @@ the diffuser act as its own slow secondary reverb independent of Rev
 Time - fixed the same way Ultra-Tap's own delay bug was, via the
 opt-in `setDelaySamples()` extension.
 
+Algorithm 115, Vocoder, is built too - see docs/eventide-vocoder.md, a
+classic 12-band channel vocoder reusing `StateVariableFilter` (built for
+Patch Factory) as the analysis/synthesis bandpass banks. The manual's
+own "Min Error"/"Max Resonance" expert parameters read more like an
+adaptive/LPC-style tracking filter than a fixed filterbank, but the real
+PEL firmware isn't public and LPC coefficient extraction is a large
+undertaking, so this Block builds the well-understood classic vocoder
+shape instead and documents that gap explicitly rather than guessing at
+internals. Also notable: this is the first algorithm in this archive
+where Left/Right are NOT interchangeable in the usual way - the manual
+explicitly requires Left = synthesis (instrument), Right = analysis
+(voice), the opposite convention from every Left-In-only algorithm here.
+
 ## Open item
 
-Algorithms 115-123 (everything past Dense Room) are read for reference
+Algorithms 116-123 (everything past Vocoder) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further if
 new manual pages turn up; otherwise the table above is the working
 roadmap.

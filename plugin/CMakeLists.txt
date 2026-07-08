@@ -726,3 +726,39 @@ target_link_libraries(EventideDenseRoomPlugin
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+
+juce_add_plugin(EventideVocoderPlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Evdg
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Eventide Vocoder"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(EventideVocoderPlugin PRIVATE
+    source/VocoderPluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(EventideVocoderPlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(EventideVocoderPlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(EventideVocoderPlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
