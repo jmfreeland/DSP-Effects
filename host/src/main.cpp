@@ -9,6 +9,7 @@
 #include "dsp/graphs/DualShiftAlgorithm.h"
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
 #include "dsp/graphs/LongDigiplexAlgorithm.h"
+#include "dsp/graphs/MultiShiftAlgorithm.h"
 #include "dsp/graphs/PatchFactoryAlgorithm.h"
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
@@ -1217,6 +1218,48 @@ RunResult renderVocoder(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderMultiShift(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::MultiShiftAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::MultiShiftAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setLeftCents(700.0f);
+    engine.setRightCents(-700.0f);
+    engine.setMix(1.0f);
+
+    const int seconds = 1;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate * seconds; ++n)
+    {
+        auto sample =
+          0.4f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(n) / static_cast<float>(kSampleRate));
+        left[static_cast<std::size_t>(n)] = sample;
+        right[static_cast<std::size_t>(n)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("multi-shift (L=+700c, R=-700c):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/multi_shift_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1323,6 +1366,10 @@ int main(int argc, char** argv)
     else if (algorithm == "vocoder")
     {
         result = renderVocoder(outDir);
+    }
+    else if (algorithm == "multi_shift")
+    {
+        result = renderMultiShift(outDir);
     }
     else
     {

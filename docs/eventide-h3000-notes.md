@@ -115,7 +115,7 @@ for planning the rest of this archive's H3000 work:
 104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one
 105 Swept Combs        (built)     114 Dense Room (built)  123 mod factory|two
 106 Swept Reverb       (built)     115 Vocoder (built)
-107 Reverb Factory     (built)     116 Multi-Shift
+107 Reverb Factory     (built)     116 Multi-Shift (built)
 108 Ultra-Tap          (built)
 ```
 
@@ -242,9 +242,18 @@ where Left/Right are NOT interchangeable in the usual way - the manual
 explicitly requires Left = synthesis (instrument), Right = analysis
 (voice), the opposite convention from every Left-In-only algorithm here.
 
+Algorithm 116, Multi-Shift, is built too - see
+docs/eventide-multi-shift.md. A genuine escalation over Dual Shift
+(Algorithm 102): each of its two independent pitch-shift channels gains
+its own dry delay tap (four sources total) and a real patchable
+feedback structure (any two of the four sources, per channel), built
+with the same one-sample-latency technique Patch Factory's own matrix
+uses, just narrower in scope. Reverse mode reuses Reverse Shift's own
+mechanism directly, per the manual's own "exactly like program 104."
+
 ## Open item
 
-Algorithms 116-123 (everything past Vocoder) are read for reference
+Algorithms 117-123 (everything past Multi-Shift) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further if
 new manual pages turn up; otherwise the table above is the working
 roadmap.
