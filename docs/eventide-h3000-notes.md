@@ -108,7 +108,7 @@ definitive list and page numbers for every H3000 algorithm, now in hand
 for planning the rest of this archive's H3000 work:
 
 ```
-100 Diatonic Shift    (built)      109 Long Digiplex     (built)      117 Band Delay
+100 Diatonic Shift    (built)      109 Long Digiplex     (built)      117 Band Delay (built)
 101 Layered Shift      (built)     110 Dual Digiplex     (built)      118 String Modeller
 102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser
 103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler
@@ -251,9 +251,19 @@ with the same one-sample-latency technique Patch Factory's own matrix
 uses, just narrower in scope. Reverse mode reuses Reverse Shift's own
 mechanism directly, per the manual's own "exactly like program 104."
 
+Algorithm 117, Band Delay, is built too - see docs/eventide-band-delay.md.
+The manual's own singular phrasing ("a multi-tap delay line," not "eight
+delay lines") is taken literally: one shared `DelayLine` with 8
+independently-settable read taps, each feeding its own
+`StateVariableFilter`. Skips Note Mode and MIDI-driven filter tuning
+entirely - no MIDI input pathway exists anywhere in this project's three
+consumers (every `PluginProcessor::acceptsMidi()` in this archive
+already returns `false`), so the manual's Note parameter is replaced
+with a direct settable base Hz per filter instead.
+
 ## Open item
 
-Algorithms 117-123 (everything past Multi-Shift) are read for reference
+Algorithms 118-123 (everything past Band Delay) are read for reference
 but not yet built. Revisit this doc's primary-source grounding further if
 new manual pages turn up; otherwise the table above is the working
 roadmap.

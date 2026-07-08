@@ -2,6 +2,7 @@
 #include "dsp/algorithms/Infinite.h"
 #include "dsp/algorithms/Inverse.h"
 #include "dsp/algorithms/Plate.h"
+#include "dsp/graphs/BandDelayAlgorithm.h"
 #include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "dsp/graphs/DenseRoomAlgorithm.h"
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
@@ -1260,6 +1261,45 @@ RunResult renderMultiShift(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderBandDelay(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::BandDelayAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::BandDelayAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(1.0f);
+    engine.setFeedback(20.0f);
+
+    const int seconds = 1;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int i = 0; i < 4; ++i)
+    {
+        left[static_cast<std::size_t>(i)] = (i % 2 == 0) ? 0.8f : -0.8f;
+    }
+    right = left;
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("band delay (8-tap impulse, Feedback=20%%):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/band_delay_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1370,6 +1410,10 @@ int main(int argc, char** argv)
     else if (algorithm == "multi_shift")
     {
         result = renderMultiShift(outDir);
+    }
+    else if (algorithm == "band_delay")
+    {
+        result = renderBandDelay(outDir);
     }
     else
     {
