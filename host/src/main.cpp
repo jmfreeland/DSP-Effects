@@ -11,6 +11,7 @@
 #include "dsp/graphs/LayeredShiftAlgorithm.h"
 #include "dsp/graphs/LongDigiplexAlgorithm.h"
 #include "dsp/graphs/MultiShiftAlgorithm.h"
+#include "dsp/graphs/ModFactoryOneAlgorithm.h"
 #include "dsp/graphs/PatchFactoryAlgorithm.h"
 #include "dsp/graphs/PhaserAlgorithm.h"
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
@@ -1454,6 +1455,63 @@ RunResult renderStudioSampler(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderModFactoryOne(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::ModFactoryOneAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::ModFactoryOneAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+
+    using MF1 = dsp::algorithms::ModFactoryOne;
+    // A manual-flanger patch, exactly matching the module doc's own
+    // example: LFO 1 modulates Delay 1, mixed with the dry signal.
+    engine.setPatch(MF1::Destination::kDly1In, MF1::Source::kLeftInput);
+    engine.setPatch(MF1::Destination::kDly1Mod, MF1::Source::kLfo1);
+    engine.setDelayMs(0, 8.0f);
+    engine.setDelayModMs(0, 6.0f);
+    engine.setDelayFeedback(0, 20.0f);
+    engine.setLfoFrequency(0, 0.3f);
+    engine.setLfoWaveform(0, dsp::MultiWaveLFO::Waveform::kTriangle);
+    engine.setPatch(MF1::Destination::kMix1aIn, MF1::Source::kLeftInput);
+    engine.setPatch(MF1::Destination::kMix1bIn, MF1::Source::kDelay1);
+    engine.setMixAAmount(0, 50.0f);
+    engine.setMixBAmount(0, 50.0f);
+    engine.setPatch(MF1::Destination::kLeftOut, MF1::Source::kMixer1);
+    engine.setPatch(MF1::Destination::kRightOut, MF1::Source::kMixer1);
+    engine.setMix(100.0f);
+
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate * seconds; ++n)
+    {
+        auto sample =
+          0.4f * std::sin(2.0f * 3.14159265f * 300.0f * static_cast<float>(n) / static_cast<float>(kSampleRate));
+        left[static_cast<std::size_t>(n)] = sample;
+        right[static_cast<std::size_t>(n)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("mod factory one (manual flanger patch: LFO1 -> Delay1 mod, Delay1+dry mixed):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/mod_factory_one_flanger.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1580,6 +1638,10 @@ int main(int argc, char** argv)
     else if (algorithm == "studio_sampler")
     {
         result = renderStudioSampler(outDir);
+    }
+    else if (algorithm == "mod_factory_one")
+    {
+        result = renderModFactoryOne(outDir);
     }
     else
     {

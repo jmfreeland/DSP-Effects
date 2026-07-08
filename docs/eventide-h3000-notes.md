@@ -112,7 +112,7 @@ for planning the rest of this archive's H3000 work:
 101 Layered Shift      (built)     110 Dual Digiplex     (built)      118 String Modeller (built)
 102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser (built)
 103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler (built)
-104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one
+104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one (built)
 105 Swept Combs        (built)     114 Dense Room (built)  123 mod factory|two
 106 Swept Reverb       (built)     115 Vocoder (built)
 107 Reverb Factory     (built)     116 Multi-Shift (built)
@@ -314,11 +314,29 @@ Primitive) give real record/play/loop with independent Pitch and Time,
 plus audio-level record triggering (#9-11, genuinely audio-domain, no
 MIDI needed).
 
+Algorithm 122, mod factory|one, is built too - see
+docs/eventide-mod-factory-one.md. The pages that were missing when this
+doc's "Open item" section was first written (the scans available then
+jumped from Studio Sampler straight to a factory-presets appendix) turned
+up mid-session; they cover both mod factory algorithms in full. mod
+factory|one is a genuine modular patch-bay in the same spirit as Patch
+Factory (Algorithm 111) but substantially larger - 28 destinations x 26
+sources versus Patch Factory's 13 x 16 - reusing that same
+one-sample-latency `setPatch(Destination, Source)` technique at scale.
+Two genuinely new Primitives were needed: `MultiWaveLFO` (13 waveforms:
+6 continuous, 5 audio-triggered one-shot sweeps, 2 alternating toggle
+sweeps - resolving another manual inconsistency, an aggregate waveform
+count that doesn't match its own itemized list, the same way this
+archive has handled others) and `EnvelopeDucker` (an attack/decay
+envelope follower with a second, compressor-style ducking output).
+Building both caught two real logic bugs before they shipped: one-shot
+LFO sweeps that never actually completed (a shared phase-wrap helper
+fought its own one-shot completion check), and toggle waveforms that
+swept the wrong direction on their first trigger (a direction flag was
+flipped before being used to describe the sweep it was flipped for).
+
 ## Open item
 
-Algorithms 122-123 (Mod Factory one/two) are the last two algorithms in
-this archive's roadmap. Their manual pages fall in a range not yet in
-hand (the available scans jump from Studio Sampler's own page straight to
-a factory-presets appendix starting at printed page 171). Revisit this
-doc's primary-source grounding once those pages turn up; otherwise the
-table above is the working roadmap.
+Algorithm 123, mod factory|two, is the last remaining algorithm in this
+archive's roadmap - its manual pages are in hand (same source as 122)
+and it's next up.
