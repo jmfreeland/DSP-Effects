@@ -110,7 +110,7 @@ for planning the rest of this archive's H3000 work:
 ```
 100 Diatonic Shift    (built)      109 Long Digiplex     (built)      117 Band Delay (built)
 101 Layered Shift      (built)     110 Dual Digiplex     (built)      118 String Modeller (built)
-102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser
+102 Dual Shift          (built)    111 Patch Factory     (built)      119 Phaser (built)
 103 Stereo Shift        (built)    112 Stutter           (built)      120 Studio Sampler
 104 Reverse Shift      (built)     113 Timesqueeze (built) 122 mod factory|one
 105 Swept Combs        (built)     114 Dense Room (built)  123 mod factory|two
@@ -275,9 +275,26 @@ effectively "Open" (continuous stimulation, matching the only mode that
 produces sound without MIDI note-on events) and a `trigger()` method
 substitutes a manual "pluck" gesture for the missing keyboard.
 
+Algorithm 119, Phaser, is built too - see docs/eventide-phaser.md. The
+first algorithm needing a genuinely different "allpass" than the one
+already in `dsp/`: a new `AllpassFilter` Primitive (a first-order
+allpass *filter*, unity gain everywhere with a swept -90-degree corner
+frequency) rather than the fixed-delay Schroeder `Allpass` used for
+reverb diffusion. Twelve stages in series, swept by an LFO, envelope
+follower, or ADSR, mix back with the dry signal asymmetrically per the
+manual's own Block Diagram (left = dry+wet, right = wet only - no dry at
+all on the right, the source of the classic phaser's stereo motion from
+a mono input). The ADSR mode turned out to be fully usable without
+MIDI - its own Attack/Release Thresholds auto-cycle it purely from an
+envelope follower, with a `trigger()` method (the same "manual gesture
+substitutes for MIDI" pattern as Stutter/String Modeller) standing in
+for the manual's MIDI-only ADSR Trigger.
+
 ## Open item
 
-Algorithms 119-123 (everything past String Modeller) are read for
-reference but not yet built. Revisit this doc's primary-source grounding
+Algorithms 120-123 (everything past Phaser) are read for reference but
+not yet built (120, Studio Sampler, likely warrants only a partial build
+given its heavy MIDI/front-panel-recording-workflow dependence - to be
+assessed on its own page). Revisit this doc's primary-source grounding
 further if new manual pages turn up; otherwise the table above is the
 working roadmap.

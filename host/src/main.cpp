@@ -12,6 +12,7 @@
 #include "dsp/graphs/LongDigiplexAlgorithm.h"
 #include "dsp/graphs/MultiShiftAlgorithm.h"
 #include "dsp/graphs/PatchFactoryAlgorithm.h"
+#include "dsp/graphs/PhaserAlgorithm.h"
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
@@ -1346,6 +1347,52 @@ RunResult renderStringModeller(const std::string& outDir)
 
     return result;
 }
+
+RunResult renderPhaser(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::PhaserAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::PhaserAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setMix(70.0f);
+    engine.setSweepMode(dsp::algorithms::Phaser::SweepMode::kLfo);
+    engine.setSweepRate(70.0f);
+    engine.setSweepBottom(10.0f);
+    engine.setSweepTop(80.0f);
+
+    // A steady tone swept by the LFO - the notches should audibly (and
+    // measurably, in RMS) move over time rather than sitting still.
+    const int seconds = 1;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate * seconds; ++n)
+    {
+        auto sample =
+          0.4f * std::sin(2.0f * 3.14159265f * 800.0f * static_cast<float>(n) / static_cast<float>(kSampleRate));
+        left[static_cast<std::size_t>(n)] = sample;
+        right[static_cast<std::size_t>(n)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("phaser (800Hz tone, LFO sweep, Mix=70%%):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/phaser_sweep.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
 }
 
 int main(int argc, char** argv)
@@ -1464,6 +1511,10 @@ int main(int argc, char** argv)
     else if (algorithm == "string_modeller")
     {
         result = renderStringModeller(outDir);
+    }
+    else if (algorithm == "phaser")
+    {
+        result = renderPhaser(outDir);
     }
     else
     {
