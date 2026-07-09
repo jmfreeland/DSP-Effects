@@ -18,6 +18,8 @@
 #include "dsp/graphs/ModFactoryTwoAlgorithm.h"
 #include "dsp/graphs/PatchFactoryAlgorithm.h"
 #include "dsp/graphs/PhaserAlgorithm.h"
+#include "dsp/graphs/Res1PlateAlgorithm.h"
+#include "dsp/graphs/Res2PlateAlgorithm.h"
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
 #include "dsp/graphs/ReverseShiftAlgorithm.h"
 #include "dsp/graphs/StereoShiftAlgorithm.h"
@@ -362,6 +364,134 @@ RunResult renderMBandRvb(const std::string& outDir)
     printDecayCurve(left, right, seconds);
 
     auto path = outDir + "/mband_rvb_impulse.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
+RunResult renderRes1Plate(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::Res1PlateAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::Res1PlateAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+
+    const float voiceHz[6] = { 130.81f, 164.81f, 196.00f, 261.63f, 329.63f, 392.00f };
+    const float voicePans[6] = { -0.7f, -0.35f, -0.85f, 0.7f, 0.35f, 0.85f };
+    for (int i = 0; i < 6; ++i)
+    {
+        engine.setVoicePitch(i, voiceHz[static_cast<std::size_t>(i)]);
+        engine.setVoiceLevel(i, 0.5f);
+        engine.setVoicePan(i, voicePans[static_cast<std::size_t>(i)]);
+        engine.setVoiceDuration(i, 3.0f);
+        engine.setVoiceHiCut(i, 4000.0f);
+    }
+    engine.setDecaySeconds(2.0f);
+    engine.setSize(0.5f);
+    engine.setDiffusion(0.6f);
+    engine.setVoiceDiffusion(0.2f);
+    engine.setFxMix(0.5f);
+    engine.setMix(1.0f);
+
+    // Impulse response: excites all six resonators + the series Plate
+    // reverb tail together.
+    const int seconds = 6;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    left[0] = 1.0f;
+    right[0] = 1.0f;
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("res1_plate impulse response decay:\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/res1_plate_impulse.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
+RunResult renderRes2Plate(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::Res2PlateAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::Res2PlateAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+
+    engine.setKey(0);
+    engine.setScale(dsp::Scale::kMajor);
+
+    const dsp::HarmonicInterval voiceIntervals[6] = {
+        dsp::HarmonicInterval::kThirdUp,  dsp::HarmonicInterval::kFifthUp,
+        dsp::HarmonicInterval::kOctaveUp, dsp::HarmonicInterval::kSecondUp,
+        dsp::HarmonicInterval::kSixthUp,  dsp::HarmonicInterval::kSeventhUp,
+    };
+    const float voicePans[6] = { -0.7f, -0.35f, -0.85f, 0.7f, 0.35f, 0.85f };
+    for (int i = 0; i < 6; ++i)
+    {
+        engine.setVoiceInterval(i, voiceIntervals[static_cast<std::size_t>(i)]);
+        engine.setVoiceLevel(i, 0.5f);
+        engine.setVoicePan(i, voicePans[static_cast<std::size_t>(i)]);
+        engine.setVoiceDuration(i, 2.5f);
+        engine.setVoiceHiCut(i, 4000.0f);
+    }
+    engine.setDecaySeconds(2.0f);
+    engine.setSize(0.5f);
+    engine.setDiffusion(0.6f);
+    // Voice Diffusion left at 0 for this demo: its short allpass delay
+    // lengths (97/149 samples) are close enough to a 220Hz tone's own
+    // period (~218 samples @ 48kHz) to measurably disturb the pitch
+    // tracker's autocorrelation lag search - not a Res2Plate bug (the
+    // Block's own diatonic-harmony math is verified directly against a
+    // clean sine in the isolated smoke test), just not a fair fight for
+    // this particular demo tone.
+    engine.setVoiceDiffusion(0.0f);
+    engine.setFxMix(0.5f);
+    engine.setMix(1.0f);
+
+    // A sustained tone burst, not just an impulse - the pitch tracker
+    // needs a real periodic signal to lock onto before the resonators
+    // retune to anything meaningful.
+    const int seconds = 5;
+    const int burstSamples = kSampleRate * 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int i = 0; i < burstSamples; ++i)
+    {
+        auto sample =
+          0.3f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(i) / kSampleRate);
+        left[static_cast<std::size_t>(i)] = sample;
+        right[static_cast<std::size_t>(i)] = sample;
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("res2_plate (220Hz A3 tone tracked, retuned resonators + Plate) decay:\n");
+    std::printf("  tracked frequency: %.1fHz\n", engine.trackedFrequencyHz());
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/res2_plate_tone.wav";
     if (!host::writeStereoWav(path, left, right, kSampleRate))
     {
         std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
@@ -1775,6 +1905,14 @@ int main(int argc, char** argv)
     else if (algorithm == "mband_rvb")
     {
         result = renderMBandRvb(outDir);
+    }
+    else if (algorithm == "res1_plate")
+    {
+        result = renderRes1Plate(outDir);
+    }
+    else if (algorithm == "res2_plate")
+    {
+        result = renderRes2Plate(outDir);
     }
     else if (algorithm == "plate")
     {

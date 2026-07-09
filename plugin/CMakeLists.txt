@@ -295,6 +295,78 @@ target_link_libraries(LexiconMBandRvbPlugin
         juce::juce_recommended_warning_flags
 )
 
+juce_add_plugin(LexiconRes1PlatePlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Lxr1
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Lexicon Res1>Plate"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(LexiconRes1PlatePlugin PRIVATE
+    source/Res1PlatePluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(LexiconRes1PlatePlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(LexiconRes1PlatePlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(LexiconRes1PlatePlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+juce_add_plugin(LexiconRes2PlatePlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Lxr2
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Lexicon Res2>Plate"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(LexiconRes2PlatePlugin PRIVATE
+    source/Res2PlatePluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(LexiconRes2PlatePlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(LexiconRes2PlatePlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(LexiconRes2PlatePlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
 juce_add_plugin(EventideDiatonicShiftPlugin
     COMPANY_NAME "Loom"
     PLUGIN_MANUFACTURER_CODE Loom

@@ -202,12 +202,14 @@ hardware's per-algorithm control surface exactly. Revisit if that
 distinction ever matters (e.g. exposing them to Plate/Chamber would be a
 one-line change to those Graphs, should someone want to experiment).
 
-None of the 6-Voice or Pitch class algorithms are built yet. The 6-Voice
-class now has enough primary-source material in hand (block diagrams +
-edit matrices for all 5, plus enough of the parameter glossary to pin
-down Chorus and Delay Time) to start; M-Band+Rvb's per-voice filter row
-and Res1/Res2>Plate's Pitch/resonance row will need interpretation calls
-documented per-algorithm the same way Inverse's Shape/Spread gap was
-handled, unless a further glossary excerpt turns up first. The Pitch
-class has no primary-source block diagrams in hand at all yet - hold
-until pages covering it are available.
+All 5 six-voice algorithms are now built (`docs/lexicon-pcm81-glide-hall.md`,
+`-chorus-rvb.md`, `-mband-rvb.md`, `-res1-plate.md`, `-res2-plate.md` for
+each one's specifics and known simplifications) - M-Band+Rvb's per-voice
+filter row and Res1/Res2>Plate's Pitch/resonance row each needed a
+documented interpretation call the same way Inverse's Shape/Spread gap
+was originally handled, since the scanned excerpt's OCR of those specific
+rows wasn't reliable enough to trust over the clearly-legible body text.
+None of the 7 Pitch-class algorithms (Quad>Hall, Dual-Chmb, Dual-Plt,
+Dual-Inv, Stereo-Chmb, VSO-Chmb, Pitch Correct) are built yet, and this
+repo has no primary-source block diagrams for that class in hand at all -
+hold until pages covering it are available.
