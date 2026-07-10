@@ -6,6 +6,9 @@
 #include "dsp/graphs/ConcertHallAlgorithm.h"
 #include "dsp/graphs/DenseRoomAlgorithm.h"
 #include "dsp/graphs/DiatonicShiftAlgorithm.h"
+#include "dsp/graphs/DualChmbAlgorithm.h"
+#include "dsp/graphs/DualPltAlgorithm.h"
+#include "dsp/graphs/DualInvAlgorithm.h"
 #include "dsp/graphs/DualDigiplexAlgorithm.h"
 #include "dsp/graphs/ChorusRvbAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
@@ -951,6 +954,134 @@ RunResult renderQuadHall(const std::string& outDir)
     printDecayCurve(left, right, seconds);
 
     auto path = outDir + "/quad_hall_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
+RunResult renderDualChmb(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::DualChmbAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::DualChmbAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDecaySeconds(2.0f);
+    engine.setRouting(dsp::graphs::DualChmbAlgorithm::Routing::kParallel);
+    engine.setSends(dsp::Submixer::Sends::kStereo);
+    engine.setReturns(dsp::Submixer::Returns::kStereo);
+
+    // A sustained 220Hz (A3) tone through the default detuned pair,
+    // in parallel with Chamber (the manual's own default Submixer
+    // configuration for a first-use patch).
+    const int seconds = 3;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        right[static_cast<std::size_t>(n)] = left[static_cast<std::size_t>(n)];
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("dual-chmb tone burst (220Hz, dual shifter parallel with Chamber):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/dual_chmb_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
+RunResult renderDualPlt(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::DualPltAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::DualPltAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDecaySeconds(2.0f);
+    engine.setRouting(dsp::graphs::DualPltAlgorithm::Routing::kParallel);
+    engine.setSends(dsp::Submixer::Sends::kStereo);
+    engine.setReturns(dsp::Submixer::Returns::kStereo);
+
+    const int seconds = 3;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        right[static_cast<std::size_t>(n)] = left[static_cast<std::size_t>(n)];
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("dual-plt tone burst (220Hz, dual shifter parallel with Plate):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/dual_plt_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
+RunResult renderDualInv(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::DualInvAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::DualInvAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDuration(2.5f);
+    engine.setLowSlope(-0.3f);
+    engine.setMidSlope(-0.3f);
+    engine.setRouting(dsp::graphs::DualInvAlgorithm::Routing::kParallel);
+    engine.setSends(dsp::Submixer::Sends::kStereo);
+    engine.setReturns(dsp::Submixer::Returns::kStereo);
+
+    const int seconds = 3;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        right[static_cast<std::size_t>(n)] = left[static_cast<std::size_t>(n)];
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("dual-inv tone burst (220Hz, dual shifter parallel with Inverse):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/dual_inv_burst.wav";
     if (!host::writeStereoWav(path, left, right, kSampleRate))
     {
         std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
@@ -1976,6 +2107,18 @@ int main(int argc, char** argv)
     else if (algorithm == "quad_hall")
     {
         result = renderQuadHall(outDir);
+    }
+    else if (algorithm == "dual_chmb")
+    {
+        result = renderDualChmb(outDir);
+    }
+    else if (algorithm == "dual_plt")
+    {
+        result = renderDualPlt(outDir);
+    }
+    else if (algorithm == "dual_inv")
+    {
+        result = renderDualInv(outDir);
     }
     else if (algorithm == "diatonic_shift")
     {

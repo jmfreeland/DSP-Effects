@@ -403,6 +403,114 @@ target_link_libraries(LexiconQuadHallPlugin
         juce::juce_recommended_warning_flags
 )
 
+juce_add_plugin(LexiconDualChmbPlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Lxd1
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Lexicon Dual-Chmb"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(LexiconDualChmbPlugin PRIVATE
+    source/DualChmbPluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(LexiconDualChmbPlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(LexiconDualChmbPlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(LexiconDualChmbPlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+juce_add_plugin(LexiconDualPltPlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Lxd2
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Lexicon Dual-Plt"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(LexiconDualPltPlugin PRIVATE
+    source/DualPltPluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(LexiconDualPltPlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(LexiconDualPltPlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(LexiconDualPltPlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+juce_add_plugin(LexiconDualInvPlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Lxd3
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Lexicon Dual-Inv"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(LexiconDualInvPlugin PRIVATE
+    source/DualInvPluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(LexiconDualInvPlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(LexiconDualInvPlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(LexiconDualInvPlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
 juce_add_plugin(EventideDiatonicShiftPlugin
     COMPANY_NAME "Loom"
     PLUGIN_MANUFACTURER_CODE Loom
