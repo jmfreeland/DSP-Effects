@@ -7,23 +7,26 @@ just Hall) — the actual PEL/DSP code is proprietary and not reproduced
 here; this is the *interface* Lexicon exposed, which tells us the
 structural design of the algorithm behind it.
 
-A scanned excerpt (chapters 2-3: Basic Operation, and The Algorithms and
-Their Parameters) now lives in the repo at
-`docs/references/lexicon-pcm81-user-guide-rev1.pdf`, so specific claims
-below can be checked directly rather than taken on trust. This excerpt
-runs through manual page 3-19: it covers the Reverb Shell + all 5 reverb
-cores' block diagrams and edit matrices (p.3-2 to 3-7, the source for the
-"five reverb cores" section below), **and** the block diagrams and edit
-matrices for all 5 six-voice algorithms (p.3-8 to 3-15, the source for
-the "six-voice algorithms" section below), followed by the start of the
-alphabetical parameter glossary (Chorus, Controls, and Delay Time row
-entries only - p.3-16 to 3-19). This was originally logged as covering
-just the 5 reverb cores; re-reading it further turned up the 6-Voice
-diagrams already sitting in the same file. Further excerpts (not yet
-added to the repo as files, but reviewed against this codebase) carried
-the manual through to its end - the rest of chapter 3's parameter
-glossary, the full chapter 4 factory-preset catalog, chapter 5 MIDI
-operation, chapter 6 troubleshooting, and chapter 7 specifications.
+Three scanned excerpts live in the repo under `docs/references/`:
+- `lexicon-pcm81-user-guide-rev1.pdf` - chapters 2-3 through manual page
+  3-19: the Reverb Shell + all 5 reverb cores' block diagrams and edit
+  matrices (p.3-2 to 3-7, the source for the "five reverb cores" section
+  below), the block diagrams and edit matrices for all 5 six-voice
+  algorithms (p.3-8 to 3-15, the source for the "six-voice algorithms"
+  section below), and the start of the alphabetical parameter glossary
+  (Chorus, Controls, and Delay Time row entries only - p.3-16 to 3-19).
+- `lexicon-pcm81-user-guide-rev1-6voice-pitch.pdf` - picks up exactly
+  where that leaves off (p.3-20 onward): the rest of the alphabetical
+  parameter glossary rows that also cover the 6-Voice algorithms
+  (Feedback/Cross-Feedback, Filters, Glide FX, Levels, Pitch, Resonance),
+  the full Pitch-class section with its own block diagrams for all 6
+  Dual-FX-style algorithms plus the Submixer routing system, and the
+  Pitch Correct algorithm.
+- `lexicon-pcm81-user-guide-rev1-presets-midi.pdf` - the chapter 4
+  factory-preset catalog (300 presets) and the start of chapter 5 MIDI
+  operation; useful for cross-checking naming/behavior claims but not
+  load-bearing for any block's own design.
+
 Together these confirmed our overall topology closely (the shared signal
 path below, and each core's unique-control table) and turned up two
 corrections, now fixed: Inverse's Low Slope/Mid Slope sign convention was
@@ -33,16 +36,8 @@ a later excerpt's "Shape, Spread" glossary entry (p.3-35) explained it's
 the same Chamber/Infinite swell mechanism with Spread fixed - now
 implemented (see `docs/lexicon-pcm81-inverse.md`). The rest of the manual
 (factory presets, MIDI, troubleshooting, specs) didn't surface anything
-else actionable against the five reverb cores; it's mostly relevant to
-hardware/MIDI operation outside this repo's scope. **Not yet in hand for
-the 6-Voice class**: the rest of the alphabetical glossary past Delay
-Time - specifically the Feedback/Cross-Feedback, Filters, Glide FX,
-Levels, Modulation, Panning, and Resonance row entries, which would
-pin down exact parameter ranges/units for Glide>Hall's glide controls,
-M-Band+Rvb's per-voice filters, and Res1>Plate/Res2>Plate's resonator
-row. **Not yet in hand at all**: the Pitch-class algorithms' own block
-diagrams (Quad>Hall, Dual-Chmb, Dual-Plt, Dual-Inv, Stereo-Chmb,
-VSO-Chmb, Pitch Correct) and their Submixer.
+else actionable against the five reverb cores or the 6-Voice/Pitch
+algorithms now described below.
 
 ## The 17 algorithms
 
@@ -52,16 +47,17 @@ front end:
 - **4-Voice** (reverb + a general-purpose 4-voice delay "toolbox," the
   "Reverb Shell"): **Concert Hall**, **Plate**, **Chamber**, **Inverse**,
   **Infinite**.
-- **6-Voice** (reverb + a specialized 6-voice effect): **Glide>Hall**
-  (gliding delay + Concert Hall, series), **Chorus+Rvb** (6-voice chorus +
-  Plate, parallel), **M-Band+Rvb** (6-voice multiband EQ'd delay +
-  Chamber, parallel, diffuser inside the multiband feedback loops),
-  **Res1>Plate** (6 chromatic round-robin resonators + Plate),
-  **Res2>Plate** (6 diatonically-harmonized resonators + Plate).
+- **6-Voice** (reverb + a specialized 6-voice delay-voice effect,
+  structurally the same "N delay voices summed into a reverb" shape as
+  the 4-Voice Reverb Shell just scaled to six voices, plus one
+  class-specific addition): **Glide>Hall**, **Chorus+Rvb**,
+  **M-Band+Rvb**, **Res1>Plate**, **Res2>Plate**. See "The five
+  six-voice algorithms" below.
 - **Pitch** (a "Dual FX" submixer routing one of 3 reverbs against one of
-  3 pitch-shift blocks, freely series/parallel): **Quad>Hall**,
-  **Dual-Chmb**, **Dual-Plt**, **Dual-Inv**, **Stereo-Chmb**, **VSO-Chmb**,
-  plus **Pitch Correct** (monophonic vocal pitch correction).
+  3 pitch-shift blocks, freely series/parallel via a dedicated Submixer):
+  **Quad>Hall**, **Dual-Chmb**, **Dual-Plt**, **Dual-Inv**,
+  **Stereo-Chmb**, **VSO-Chmb**, plus **Pitch Correct** (monophonic vocal
+  pitch correction, no Submixer). See "The Pitch algorithms" below.
 
 ## The five reverb cores
 
@@ -180,6 +176,89 @@ Row 4 or 5 depending on the algorithm):
 **Controls row** (universal, Row 0 of every algorithm):
 - `Mix` (dry/wet), `FX Adjust` (wet output trim, +12 to -73dB), `FX Mix` (balance of reverb vs. the class-specific voice/chorus/multiband effect), `FX Width` (mono/stereo/surround imaging, -360..+360 with 0/±360=mono, ±45=stereo, ±90=L-R/R-L surround), `High Cut` (global lowpass), `InLvl`/`InPan` L&R (dry input level/pan into the effect).
 
+## The Pitch algorithms
+
+The PCM81 contains 7 Pitch algorithms combining "uncompromised Lexicon
+reverb" with pitch shifting. Quad>Hall is a fixed-routing 4-voice
+pitch shifter in series with Concert Hall (own Mix control, no
+Submixer). The other six all use a genuinely different mechanism, the
+**Submixer** (a dedicated parameter row present in every Dual-FX
+algorithm): two independent effect blocks, a **Stereo Reverb** block
+(one of Chamber/Plate/Inverse, fixed per algorithm) and a **Pitch FX**
+block (one of Dual Shifter/Stereo Shifter/VSO Shifter, fixed per
+algorithm), each with its own In Level/In Width/Out Level/Out
+Width/HiCut/LoCut/Mix, freely arranged via three Submixer controls:
+- `Sends` (0-300): how the two panned main inputs feed the two
+  blocks' stereo inputs - Stereo/L=Rvb,R=FX/Mono (L+R to both)/
+  L=FX,R=Rvb/Stereo (2nd stereo option, reversed channel order from
+  the first).
+- `Returns` (0-300): the mirror of Sends, for how the two blocks'
+  stereo outputs feed the two main outputs.
+- `Routing` (0-400, **takes precedence over Sends/Returns** - e.g. at
+  "Rvb into FX" no signal is sent directly to FX's inputs and Rvb's
+  outputs don't reach the main outs directly): Parallel / Rvb-into-FX
+  (series 1) / FX-into-Rvb (series 2, reverse series) / Parallel
+  again (400 is a second parallel option matching 0/200, per the
+  manual's own redundant labeling).
+
+  This one control genuinely reconfigures the signal graph at
+  runtime (not just crossfades a fixed topology) - straightforward to
+  implement as an explicit `switch` over 5-6 named configurations
+  (Stereo Series 1/2, Mono-in Series 1/2, Stereo Parallel, Mono-in
+  Parallel, Dual Mono-in Stereo-out, Dual Mono-in Mono-out - the
+  manual's own "Useful Configurations" diagrams) rather than a
+  continuous DSP-level crossfade, since Sends/Returns/Routing are each
+  themselves discrete-valued (five or so labeled positions on a
+  0-300/0-400 range) not continuous controls.
+- **Dual-Chmb** / **Dual-Plt** / **Dual-Inv** = Submixer + a "Dual
+  Shifter": two independent voices, each Delay(1 sample min)->
+  Pitch(cents,±3 octaves,1-cent res)->Level->Pan, each with its own
+  Fbk and X-Fbk back into *both* delay inputs - i.e. mechanistically
+  identical to the H3000's own `PitchShiftVoice` pair pattern (Dual
+  Shift/Layered Shift), reusable unchanged - feeding Chamber / Plate /
+  Inverse respectively.
+- **Stereo-Chmb** = Submixer + a "Stereo Shifter": *one* shift amount
+  applied sample-synchronously to both channels ("a true stereo pitch
+  shifter... maintain[s] the stereo image of source material") -
+  mechanistically a single shared cents value driving two
+  `PitchShifter`s in lockstep rather than two independent voices -
+  feeding Chamber.
+- **VSO-Chmb** = the same Stereo Shifter, plus one added `Varispeed`
+  parameter (+55.00% to -35.00%, 0.01% steps) that directly computes
+  the compensating pitch shift for a known playback-speed change
+  (e.g. +20% speed => -386 cents to restore original pitch) - a
+  closed-form mapping from a percentage to a cents value, not a new
+  DSP mechanism - feeding Chamber.
+- **Pitch Correct** = no Submixer; a fixed series chain: `Pitch
+  Correct` block -> Chamber -> FX Width/HiCut/LoCut/Adjust, FX Mix
+  fixed near 0% ("most applications require only pitch processing").
+  Designed for monophonic vocal sources. `Detect` (Input/Fixed/MIDI)
+  picks the pitch-detection source; for this repo (no MIDI input
+  pathway - see the H3000 notes on the same constraint) only `Input`
+  is in scope. `Correction` (0-100%) blends toward the nearest in-key
+  pitch; `Low Pitch`/`High Pitch` bracket the detector's tracked
+  range (also sets the shifter's inherent latency, same tradeoff as
+  the Pitch-class shift voices' own Low Pitch control); `Tuning`
+  (410-470Hz A reference); `Splice` (crossfade ms); `Shift Cents` +
+  `Shift Semitones` (an *additional* fixed transpose on top of
+  correction, additive to ±2 octaves); `GldResp`/`Tracking`
+  (Fastest/Fast/Moderate/Slow/Hold - detector responsiveness). This
+  is `dsp::PitchDetector` (autocorrelation pitch tracking) +
+  `dsp::DiatonicScale.h`'s `nearestScaleDegreeIndex` (nearest in-key
+  pitch) + `dsp::PitchShifter` (the correction itself) - the same
+  three primitives already proven together in the H3000's Diatonic
+  Shift, just monophonic-single-voice instead of harmonizing voices,
+  and correcting *toward* the input's own nearest scale degree rather
+  than transposing by a chosen interval.
+
+**Rvb/FX block controls** (Submixer row, shared by all 6 Dual-FX
+algorithms): `RvbMix`/`FXMix` (independent wet/dry per block),
+`RvbInLvl`/`FXInLvl`, `RvbInW`/`FXInW` (independent stereo width *at
+the input* to each block - distinct from the block's own internal
+width control), `RvbHiCut`/`FXHiCut`, `RvbLoCut`/`FXLoCut` (independent
+6dB/octave stereo filters on each block's output), `RvbOutLvl`/
+`FXOutLvl`, `RvbOutW`/`FXOutW`.
+
 ## Numbers worth reusing in our engines
 
 - Native sample rates: 44.1kHz and 48kHz (word size 20-24 bit internal).
@@ -189,7 +268,7 @@ Row 4 or 5 depending on the algorithm):
 
 ## Gap vs. this repo's current implementation
 
-All five reverb cores are now built (`docs/lexicon-pcm81-hall.md`,
+All five reverb cores are built (`docs/lexicon-pcm81-hall.md`,
 `-plate.md`, `-chamber.md`, `-infinite.md`, `-inverse.md` for each one's
 specifics and known simplifications). One architectural note worth
 tracking: the manual's own tables show `Definition`, `Depth`, and
@@ -210,6 +289,9 @@ documented interpretation call the same way Inverse's Shape/Spread gap
 was originally handled, since the scanned excerpt's OCR of those specific
 rows wasn't reliable enough to trust over the clearly-legible body text.
 None of the 7 Pitch-class algorithms (Quad>Hall, Dual-Chmb, Dual-Plt,
-Dual-Inv, Stereo-Chmb, VSO-Chmb, Pitch Correct) are built yet, and this
-repo has no primary-source block diagrams for that class in hand at all -
-hold until pages covering it are available.
+Dual-Inv, Stereo-Chmb, VSO-Chmb, Pitch Correct) are built yet - that's
+the next phase of work (see "The Pitch algorithms" above for what the
+manual specifies for each). MIDI-sourced pitch detection (Pitch
+Correct's `Detect: MIDI` option) is out of scope for the same reason
+every other MIDI-only feature in this archive is: no consumer here
+implements MIDI input.
