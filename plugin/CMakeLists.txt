@@ -367,6 +367,42 @@ target_link_libraries(LexiconRes2PlatePlugin
         juce::juce_recommended_warning_flags
 )
 
+juce_add_plugin(LexiconQuadHallPlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Lxq1
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Lexicon Quad>Hall"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(LexiconQuadHallPlugin PRIVATE
+    source/QuadHallPluginProcessor.cpp
+    source/ArchitectureView.cpp
+    source/LoomPluginEditor.cpp
+)
+
+target_include_directories(LexiconQuadHallPlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+)
+
+target_compile_definitions(LexiconQuadHallPlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(LexiconQuadHallPlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
 juce_add_plugin(EventideDiatonicShiftPlugin
     COMPANY_NAME "Loom"
     PLUGIN_MANUFACTURER_CODE Loom

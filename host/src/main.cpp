@@ -18,6 +18,7 @@
 #include "dsp/graphs/ModFactoryTwoAlgorithm.h"
 #include "dsp/graphs/PatchFactoryAlgorithm.h"
 #include "dsp/graphs/PhaserAlgorithm.h"
+#include "dsp/graphs/QuadHallAlgorithm.h"
 #include "dsp/graphs/Res1PlateAlgorithm.h"
 #include "dsp/graphs/Res2PlateAlgorithm.h"
 #include "dsp/graphs/ReverbFactoryAlgorithm.h"
@@ -908,6 +909,48 @@ RunResult renderLayeredShift(const std::string& outDir)
     printDecayCurve(left, right, seconds);
 
     auto path = outDir + "/layered_shift_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
+RunResult renderQuadHall(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::QuadHallAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::QuadHallAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDecaySeconds(2.5f);
+    engine.setFxMix(0.4f);
+
+    // A sustained 220Hz (A3) tone through all 4 default voices (a
+    // detuned-doubling spread per the manual's own "doubling (or
+    // quintupling) effects" use case), in series with Concert Hall.
+    const int seconds = 3;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        right[static_cast<std::size_t>(n)] = left[static_cast<std::size_t>(n)];
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("quad>hall tone burst (220Hz, 4-voice shift into Concert Hall):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/quad_hall_burst.wav";
     if (!host::writeStereoWav(path, left, right, kSampleRate))
     {
         std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
@@ -1929,6 +1972,10 @@ int main(int argc, char** argv)
     else if (algorithm == "inverse")
     {
         result = renderInverse(outDir);
+    }
+    else if (algorithm == "quad_hall")
+    {
+        result = renderQuadHall(outDir);
     }
     else if (algorithm == "diatonic_shift")
     {
