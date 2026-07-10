@@ -10,6 +10,7 @@
 #include "dsp/graphs/DualPltAlgorithm.h"
 #include "dsp/graphs/DualInvAlgorithm.h"
 #include "dsp/graphs/StereoChmbAlgorithm.h"
+#include "dsp/graphs/VSOChmbAlgorithm.h"
 #include "dsp/graphs/DualDigiplexAlgorithm.h"
 #include "dsp/graphs/ChorusRvbAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
@@ -1138,6 +1139,50 @@ RunResult renderStereoChmb(const std::string& outDir)
     return result;
 }
 
+RunResult renderVSOChmb(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::VSOChmbAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::VSOChmbAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDecaySeconds(2.0f);
+    // +20% varispeed (the manual's own worked example): -386 cents to
+    // restore original pitch.
+    engine.setVarispeed(20.0f);
+    engine.setRouting(dsp::graphs::VSOChmbAlgorithm::Routing::kParallel);
+    engine.setSends(dsp::Submixer::Sends::kStereo);
+    engine.setReturns(dsp::Submixer::Returns::kStereo);
+
+    const int seconds = 3;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.4f * std::sin(2.0f * 3.14159265f * 220.0f * n / kSampleRate);
+        right[static_cast<std::size_t>(n)] = left[static_cast<std::size_t>(n)];
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("vso-chmb tone burst (220Hz, +20%% varispeed correction, parallel with Chamber):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/vso_chmb_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
 RunResult renderDualShift(const std::string& outDir)
 {
     RunResult result;
@@ -2166,6 +2211,10 @@ int main(int argc, char** argv)
     else if (algorithm == "stereo_chmb")
     {
         result = renderStereoChmb(outDir);
+    }
+    else if (algorithm == "vso_chmb")
+    {
+        result = renderVSOChmb(outDir);
     }
     else if (algorithm == "diatonic_shift")
     {
