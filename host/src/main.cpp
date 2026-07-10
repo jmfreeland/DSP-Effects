@@ -11,6 +11,7 @@
 #include "dsp/graphs/DualInvAlgorithm.h"
 #include "dsp/graphs/StereoChmbAlgorithm.h"
 #include "dsp/graphs/VSOChmbAlgorithm.h"
+#include "dsp/graphs/PitchCorrectAlgorithm.h"
 #include "dsp/graphs/DualDigiplexAlgorithm.h"
 #include "dsp/graphs/ChorusRvbAlgorithm.h"
 #include "dsp/graphs/DualShiftAlgorithm.h"
@@ -1183,6 +1184,48 @@ RunResult renderVSOChmb(const std::string& outDir)
     return result;
 }
 
+RunResult renderPitchCorrect(const std::string& outDir)
+{
+    RunResult result;
+
+    static std::vector<float> working(dsp::graphs::PitchCorrectAlgorithm::requiredWorkingBufferSize());
+    dsp::graphs::PitchCorrectAlgorithm engine;
+    engine.prepare(static_cast<float>(kSampleRate), working);
+    engine.setDecaySeconds(2.0f);
+    engine.setCorrection(1.0f);
+    engine.setFxMix(0.0f);
+
+    // A deliberately "sour" 215Hz tone, slightly flat of A3 (220Hz) -
+    // Correction=1 should pull it toward the nearest chromatic pitch.
+    const int seconds = 2;
+    std::vector<float> left(kSampleRate * seconds, 0.0f);
+    std::vector<float> right(kSampleRate * seconds, 0.0f);
+    for (int n = 0; n < kSampleRate; ++n)
+    {
+        left[static_cast<std::size_t>(n)] = 0.4f * std::sin(2.0f * 3.14159265f * 215.0f * n / kSampleRate);
+        right[static_cast<std::size_t>(n)] = left[static_cast<std::size_t>(n)];
+    }
+
+    engine.process(left, right);
+    checkFinite(left, right, result);
+
+    std::printf("pitch correct tone burst (215Hz sour note, corrected toward A3=220Hz):\n");
+    printDecayCurve(left, right, seconds);
+
+    auto path = outDir + "/pitch_correct_burst.wav";
+    if (!host::writeStereoWav(path, left, right, kSampleRate))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", path.c_str());
+        result.ok = false;
+    }
+    else
+    {
+        std::printf("wrote %s\n", path.c_str());
+    }
+
+    return result;
+}
+
 RunResult renderDualShift(const std::string& outDir)
 {
     RunResult result;
@@ -2215,6 +2258,10 @@ int main(int argc, char** argv)
     else if (algorithm == "vso_chmb")
     {
         result = renderVSOChmb(outDir);
+    }
+    else if (algorithm == "pitch_correct")
+    {
+        result = renderPitchCorrect(outDir);
     }
     else if (algorithm == "diatonic_shift")
     {

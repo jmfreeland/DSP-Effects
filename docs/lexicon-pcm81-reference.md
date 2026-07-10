@@ -295,10 +295,18 @@ filter row and Res1/Res2>Plate's Pitch/resonance row each needed a
 documented interpretation call the same way Inverse's Shape/Spread gap
 was originally handled, since the scanned excerpt's OCR of those specific
 rows wasn't reliable enough to trust over the clearly-legible body text.
-None of the 7 Pitch-class algorithms (Quad>Hall, Dual-Chmb, Dual-Plt,
-Dual-Inv, Stereo-Chmb, VSO-Chmb, Pitch Correct) are built yet - that's
-the next phase of work (see "The Pitch algorithms" above for what the
-manual specifies for each). MIDI-sourced pitch detection (Pitch
-Correct's `Detect: MIDI` option) is out of scope for the same reason
-every other MIDI-only feature in this archive is: no consumer here
-implements MIDI input.
+All 7 Pitch-class algorithms are now built (Quad>Hall, Dual-Chmb,
+Dual-Plt, Dual-Inv, Stereo-Chmb, VSO-Chmb, Pitch Correct - see
+`docs/lexicon-pcm81-quad-hall.md`, `-dual-chmb.md`, `-dual-plt.md`,
+`-dual-inv.md`, `-stereo-chmb.md`, `-vso-chmb.md`, `-pitch-correct.md`
+for each one's specifics and known simplifications). This completes the
+PCM81's entire 17-algorithm roadmap: all 5 4-Voice reverb cores, all 5
+6-voice algorithms, and all 7 Pitch algorithms. MIDI-sourced pitch
+detection (Pitch Correct's `Detect: MIDI` option) is out of scope for
+the same reason every other MIDI-only feature in this archive is: no
+consumer here implements MIDI input.
+
+No open items remain for the PCM81 side of this archive. Stage 2 work
+(tone-matching/nuance closer to the original hardware's character,
+per `CLAUDE.md`'s roadmap) is the natural next phase for any of these
+17 algorithms, whenever it's picked up.
