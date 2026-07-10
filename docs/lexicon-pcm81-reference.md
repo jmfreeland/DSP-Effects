@@ -7,7 +7,7 @@ just Hall) — the actual PEL/DSP code is proprietary and not reproduced
 here; this is the *interface* Lexicon exposed, which tells us the
 structural design of the algorithm behind it.
 
-Three scanned excerpts live in the repo under `docs/references/`:
+Four scanned excerpts live in the repo under `docs/references/`:
 - `lexicon-pcm81-user-guide-rev1.pdf` - chapters 2-3 through manual page
   3-19: the Reverb Shell + all 5 reverb cores' block diagrams and edit
   matrices (p.3-2 to 3-7, the source for the "five reverb cores" section
@@ -26,6 +26,13 @@ Three scanned excerpts live in the repo under `docs/references/`:
   factory-preset catalog (300 presets) and the start of chapter 5 MIDI
   operation; useful for cross-checking naming/behavior claims but not
   load-bearing for any block's own design.
+- `lexicon-pcm81-user-guide-rev1-midi-troubleshooting-specs.pdf` - the
+  rest of chapter 5 (MIDI controller assignment, Program Change/SysEx/
+  Dynamic MIDI, the MIDI Implementation Chart), chapter 6 Troubleshooting,
+  and chapter 7 Specifications - completing the manual end to end.
+  Entirely MIDI/hardware/troubleshooting content; confirms rather than
+  changes this repo's existing "no MIDI input pathway" scoping, and
+  surfaces nothing actionable for any Block's own design.
 
 Together these confirmed our overall topology closely (the shared signal
 path below, and each core's unique-control table) and turned up two
