@@ -222,6 +222,36 @@ void LoomParametersPanel::resized()
 void LoomParametersPanel::setAccentColour(juce::Colour accent)
 {
     accent_ = accent;
+    // The controls cache their colours when constructed (before the
+    // editor's LookAndFeel attaches), so push the display-well styling
+    // - accent text in a near-black inset - onto each one explicitly.
+    for (auto& section : sections_)
+    {
+        for (auto& cell : section.cells)
+        {
+            if (cell.slider != nullptr)
+            {
+                cell.slider->setColour(juce::Slider::textBoxTextColourId, accent_.brighter(0.15f));
+                cell.slider->setColour(juce::Slider::textBoxBackgroundColourId,
+                                       loom::colours::kDisplayWell);
+                cell.slider->setColour(juce::Slider::textBoxOutlineColourId,
+                                       juce::Colours::white.withAlpha(0.12f));
+            }
+            if (cell.comboBox != nullptr)
+            {
+                cell.comboBox->setColour(juce::ComboBox::backgroundColourId,
+                                         loom::colours::kDisplayWell);
+                cell.comboBox->setColour(juce::ComboBox::textColourId, accent_.brighter(0.15f));
+                cell.comboBox->setColour(juce::ComboBox::outlineColourId,
+                                         juce::Colours::white.withAlpha(0.12f));
+                cell.comboBox->setColour(juce::ComboBox::arrowColourId, accent_);
+            }
+            if (cell.toggle != nullptr)
+            {
+                cell.toggle->setColour(juce::ToggleButton::tickColourId, accent_);
+            }
+        }
+    }
     repaint();
 }
 
