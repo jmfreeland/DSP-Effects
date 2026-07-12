@@ -77,7 +77,7 @@ class ArchitectureView : public juce::Component
     void navigateTo(const dsp::schema::AlgorithmSchema* schema);
     void drawBox(juce::Graphics& g, const BoxLayout& box);
     void drawConnection(juce::Graphics& g, const dsp::schema::Connection& connection,
-                        int& backEdgeIndex);
+                        int& backEdgeIndex, int& skipEdgeIndex);
     void drawFooter(juce::Graphics& g);
     juce::Rectangle<float> backButtonBounds() const;
 
@@ -87,6 +87,7 @@ class ArchitectureView : public juce::Component
     int numColumns_ = 0;
     int maxLanesInColumn_ = 0;
     int numBackEdges_ = 0;
+    int numSkipEdges_ = 0;
     float centerY_ = 0.0f;
     juce::StringArray highlightedStageIds_;
     const dsp::schema::Stage* hoveredStage_ = nullptr;
@@ -100,4 +101,6 @@ class ArchitectureView : public juce::Component
     static constexpr float kHeaderHeight = 64.0f;
     static constexpr float kFooterHeight = 34.0f;
     static constexpr float kBackEdgeSpacing = 14.0f;
+    static constexpr float kSkipEdgeSpacing = 14.0f;
+    static constexpr float kSelfLoopClearance = 30.0f;
 };

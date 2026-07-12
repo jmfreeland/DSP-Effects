@@ -163,17 +163,27 @@ void ArchitectureView::computeLayout()
               std::max(column[static_cast<std::size_t>(to)], column[static_cast<std::size_t>(from)] + 1);
         }
     }
+    numColumns_ = 1 + *std::max_element(column.begin(), column.end());
+
+    numSkipEdges_ = 0;
     for (const auto& connection : currentSchema_->connections)
     {
         auto from = indexOf(connection.fromId);
         auto to = indexOf(connection.toId);
-        if (from >= 0 && to >= 0 && from > to)
+        if (from < 0 || to < 0)
+        {
+            continue;
+        }
+        if (from > to)
         {
             ++numBackEdges_;
         }
+        else if (from < to &&
+                 column[static_cast<std::size_t>(to)] - column[static_cast<std::size_t>(from)] > 1)
+        {
+            ++numSkipEdges_; // routed over the top of the diagram
+        }
     }
-
-    numColumns_ = 1 + *std::max_element(column.begin(), column.end());
 
     // Lanes: stages sharing a column stack symmetrically around the
     // center line, in declaration order - the manual's parallel-branch
@@ -186,7 +196,10 @@ void ArchitectureView::computeLayout()
     }
     maxLanesInColumn_ = *std::max_element(laneCount.begin(), laneCount.end());
 
-    centerY_ = kHeaderHeight + (static_cast<float>(maxLanesInColumn_) * kLaneHeight) * 0.5f;
+    // Long skip connections route above the boxes; leave a lane strip
+    // for them between the header and the top row.
+    auto skipSpace = static_cast<float>(numSkipEdges_) * kSkipEdgeSpacing + (numSkipEdges_ > 0 ? 6.0f : 0.0f);
+    centerY_ = kHeaderHeight + skipSpace + (static_cast<float>(maxLanesInColumn_) * kLaneHeight) * 0.5f;
 
     for (int i = 0; i < n; ++i)
     {
@@ -210,7 +223,9 @@ int ArchitectureView::preferredWidth() const
 int ArchitectureView::preferredHeightForWidth(int width) const
 {
     juce::ignoreUnused(width);
-    return static_cast<int>(kHeaderHeight + static_cast<float>(maxLanesInColumn_) * kLaneHeight +
+    auto skipSpace = static_cast<float>(numSkipEdges_) * kSkipEdgeSpacing + (numSkipEdges_ > 0 ? 6.0f : 0.0f);
+    return static_cast<int>(kHeaderHeight + skipSpace +
+                            static_cast<float>(maxLanesInColumn_) * kLaneHeight + kSelfLoopClearance +
                             static_cast<float>(numBackEdges_) * kBackEdgeSpacing + kFooterHeight +
                             kMargin);
 }
@@ -326,9 +341,10 @@ void ArchitectureView::paint(juce::Graphics& g)
 
     // Connections first so boxes + callouts draw on top of the wires.
     int backEdgeIndex = 0;
+    int skipEdgeIndex = 0;
     for (auto& connection : currentSchema_->connections)
     {
-        drawConnection(g, connection, backEdgeIndex);
+        drawConnection(g, connection, backEdgeIndex, skipEdgeIndex);
     }
 
     for (auto& box : boxes_)
@@ -380,7 +396,7 @@ void ArchitectureView::drawBox(juce::Graphics& g, const BoxLayout& box)
 }
 
 void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Connection& connection,
-                                      int& backEdgeIndex)
+                                      int& backEdgeIndex, int& skipEdgeIndex)
 {
     auto* from = findBox(connection.fromId);
     auto* to = findBox(connection.toId);
@@ -415,6 +431,39 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
         return;
     }
 
+    if (from->column < to->column - 1)
+    {
+        // Long skip connection (spans intermediate columns): route over
+        // the top of the diagram so it doesn't run through - and
+        // overprint - the boxes and wires of the columns it passes,
+        // stacked per skip edge like the manuals' outer bus runs.
+        auto skipY = kHeaderHeight + 4.0f + static_cast<float>(skipEdgeIndex) * kSkipEdgeSpacing;
+        ++skipEdgeIndex;
+
+        auto start = juce::Point<float>(from->bounds.getRight(), from->bounds.getCentreY());
+        auto entryX = to->bounds.getX() - kColumnGap * 0.4f;
+        auto end = juce::Point<float>(to->bounds.getX(), to->bounds.getCentreY());
+        juce::Path path;
+        path.startNewSubPath(start);
+        path.lineTo(start.x + kColumnGap * 0.3f, start.y);
+        path.lineTo(start.x + kColumnGap * 0.3f, skipY);
+        path.lineTo(entryX, skipY);
+        path.lineTo(entryX, end.y);
+        path.lineTo(end);
+        g.strokePath(path, juce::PathStrokeType(1.4f));
+        drawArrowHead(g, end, { 1.0f, 0.0f });
+
+        if (connection.label != nullptr)
+        {
+            auto midX = (start.x + entryX) * 0.5f;
+            juce::Rectangle<float> labelArea(midX - 110.0f, skipY - 12.0f, 220.0f, 11.0f);
+            g.setColour(juce::Colours::orange);
+            g.drawFittedText(connection.label, labelArea.toNearestInt(), juce::Justification::centred, 1);
+            g.setColour(juce::Colours::white.withAlpha(0.6f));
+        }
+        return;
+    }
+
     auto forward = from->column < to->column ||
                    (from->column == to->column && from->lane <= to->lane);
     if (from->column > to->column)
@@ -422,8 +471,9 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
         // Feedback: route below the whole diagram, right-to-left, and
         // back up into the target's left edge - the manuals' own return
         // path placement. Stack multiple returns so they don't overlap.
-        auto returnY = kHeaderHeight + static_cast<float>(maxLanesInColumn_) * kLaneHeight +
-                       static_cast<float>(backEdgeIndex) * kBackEdgeSpacing + 4.0f;
+        auto skipSpace = static_cast<float>(numSkipEdges_) * kSkipEdgeSpacing + (numSkipEdges_ > 0 ? 6.0f : 0.0f);
+        auto returnY = kHeaderHeight + skipSpace + static_cast<float>(maxLanesInColumn_) * kLaneHeight +
+                       kSelfLoopClearance + static_cast<float>(backEdgeIndex) * kBackEdgeSpacing;
         ++backEdgeIndex;
 
         auto start = juce::Point<float>(from->bounds.getRight() + 6.0f, from->bounds.getCentreY());
