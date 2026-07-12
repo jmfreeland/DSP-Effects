@@ -67,7 +67,23 @@ class MultiWaveLFO
     // 0 to -40dB: the level (converted to linear amplitude) an input must
     // cross, rising, to fire a triggered/toggle sweep.
     void setThresholdDb(float db) { thresholdLinear_ = std::pow(10.0f, std::min(db, 0.0f) / 20.0f); }
-    void setWaveform(Waveform waveform) { waveform_ = waveform; }
+    void setWaveform(Waveform waveform)
+    {
+        if (waveform == waveform_)
+        {
+            return; // safe to call every block with the current value
+        }
+        waveform_ = waveform;
+        // A different waveform invalidates any in-flight sweep and the
+        // held/toggle state (e.g. a toggle wave inheriting a continuous
+        // wave's last value near 0 would sweep 0 -> -0 forever), so
+        // restart from the new waveform's own resting state.
+        phase_ = 0.0f;
+        sweeping_ = false;
+        heldValue_ = restingValue();
+        toggleFrom_ = -1.0f;
+        toggleTo_ = 1.0f;
+    }
 
     void reset()
     {

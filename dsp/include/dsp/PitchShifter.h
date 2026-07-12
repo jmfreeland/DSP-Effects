@@ -53,7 +53,18 @@ class PitchShifter
     void setGrainSeconds(float seconds)
     {
         grainSeconds_ = std::clamp(seconds, kMinGrainSeconds, kMaxGrainSeconds);
+        auto previousGrainSamples = grainSamples_;
         updateGrainSamples();
+        if (grainSamples_ != previousGrainSamples && previousGrainSamples > 0.0f)
+        {
+            // The triangular windows only sum to exactly 1 while the taps
+            // sit half a grain apart, so a new grain length must rebuild
+            // that offset - otherwise the stale absolute offset leaves a
+            // permanent amplitude wobble. Keep tap 1's relative position
+            // (for amplitude continuity) and re-derive tap 2 from it.
+            delay1_ = delay1_ * (grainSamples_ / previousGrainSamples);
+            delay2_ = wrap(delay1_ + 0.5f * grainSamples_);
+        }
     }
 
     // >1 shifts up, <1 shifts down, 1 = no shift.
