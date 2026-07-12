@@ -87,6 +87,12 @@ void LoomPluginEditor::updateParametersPanelSize()
 
 void LoomPluginEditor::updateArchitectureViewSize()
 {
-    auto architectureWidth = architectureViewport_.getWidth() - architectureViewport_.getScrollBarThickness();
-    architectureView_.setSize(architectureWidth, architectureView_.preferredHeightForWidth(architectureWidth));
+    // Wide schemas (many columns) exceed the viewport and scroll
+    // horizontally, like paging across the manual's own wide diagrams.
+    auto viewportWidth = architectureViewport_.getWidth() - architectureViewport_.getScrollBarThickness();
+    auto architectureWidth = juce::jmax(viewportWidth, architectureView_.preferredWidth());
+    auto architectureHeight =
+      juce::jmax(architectureViewport_.getHeight() - architectureViewport_.getScrollBarThickness(),
+                 architectureView_.preferredHeightForWidth(architectureWidth));
+    architectureView_.setSize(architectureWidth, architectureHeight);
 }
