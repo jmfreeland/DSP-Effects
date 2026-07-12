@@ -1,29 +1,12 @@
 #include "ArchitectureView.h"
 
+#include "LoomTheme.h"
+
 #include <algorithm>
 #include <cstring>
 
 namespace
 {
-juce::Colour colourForKind(dsp::schema::StageKind kind)
-{
-    switch (kind)
-    {
-        case dsp::schema::StageKind::kInput:
-            return juce::Colour(0xff3a5a78);
-        case dsp::schema::StageKind::kProcessing:
-            return juce::Colour(0xff3a5a4a);
-        case dsp::schema::StageKind::kFeedback:
-            // The manuals draw the central recirculating block (REVERB,
-            // the tank, ...) as a shaded box - keep it visibly darker
-            // and warmer than plain processing stages.
-            return juce::Colour(0xff6a3f24);
-        case dsp::schema::StageKind::kOutput:
-            return juce::Colour(0xff5a3a68);
-    }
-    return juce::Colours::darkgrey;
-}
-
 bool sameId(const char* a, const char* b)
 {
     return std::strcmp(a, b) == 0;
@@ -38,22 +21,21 @@ juce::String humanizeId(const char* id)
     juce::String out;
     for (int i = 0; i < source.length(); ++i)
     {
-        auto c = source[i];
-        auto previous = i > 0 ? source[i - 1] : juce::juce_wchar(' ');
-        auto boundary = (juce::CharacterFunctions::isUpperCase(c) &&
-                         !juce::CharacterFunctions::isUpperCase(previous)) ||
-                        (juce::CharacterFunctions::isDigit(c) &&
-                         !juce::CharacterFunctions::isDigit(previous));
-        if (i > 0 && boundary)
+        juce::juce_wchar c = source[i];
+        juce::juce_wchar previous = i > 0 ? source[i - 1] : juce::juce_wchar(' ');
+        if (i > 0 && ((juce::CharacterFunctions::isUpperCase(c) &&
+                       !juce::CharacterFunctions::isUpperCase(previous)) ||
+                      (juce::CharacterFunctions::isDigit(c) &&
+                       !juce::CharacterFunctions::isDigit(previous))))
         {
-            out += ' ';
+            out << ' ';
         }
-        out += juce::String::charToString(i == 0 ? juce::CharacterFunctions::toUpperCase(c) : c);
+        out << (i == 0 ? juce::CharacterFunctions::toUpperCase(c) : c);
     }
     return out;
 }
 
-// The callout line under a box: first few parameter names, then "+N".
+// The callout inside a node body: first few parameter names, then "+N".
 juce::String calloutTextFor(const dsp::schema::Stage& stage)
 {
     constexpr int kMaxNamed = 4;
@@ -73,7 +55,6 @@ juce::String calloutTextFor(const dsp::schema::Stage& stage)
 
 void drawArrowHead(juce::Graphics& g, juce::Point<float> tip, juce::Point<float> direction)
 {
-    // direction is a unit-ish vector along the final segment.
     auto back = tip - direction * 9.0f;
     auto normal = juce::Point<float>(-direction.y, direction.x) * 4.5f;
     juce::Path head;
@@ -87,6 +68,12 @@ ArchitectureView::ArchitectureView(const dsp::schema::AlgorithmSchema& rootSchem
 {
     setInterceptsMouseClicks(true, true);
     computeLayout();
+}
+
+void ArchitectureView::setAccentColour(juce::Colour accent)
+{
+    accent_ = accent;
+    repaint();
 }
 
 const ArchitectureView::BoxLayout* ArchitectureView::findBox(const char* id) const
@@ -128,6 +115,7 @@ void ArchitectureView::computeLayout()
         numColumns_ = 0;
         maxLanesInColumn_ = 0;
         numBackEdges_ = 0;
+        numSkipEdges_ = 0;
         return;
     }
 
@@ -163,6 +151,7 @@ void ArchitectureView::computeLayout()
               std::max(column[static_cast<std::size_t>(to)], column[static_cast<std::size_t>(from)] + 1);
         }
     }
+
     numColumns_ = 1 + *std::max_element(column.begin(), column.end());
 
     numSkipEdges_ = 0;
@@ -207,16 +196,31 @@ void ArchitectureView::computeLayout()
         auto lanesHere = laneCount[static_cast<std::size_t>(col)];
         auto laneOffset = static_cast<float>(lane[static_cast<std::size_t>(i)]) -
                           (static_cast<float>(lanesHere) - 1.0f) * 0.5f;
-        auto x = kMargin + static_cast<float>(col) * (kBoxWidth + kColumnGap);
+        auto x = kMargin + kTerminalLength + static_cast<float>(col) * (kBoxWidth + kColumnGap);
         auto y = centerY_ + laneOffset * kLaneHeight - kBoxHeight * 0.5f;
         boxes_.push_back({ &stages[static_cast<std::size_t>(i)], { x, y, kBoxWidth, kBoxHeight },
-                           col, lane[static_cast<std::size_t>(i)] });
+                           col, lane[static_cast<std::size_t>(i)], 0, 0 });
+    }
+
+    // Wire counts per node, for junction dots (splits), sum glyphs
+    // (merges), sockets, and I/O terminal stubs.
+    for (const auto& connection : currentSchema_->connections)
+    {
+        auto from = indexOf(connection.fromId);
+        auto to = indexOf(connection.toId);
+        if (from < 0 || to < 0 || from == to)
+        {
+            continue;
+        }
+        ++boxes_[static_cast<std::size_t>(from)].numOutgoing;
+        ++boxes_[static_cast<std::size_t>(to)].numIncoming;
     }
 }
 
 int ArchitectureView::preferredWidth() const
 {
-    return static_cast<int>(2.0f * kMargin + static_cast<float>(numColumns_) * kBoxWidth +
+    return static_cast<int>(2.0f * (kMargin + kTerminalLength) +
+                            static_cast<float>(numColumns_) * kBoxWidth +
                             static_cast<float>(std::max(numColumns_ - 1, 0)) * kColumnGap);
 }
 
@@ -250,7 +254,7 @@ void ArchitectureView::mouseMove(const juce::MouseEvent& event)
     if (stage != hoveredStage_)
     {
         hoveredStage_ = stage;
-        repaint(); // footer shows the hovered stage's detail
+        repaint(); // footer display shows the hovered stage's detail
         if (onStageHovered != nullptr)
         {
             onStageHovered(stage);
@@ -321,13 +325,13 @@ void ArchitectureView::mouseUp(const juce::MouseEvent& event)
 
 void ArchitectureView::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff1e1e22));
+    g.fillAll(loom::colours::kDiagramBackground);
 
     juce::Rectangle<float> header(kMargin, 4.0f, static_cast<float>(getWidth()) - 2.0f * kMargin,
                                    kHeaderHeight - 8.0f);
     if (!history_.empty())
     {
-        g.setColour(juce::Colours::lightblue);
+        g.setColour(accent_);
         g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
         g.drawText("< Back", backButtonBounds(), juce::Justification::centredLeft);
         header.removeFromTop(22.0f);
@@ -339,12 +343,54 @@ void ArchitectureView::paint(juce::Graphics& g)
     g.setColour(juce::Colours::lightgrey);
     g.drawFittedText(currentSchema_->characterNote, header.toNearestInt(), juce::Justification::topLeft, 2);
 
-    // Connections first so boxes + callouts draw on top of the wires.
+    // Wires first so nodes and glyphs draw on top of them.
     int backEdgeIndex = 0;
     int skipEdgeIndex = 0;
     for (auto& connection : currentSchema_->connections)
     {
         drawConnection(g, connection, backEdgeIndex, skipEdgeIndex);
+    }
+
+    for (auto& box : boxes_)
+    {
+        // I/O terminal stubs - the manuals' "L In ->" / "-> Left" arrows.
+        if (box.numIncoming == 0 && box.stage->kind == dsp::schema::StageKind::kInput)
+        {
+            auto y = box.bounds.getCentreY();
+            g.setColour(loom::colours::kWire);
+            g.drawLine(box.bounds.getX() - kTerminalLength, y, box.bounds.getX() - 2.0f, y, 1.4f);
+            drawArrowHead(g, { box.bounds.getX(), y }, { 1.0f, 0.0f });
+        }
+        if (box.numOutgoing == 0 && box.stage->kind == dsp::schema::StageKind::kOutput)
+        {
+            auto y = box.bounds.getCentreY();
+            g.setColour(loom::colours::kWire);
+            g.drawLine(box.bounds.getRight(), y, box.bounds.getRight() + kTerminalLength - 9.0f, y, 1.4f);
+            drawArrowHead(g, { box.bounds.getRight() + kTerminalLength, y }, { 1.0f, 0.0f });
+        }
+
+        // Junction dot where one output splits to several destinations.
+        if (box.numOutgoing >= 2)
+        {
+            g.setColour(loom::colours::kWire.withAlpha(1.0f));
+            auto y = box.bounds.getCentreY();
+            g.fillEllipse(box.bounds.getRight() + 6.0f, y - 3.0f, 6.0f, 6.0f);
+        }
+
+        // Sum glyph where several wires merge into one input - the
+        // manuals' own circled-plus junction.
+        if (box.numIncoming >= 2)
+        {
+            auto cx = box.bounds.getX() - 13.0f;
+            auto cy = box.bounds.getCentreY();
+            g.setColour(loom::colours::kDiagramBackground);
+            g.fillEllipse(cx - 7.0f, cy - 7.0f, 14.0f, 14.0f);
+            g.setColour(loom::colours::kWire.withAlpha(1.0f));
+            g.drawEllipse(cx - 7.0f, cy - 7.0f, 14.0f, 14.0f, 1.4f);
+            g.drawLine(cx - 4.0f, cy, cx + 4.0f, cy, 1.4f);
+            g.drawLine(cx, cy - 4.0f, cx, cy + 4.0f, 1.4f);
+            drawArrowHead(g, { box.bounds.getX(), cy }, { 1.0f, 0.0f });
+        }
     }
 
     for (auto& box : boxes_)
@@ -359,39 +405,64 @@ void ArchitectureView::drawBox(juce::Graphics& g, const BoxLayout& box)
 {
     auto clickable = box.stage->drillDown != nullptr;
     auto highlighted = highlightedStageIds_.contains(juce::String(box.stage->id));
-    auto fill = colourForKind(box.stage->kind);
+    auto role = loom::colourForStageKind(box.stage->kind);
 
-    g.setColour(highlighted ? fill.brighter(0.35f) : fill);
-    g.fillRoundedRectangle(box.bounds, 4.0f);
+    // Node body: slate, with the role hue as a header strip - the
+    // Blender-node anatomy - plus the restrained SGI bevel pair.
+    auto body = box.bounds;
+    g.setColour(highlighted ? loom::colours::kNodeBody.brighter(0.15f) : loom::colours::kNodeBody);
+    g.fillRoundedRectangle(body, 4.0f);
+    auto headerStrip = body.withHeight(kHeaderStripHeight);
+    g.setColour(highlighted ? role.brighter(0.3f) : role);
+    juce::Path headerPath;
+    headerPath.addRoundedRectangle(headerStrip.getX(), headerStrip.getY(), headerStrip.getWidth(),
+                                    headerStrip.getHeight(), 4.0f, 4.0f, true, true, false, false);
+    g.fillPath(headerPath);
+
+    g.setColour(loom::colours::kBevelLight);
+    g.drawLine(body.getX() + 3.0f, body.getY() + 0.7f, body.getRight() - 3.0f, body.getY() + 0.7f, 1.0f);
+    g.setColour(loom::colours::kBevelDark);
+    g.drawLine(body.getX() + 3.0f, body.getBottom() - 0.7f, body.getRight() - 3.0f, body.getBottom() - 0.7f,
+               1.0f);
+
     if (highlighted)
     {
-        g.setColour(juce::Colours::orange.withAlpha(0.9f));
-        g.drawRoundedRectangle(box.bounds, 4.0f, 2.5f);
+        g.setColour(accent_);
+        g.drawRoundedRectangle(body, 4.0f, 2.0f);
     }
     else
     {
-        g.setColour(clickable ? juce::Colours::lightblue.withAlpha(0.85f)
-                               : juce::Colours::white.withAlpha(0.5f));
-        g.drawRoundedRectangle(box.bounds, 4.0f, clickable ? 2.0f : 1.2f);
+        g.setColour(clickable ? accent_.withAlpha(0.65f) : juce::Colours::white.withAlpha(0.25f));
+        g.drawRoundedRectangle(body, 4.0f, clickable ? 1.6f : 1.0f);
     }
 
+    // Sockets where wires attach.
+    g.setColour(loom::colours::kWire.withAlpha(0.95f));
+    if (box.numIncoming > 0 || box.stage->kind == dsp::schema::StageKind::kInput)
+    {
+        g.fillEllipse(box.bounds.getX() - 2.5f, box.bounds.getCentreY() - 2.5f, 5.0f, 5.0f);
+    }
+    if (box.numOutgoing > 0 || box.stage->kind == dsp::schema::StageKind::kOutput)
+    {
+        g.fillEllipse(box.bounds.getRight() - 2.5f, box.bounds.getCentreY() - 2.5f, 5.0f, 5.0f);
+    }
+
+    // Header label.
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
+    g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
     auto label = clickable ? juce::String(box.stage->label) + "  \xe2\x8c\x95"
                             : juce::String(box.stage->label);
-    g.drawFittedText(label, box.bounds.reduced(6.0f, 3.0f).toNearestInt(),
-                      juce::Justification::centred, 2);
+    g.drawFittedText(label, headerStrip.reduced(6.0f, 1.0f).toNearestInt(),
+                      juce::Justification::centredLeft, 1);
 
-    // Manual-style parameter callout under the box.
+    // Parameter callout inside the body.
     auto callout = calloutTextFor(*box.stage);
     if (callout.isNotEmpty())
     {
-        juce::Rectangle<float> calloutArea(std::max(box.bounds.getX() - kColumnGap * 0.25f, 2.0f),
-                                            box.bounds.getBottom() + 2.0f,
-                                            box.bounds.getWidth() + kColumnGap * 0.5f, kCalloutHeight);
+        auto bodyArea = body.withTrimmedTop(kHeaderStripHeight).reduced(6.0f, 3.0f);
         g.setFont(juce::Font(juce::FontOptions(10.0f)));
-        g.setColour(juce::Colours::white.withAlpha(0.65f));
-        g.drawFittedText(callout, calloutArea.toNearestInt(), juce::Justification::centredTop, 2);
+        g.setColour(juce::Colours::white.withAlpha(0.62f));
+        g.drawFittedText(callout, bodyArea.toNearestInt(), juce::Justification::topLeft, 3);
     }
 }
 
@@ -405,12 +476,24 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
         return;
     }
 
-    g.setColour(juce::Colours::white.withAlpha(0.6f));
+    g.setColour(loom::colours::kWire);
     g.setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::italic)));
+
+    // Wires stop at the sum glyph when the target merges several inputs.
+    auto merge = to->numIncoming >= 2;
+    auto targetX = merge ? to->bounds.getX() - 20.0f : to->bounds.getX();
+    auto annotate = [&](juce::Rectangle<float> area, juce::Justification justification) {
+        if (connection.label != nullptr)
+        {
+            g.setColour(accent_.withAlpha(0.95f));
+            g.drawFittedText(connection.label, area.toNearestInt(), justification, 1);
+            g.setColour(loom::colours::kWire);
+        }
+    };
 
     if (from == to)
     {
-        // Self-loop: a return arc under the box, manual-style.
+        // Self-loop: a return arc under the node, manual-style.
         auto b = from->bounds;
         auto loopDrop = 14.0f;
         juce::Path loop;
@@ -420,52 +503,11 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
         loop.lineTo(b.getX() + 18.0f, b.getBottom() + 1.0f);
         g.strokePath(loop, juce::PathStrokeType(1.4f));
         drawArrowHead(g, { b.getX() + 18.0f, b.getBottom() + 1.0f }, { 0.0f, -1.0f });
-        if (connection.label != nullptr)
-        {
-            juce::Rectangle<float> labelArea(b.getX(), b.getBottom() + loopDrop + 1.0f, b.getWidth(),
-                                              12.0f);
-            g.setColour(juce::Colours::orange);
-            g.drawFittedText(connection.label, labelArea.toNearestInt(), juce::Justification::centred, 1);
-            g.setColour(juce::Colours::white.withAlpha(0.6f));
-        }
+        annotate({ b.getX(), b.getBottom() + loopDrop + 1.0f, b.getWidth(), 12.0f },
+                 juce::Justification::centred);
         return;
     }
 
-    if (from->column < to->column - 1)
-    {
-        // Long skip connection (spans intermediate columns): route over
-        // the top of the diagram so it doesn't run through - and
-        // overprint - the boxes and wires of the columns it passes,
-        // stacked per skip edge like the manuals' outer bus runs.
-        auto skipY = kHeaderHeight + 4.0f + static_cast<float>(skipEdgeIndex) * kSkipEdgeSpacing;
-        ++skipEdgeIndex;
-
-        auto start = juce::Point<float>(from->bounds.getRight(), from->bounds.getCentreY());
-        auto entryX = to->bounds.getX() - kColumnGap * 0.4f;
-        auto end = juce::Point<float>(to->bounds.getX(), to->bounds.getCentreY());
-        juce::Path path;
-        path.startNewSubPath(start);
-        path.lineTo(start.x + kColumnGap * 0.3f, start.y);
-        path.lineTo(start.x + kColumnGap * 0.3f, skipY);
-        path.lineTo(entryX, skipY);
-        path.lineTo(entryX, end.y);
-        path.lineTo(end);
-        g.strokePath(path, juce::PathStrokeType(1.4f));
-        drawArrowHead(g, end, { 1.0f, 0.0f });
-
-        if (connection.label != nullptr)
-        {
-            auto midX = (start.x + entryX) * 0.5f;
-            juce::Rectangle<float> labelArea(midX - 110.0f, skipY - 12.0f, 220.0f, 11.0f);
-            g.setColour(juce::Colours::orange);
-            g.drawFittedText(connection.label, labelArea.toNearestInt(), juce::Justification::centred, 1);
-            g.setColour(juce::Colours::white.withAlpha(0.6f));
-        }
-        return;
-    }
-
-    auto forward = from->column < to->column ||
-                   (from->column == to->column && from->lane <= to->lane);
     if (from->column > to->column)
     {
         // Feedback: route below the whole diagram, right-to-left, and
@@ -476,35 +518,60 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
                        kSelfLoopClearance + static_cast<float>(backEdgeIndex) * kBackEdgeSpacing;
         ++backEdgeIndex;
 
-        auto start = juce::Point<float>(from->bounds.getRight() + 6.0f, from->bounds.getCentreY());
-        auto entry = juce::Point<float>(to->bounds.getX() - kColumnGap * 0.4f, to->bounds.getCentreY());
+        auto start = juce::Point<float>(from->bounds.getRight(), from->bounds.getCentreY());
+        auto entryX = to->bounds.getX() - kColumnGap * 0.4f;
         juce::Path path;
         path.startNewSubPath(start);
         path.lineTo(start.x + kColumnGap * 0.35f, start.y);
         path.lineTo(start.x + kColumnGap * 0.35f, returnY);
-        path.lineTo(entry.x, returnY);
-        path.lineTo(entry.x, entry.y);
-        path.lineTo(to->bounds.getX(), entry.y);
+        path.lineTo(entryX, returnY);
+        path.lineTo(entryX, to->bounds.getCentreY());
+        path.lineTo(targetX, to->bounds.getCentreY());
         g.strokePath(path, juce::PathStrokeType(1.4f));
-        drawArrowHead(g, { to->bounds.getX(), entry.y }, { 1.0f, 0.0f });
-
-        if (connection.label != nullptr)
+        if (!merge)
         {
-            auto midX = (start.x + entry.x) * 0.5f;
-            juce::Rectangle<float> labelArea(midX - 110.0f, returnY - 12.0f, 220.0f, 11.0f);
-            g.setColour(juce::Colours::orange);
-            g.drawFittedText(connection.label, labelArea.toNearestInt(), juce::Justification::centred, 1);
-            g.setColour(juce::Colours::white.withAlpha(0.6f));
+            drawArrowHead(g, { targetX, to->bounds.getCentreY() }, { 1.0f, 0.0f });
         }
+
+        auto midX = (start.x + entryX) * 0.5f;
+        annotate({ midX - 110.0f, returnY - 12.0f, 220.0f, 11.0f }, juce::Justification::centred);
         return;
     }
-    juce::ignoreUnused(forward);
+
+    if (from->column < to->column - 1)
+    {
+        // Long skip connection (spans intermediate columns): route over
+        // the top of the diagram so it doesn't run through - and
+        // overprint - the nodes and wires of the columns it passes,
+        // stacked per skip edge like the manuals' outer bus runs.
+        auto skipY = kHeaderHeight + 4.0f + static_cast<float>(skipEdgeIndex) * kSkipEdgeSpacing;
+        ++skipEdgeIndex;
+
+        auto start = juce::Point<float>(from->bounds.getRight(), from->bounds.getCentreY());
+        auto entryX = to->bounds.getX() - kColumnGap * 0.4f;
+        juce::Path path;
+        path.startNewSubPath(start);
+        path.lineTo(start.x + kColumnGap * 0.3f, start.y);
+        path.lineTo(start.x + kColumnGap * 0.3f, skipY);
+        path.lineTo(entryX, skipY);
+        path.lineTo(entryX, to->bounds.getCentreY());
+        path.lineTo(targetX, to->bounds.getCentreY());
+        g.strokePath(path, juce::PathStrokeType(1.4f));
+        if (!merge)
+        {
+            drawArrowHead(g, { targetX, to->bounds.getCentreY() }, { 1.0f, 0.0f });
+        }
+
+        auto midX = (start.x + entryX) * 0.5f;
+        annotate({ midX - 110.0f, skipY - 12.0f, 220.0f, 11.0f }, juce::Justification::centred);
+        return;
+    }
 
     // Forward connection: orthogonal H-V-H elbow (straight when the
     // lanes already align).
     auto start = juce::Point<float>(from->bounds.getRight(), from->bounds.getCentreY());
-    auto end = juce::Point<float>(to->bounds.getX(), to->bounds.getCentreY());
-    auto elbowX = end.x - kColumnGap * 0.45f;
+    auto end = juce::Point<float>(targetX, to->bounds.getCentreY());
+    auto elbowX = to->bounds.getX() - kColumnGap * 0.45f;
     juce::Path path;
     path.startNewSubPath(start);
     if (std::abs(start.y - end.y) < 1.0f)
@@ -518,41 +585,44 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
         path.lineTo(end);
     }
     g.strokePath(path, juce::PathStrokeType(1.4f));
-    drawArrowHead(g, end, { 1.0f, 0.0f });
-
-    if (connection.label != nullptr)
+    if (!merge)
     {
-        // Above the first horizontal segment for level and upward runs,
-        // below it for downward ones - so the labels of two branches
-        // leaving the same box (e.g. Input -> voices above and -> core
-        // below) don't overprint each other.
-        auto labelY = end.y > start.y + 1.0f ? start.y + 4.0f : start.y - 14.0f;
-        juce::Rectangle<float> labelArea(start.x + 2.0f, labelY,
-                                          std::max(elbowX - start.x + 6.0f, 72.0f), 11.0f);
-        g.setColour(juce::Colours::orange);
-        g.drawFittedText(connection.label, labelArea.toNearestInt(), juce::Justification::centredLeft, 1);
-        g.setColour(juce::Colours::white.withAlpha(0.6f));
+        drawArrowHead(g, end, { 1.0f, 0.0f });
     }
+
+    // Above the first horizontal segment for level and upward runs,
+    // below it for downward ones - so the labels of two branches
+    // leaving the same node don't overprint each other.
+    auto labelY = end.y > start.y + 1.0f ? start.y + 4.0f : start.y - 14.0f;
+    annotate({ start.x + 2.0f, labelY, std::max(elbowX - start.x + 6.0f, 72.0f), 11.0f },
+             juce::Justification::centredLeft);
 }
 
 void ArchitectureView::drawFooter(juce::Graphics& g)
 {
+    // Styled after the devices' own displays: accent text in a
+    // near-black inset well.
     auto y = static_cast<float>(getHeight()) - kFooterHeight;
-    g.setColour(juce::Colours::white.withAlpha(0.15f));
-    g.fillRect(0.0f, y, static_cast<float>(getWidth()), 1.0f);
-    juce::Rectangle<float> area(kMargin, y + 3.0f, static_cast<float>(getWidth()) - 2.0f * kMargin,
-                                 kFooterHeight - 6.0f);
-    g.setFont(juce::Font(juce::FontOptions(11.0f)));
+    juce::Rectangle<float> well(kMargin, y + 3.0f, static_cast<float>(getWidth()) - 2.0f * kMargin,
+                                 kFooterHeight - 8.0f);
+    g.setColour(loom::colours::kDisplayWell);
+    g.fillRoundedRectangle(well, 3.0f);
+    g.setColour(loom::colours::kBevelDark);
+    g.drawRoundedRectangle(well, 3.0f, 1.0f);
+
+    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 11.0f,
+                                           juce::Font::plain)));
+    auto area = well.reduced(8.0f, 2.0f);
     if (hoveredStage_ != nullptr && hoveredStage_->detail != nullptr)
     {
-        g.setColour(juce::Colours::white.withAlpha(0.8f));
+        g.setColour(accent_);
         g.drawFittedText(juce::String(hoveredStage_->label) + ": " + hoveredStage_->detail,
                           area.toNearestInt(), juce::Justification::centredLeft, 2);
     }
     else
     {
-        g.setColour(juce::Colours::white.withAlpha(0.35f));
-        g.drawFittedText("Hover a stage for details; click one to jump to its knobs.",
+        g.setColour(accent_.withAlpha(0.45f));
+        g.drawFittedText("HOVER A STAGE FOR DETAILS - CLICK TO JUMP TO ITS KNOBS",
                           area.toNearestInt(), juce::Justification::centredLeft, 1);
     }
 }

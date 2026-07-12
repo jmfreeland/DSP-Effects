@@ -49,6 +49,10 @@ class LoomParametersPanel : public juce::Component
     // parent Viewport can size this component to fit its content.
     int preferredHeightForWidth(int width) const;
 
+    // The device-family accent (see LoomTheme.h) for the hover
+    // highlight tint.
+    void setAccentColour(juce::Colour accent);
+
     // Glows the headers of all sections whose own stage id or root
     // ancestor id matches (empty string = clear).
     void setHighlightedStage(const juce::String& stageId);
@@ -80,6 +84,8 @@ class LoomParametersPanel : public juce::Component
         juce::String title;
         juce::String stageId;     // the schema stage this section came from ("" for fallback/More)
         juce::String rootStageId; // that stage's top-level ancestor in the root schema
+        dsp::schema::StageKind kind = dsp::schema::StageKind::kProcessing;
+        bool hasKind = false; // false for fallback/More sections (no role underline)
         std::vector<Cell> cells;
         juce::Rectangle<int> headerBounds; // filled in by resized()
         juce::Rectangle<int> bounds;       // header + cells, for hover hit-testing
@@ -98,6 +104,7 @@ class LoomParametersPanel : public juce::Component
     std::vector<Section> sections_;
     juce::String highlightedStageId_;
     const Section* hoveredSection_ = nullptr;
+    juce::Colour accent_ { 0xff3fd97f };
 
     static constexpr int kCellWidth = 108;
     static constexpr int kCellHeight = 104;

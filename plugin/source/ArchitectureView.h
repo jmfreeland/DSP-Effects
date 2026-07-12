@@ -51,6 +51,10 @@ class ArchitectureView : public juce::Component
     int preferredWidth() const;
     int preferredHeightForWidth(int width) const;
 
+    // The device-family accent (see LoomTheme.h) for highlights, wire
+    // annotations, drill affordances, and the footer display.
+    void setAccentColour(juce::Colour accent);
+
     // Glows any currently-visible stage box whose id is in `ids`
     // (empty = no highlight).
     void setHighlightedStages(const juce::StringArray& ids);
@@ -66,9 +70,11 @@ class ArchitectureView : public juce::Component
     struct BoxLayout
     {
         const dsp::schema::Stage* stage;
-        juce::Rectangle<float> bounds; // the box itself (callouts drawn below it)
+        juce::Rectangle<float> bounds;
         int column = 0;
         int lane = 0;
+        int numIncoming = 0; // non-self connections arriving (sum glyphs / sockets / terminals)
+        int numOutgoing = 0; // non-self connections leaving (junction dots / sockets / terminals)
     };
 
     void computeLayout();
@@ -89,15 +95,17 @@ class ArchitectureView : public juce::Component
     int numBackEdges_ = 0;
     int numSkipEdges_ = 0;
     float centerY_ = 0.0f;
+    juce::Colour accent_ { 0xff3fd97f };
     juce::StringArray highlightedStageIds_;
     const dsp::schema::Stage* hoveredStage_ = nullptr;
 
-    static constexpr float kBoxWidth = 148.0f;
-    static constexpr float kBoxHeight = 52.0f;
-    static constexpr float kCalloutHeight = 26.0f;
+    static constexpr float kBoxWidth = 150.0f;
+    static constexpr float kBoxHeight = 58.0f; // role header strip + callout body
+    static constexpr float kHeaderStripHeight = 20.0f;
     static constexpr float kColumnGap = 56.0f;
-    static constexpr float kLaneHeight = kBoxHeight + kCalloutHeight + 22.0f;
+    static constexpr float kLaneHeight = kBoxHeight + 44.0f;
     static constexpr float kMargin = 10.0f;
+    static constexpr float kTerminalLength = 26.0f; // the manuals' "L In ->" stubs
     static constexpr float kHeaderHeight = 64.0f;
     static constexpr float kFooterHeight = 34.0f;
     static constexpr float kBackEdgeSpacing = 14.0f;

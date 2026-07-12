@@ -12,9 +12,15 @@ constexpr float kDiagramShare = 0.42f;
 
 LoomPluginEditor::LoomPluginEditor(juce::AudioProcessor& audioProcessor,
                                     const dsp::schema::AlgorithmSchema& schema)
-  : AudioProcessorEditor(audioProcessor), architectureView_(schema),
+  : AudioProcessorEditor(audioProcessor),
+    lookAndFeel_(loom::accentForPluginName(audioProcessor.getName())), architectureView_(schema),
     parametersPanel_(audioProcessor, schema)
 {
+    setLookAndFeel(&lookAndFeel_);
+    auto accent = loom::accentForPluginName(audioProcessor.getName());
+    architectureView_.setAccentColour(accent);
+    parametersPanel_.setAccentColour(accent);
+
     addAndMakeVisible(architectureViewport_);
     architectureViewport_.setViewedComponent(&architectureView_, false);
     architectureView_.onContentSizeChanged = [this] { updateArchitectureViewSize(); };
@@ -56,6 +62,11 @@ LoomPluginEditor::LoomPluginEditor(juce::AudioProcessor& audioProcessor,
 
     setResizable(true, true);
     setSize(kEditorWidth, kEditorHeight);
+}
+
+LoomPluginEditor::~LoomPluginEditor()
+{
+    setLookAndFeel(nullptr);
 }
 
 void LoomPluginEditor::resized()

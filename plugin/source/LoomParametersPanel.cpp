@@ -1,5 +1,7 @@
 #include "LoomParametersPanel.h"
 
+#include "LoomTheme.h"
+
 namespace
 {
 // Depth guard for schema drill-down recursion; hand-authored schemas are
@@ -101,6 +103,8 @@ void LoomParametersPanel::collectStageSections(const dsp::schema::AlgorithmSchem
         section.title = stage.label;
         section.stageId = stage.id;
         section.rootStageId = thisRootId != nullptr ? thisRootId : "";
+        section.kind = stage.kind;
+        section.hasKind = true;
         for (const char* id : stage.parameterIds)
         {
             auto* parameter = processor_ != nullptr ? findParameter(*processor_, id) : nullptr;
@@ -215,9 +219,15 @@ void LoomParametersPanel::resized()
     }
 }
 
+void LoomParametersPanel::setAccentColour(juce::Colour accent)
+{
+    accent_ = accent;
+    repaint();
+}
+
 void LoomParametersPanel::paint(juce::Graphics& g)
 {
-    g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
+    g.fillAll(loom::colours::kPanelBackground);
 
     for (const auto& section : sections_)
     {
@@ -226,17 +236,26 @@ void LoomParametersPanel::paint(juce::Graphics& g)
         auto bounds = section.headerBounds.toFloat();
         if (highlighted)
         {
-            g.setColour(juce::Colours::orange.withAlpha(0.12f));
+            g.setColour(accent_.withAlpha(0.09f));
             g.fillRect(section.bounds.toFloat());
         }
-        g.setColour(highlighted ? juce::Colours::orange
-                                 : getLookAndFeel().findColour(juce::Label::textColourId));
-        g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
-        g.drawText(section.title, bounds.reduced(2.0f, 0.0f), juce::Justification::bottomLeft);
-        g.setColour((highlighted ? juce::Colours::orange
-                                  : getLookAndFeel().findColour(juce::Label::textColourId))
-                      .withAlpha(highlighted ? 0.8f : 0.25f));
-        g.fillRect(bounds.removeFromBottom(highlighted ? 2.0f : 1.0f));
+
+        // Small uppercase title (the Bitwig cue) over a hairline, with a
+        // short role-colored underline segment tying the section to its
+        // diagram node's header strip.
+        g.setColour(highlighted ? accent_ : juce::Colours::white.withAlpha(0.85f));
+        g.setFont(juce::FontOptions(12.5f, juce::Font::bold));
+        g.drawText(section.title.toUpperCase(), bounds.reduced(2.0f, 0.0f),
+                    juce::Justification::bottomLeft);
+
+        auto underline = bounds.removeFromBottom(highlighted ? 2.0f : 1.0f);
+        g.setColour((highlighted ? accent_ : juce::Colours::white).withAlpha(highlighted ? 0.8f : 0.18f));
+        g.fillRect(underline);
+        if (section.hasKind)
+        {
+            g.setColour(loom::colourForStageKind(section.kind).brighter(highlighted ? 0.3f : 0.0f));
+            g.fillRect(juce::Rectangle<float>(underline.getX(), underline.getY() - 2.0f, 46.0f, 3.0f));
+        }
     }
 }
 

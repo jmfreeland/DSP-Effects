@@ -2,6 +2,7 @@
 
 #include "ArchitectureView.h"
 #include "LoomParametersPanel.h"
+#include "LoomTheme.h"
 #include "dsp/schema/AlgorithmSchema.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -22,6 +23,7 @@ class LoomPluginEditor : public juce::AudioProcessorEditor
 {
   public:
     LoomPluginEditor(juce::AudioProcessor& processor, const dsp::schema::AlgorithmSchema& schema);
+    ~LoomPluginEditor() override;
 
     void resized() override;
     void paint(juce::Graphics& g) override;
@@ -29,6 +31,11 @@ class LoomPluginEditor : public juce::AudioProcessorEditor
   private:
     void updateArchitectureViewSize();
     void updateParametersPanelSize();
+
+    // The device-family accent (Lexicon phosphor / Eventide amber, per
+    // docs/loom-visual-language.md) is derived from the plugin name and
+    // pushed into both halves and the LookAndFeel.
+    loom::LookAndFeel lookAndFeel_;
 
     ArchitectureView architectureView_;
     juce::Viewport architectureViewport_;
