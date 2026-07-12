@@ -600,12 +600,29 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
         drawArrowHead(g, end, { 1.0f, 0.0f });
     }
 
-    // Above the first horizontal segment for level and upward runs,
-    // below it for downward ones - so the labels of two branches
-    // leaving the same node don't overprint each other.
-    auto labelY = end.y > start.y + 1.0f ? start.y + 4.0f : start.y - 14.0f;
-    annotate({ start.x + 2.0f, labelY, std::max(elbowX - start.x + 6.0f, 72.0f), 11.0f },
-             juce::Justification::centredLeft);
+    if (std::abs(start.y - end.y) < 1.0f)
+    {
+        // Straight run: label just above the wire.
+        annotate({ start.x + 2.0f, start.y - 14.0f, std::max(end.x - start.x - 4.0f, 72.0f), 11.0f },
+                 juce::Justification::centredLeft);
+    }
+    else
+    {
+        // Elbowed run: label beside the vertical segment, at its
+        // midpoint - unique per target row, so several branches leaving
+        // one node (a patch-bay fan-out) don't overprint each other the
+        // way shared start-point labels would.
+        auto midY = (start.y + end.y) * 0.5f - 5.5f;
+        auto available = elbowX - start.x - 6.0f;
+        if (available >= 40.0f)
+        {
+            annotate({ start.x + 2.0f, midY, available, 11.0f }, juce::Justification::centredRight);
+        }
+        else
+        {
+            annotate({ elbowX + 4.0f, midY, 84.0f, 11.0f }, juce::Justification::centredLeft);
+        }
+    }
 }
 
 void ArchitectureView::drawFooter(juce::Graphics& g)
