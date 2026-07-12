@@ -6,12 +6,16 @@ namespace dsp::schema
 {
 inline const AlgorithmSchema& phaserSchema()
 {
+    static constexpr const char* kSweepIds[] = { "sweepMode", "sweepRate", "sweepBottom", "sweepTop", "envelopeChannel", "envelopeDecayRate", "envelopeDecayShape", "adsrAttackRate", "adsrDecayRate", "adsrSustainLevel", "adsrReleaseRate", "adsrAttackThreshold", "adsrReleaseThreshold", "adsrRateScaler", "trigger" };
+    static constexpr const char* kStageIds[] = { "feedback" };
+    static constexpr const char* kLeftOutIds[] = { "mix" };
+
     static const Stage stages[] = {
         { "leftInput", "Left Input", StageKind::kInput, nullptr },
         { "rightInput", "Right Input", StageKind::kInput, "optional envelope sidechain only" },
-        { "sweep", "Sweep Source", StageKind::kProcessing, "LFO, Envelope Follower, or ADSR" },
-        { "stages", "12 Allpass Filters", StageKind::kFeedback, "in series, all swept together" },
-        { "leftOutput", "Left Output", StageKind::kOutput, "dry*(1-Mix) + wet*Mix" },
+        { "sweep", "Sweep Source", StageKind::kProcessing, "LFO, Envelope Follower, or ADSR", nullptr, kSweepIds },
+        { "stages", "12 Allpass Filters", StageKind::kFeedback, "in series, all swept together", nullptr, kStageIds },
+        { "leftOutput", "Left Output", StageKind::kOutput, "dry*(1-Mix) + wet*Mix", nullptr, kLeftOutIds },
         { "rightOutput", "Right Output", StageKind::kOutput, "wet*Mix only, no dry" },
     };
     static const Connection connections[] = {

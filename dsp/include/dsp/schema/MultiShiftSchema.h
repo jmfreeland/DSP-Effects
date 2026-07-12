@@ -6,14 +6,20 @@ namespace dsp::schema
 {
 inline const AlgorithmSchema& multiShiftSchema()
 {
+    static constexpr const char* kLeftPitchIds[] = { "leftCents", "leftPitchDelay", "leftDirection", "leftXfadeSlow", "leftSplice", "leftFb1Amount", "leftFb1Source", "leftFb2Amount", "leftFb2Source", "lPitchLevel", "lPitchPan" };
+    static constexpr const char* kRightPitchIds[] = { "rightCents", "rightPitchDelay", "rightDirection", "rightXfadeSlow", "rightSplice", "rightFb1Amount", "rightFb1Source", "rightFb2Amount", "rightFb2Source", "rPitchLevel", "rPitchPan" };
+    static constexpr const char* kLeftDelayIds[] = { "leftDelay", "lDelayLevel", "lDelayPan" };
+    static constexpr const char* kRightDelayIds[] = { "rightDelay", "rDelayLevel", "rDelayPan" };
+    static constexpr const char* kOutputsIds[] = { "mix", "feedbackScale", "image" };
+
     static const Stage stages[] = {
         { "leftInput", "Left Input", StageKind::kInput, nullptr },
         { "rightInput", "Right Input", StageKind::kInput, nullptr },
-        { "leftPitch", "L Pitch", StageKind::kFeedback, "Delay->Shift, or Reverse->Shift; own Feedback 1/2" },
-        { "rightPitch", "R Pitch", StageKind::kFeedback, "Delay->Shift, or Reverse->Shift; own Feedback 1/2" },
-        { "leftDelay", "L Delay", StageKind::kProcessing, "dry tap, no feedback" },
-        { "rightDelay", "R Delay", StageKind::kProcessing, "dry tap, no feedback" },
-        { "outputs", "Output Levels & Pans", StageKind::kProcessing, "4 independent Level/Pan, then Image" },
+        { "leftPitch", "L Pitch", StageKind::kFeedback, "Delay->Shift, or Reverse->Shift; own Feedback 1/2", nullptr, kLeftPitchIds },
+        { "rightPitch", "R Pitch", StageKind::kFeedback, "Delay->Shift, or Reverse->Shift; own Feedback 1/2", nullptr, kRightPitchIds },
+        { "leftDelay", "L Delay", StageKind::kProcessing, "dry tap, no feedback", nullptr, kLeftDelayIds },
+        { "rightDelay", "R Delay", StageKind::kProcessing, "dry tap, no feedback", nullptr, kRightDelayIds },
+        { "outputs", "Output Levels & Pans", StageKind::kProcessing, "4 independent Level/Pan, then Image", nullptr, kOutputsIds },
         { "leftOutput", "Left Output", StageKind::kOutput, "Mix blends against dry" },
         { "rightOutput", "Right Output", StageKind::kOutput, "Mix blends against dry" },
     };

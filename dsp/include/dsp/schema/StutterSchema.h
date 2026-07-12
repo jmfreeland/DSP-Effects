@@ -6,18 +6,27 @@ namespace dsp::schema
 {
 inline const AlgorithmSchema& stutterSchema()
 {
+    static constexpr const char* kLeftShiftIds[] = { "leftCents", "leftDelay", "leftFeedback" };
+    static constexpr const char* kRightShiftIds[] = { "rightCents", "rightDelay", "rightFeedback" };
+    static constexpr const char* kLeftStutterIds[] = { "length1", "count1", "triggerStutter1" };
+    static constexpr const char* kRightStutterIds[] = { "length2", "count2", "triggerStutter2" };
+    static constexpr const char* kSweepIds[] = { "up1Rate", "up1Max", "dn1Rate", "dn1Min", "rand1Max", "sweepTarget1", "triggerSweepUp1", "triggerSweepDown1", "triggerRandomPitch1", "up2Rate", "up2Max", "dn2Rate", "dn2Min", "rand2Max", "sweepTarget2", "triggerSweepUp2", "triggerSweepDown2", "triggerRandomPitch2" };
+    static constexpr const char* kAutoIds[] = { "autoOn", "speed", "program" };
+    static constexpr const char* kLeftOutIds[] = { "leftMix" };
+    static constexpr const char* kRightOutIds[] = { "rightMix" };
+
     static const Stage stages[] = {
         { "leftInput", "Left Input", StageKind::kInput, nullptr },
         { "rightInput", "Right Input", StageKind::kInput, nullptr },
-        { "leftShift", "L Pitch Shift", StageKind::kFeedback, "Coarse/Fine + Sweep 1/2 targeting Left" },
-        { "rightShift", "R Pitch Shift", StageKind::kFeedback, "Coarse/Fine + Sweep 1/2 targeting Right" },
-        { "leftStutter", "L Stutter Control", StageKind::kProcessing, "triggered: loops captured window" },
-        { "rightStutter", "R Stutter Control", StageKind::kProcessing, "triggered: loops captured window" },
+        { "leftShift", "L Pitch Shift", StageKind::kFeedback, "Coarse/Fine + Sweep 1/2 targeting Left", nullptr, kLeftShiftIds },
+        { "rightShift", "R Pitch Shift", StageKind::kFeedback, "Coarse/Fine + Sweep 1/2 targeting Right", nullptr, kRightShiftIds },
+        { "leftStutter", "L Stutter Control", StageKind::kProcessing, "triggered: loops captured window", nullptr, kLeftStutterIds },
+        { "rightStutter", "R Stutter Control", StageKind::kProcessing, "triggered: loops captured window", nullptr, kRightStutterIds },
         { "sweeps", "Sweep Generators 1 & 2", StageKind::kProcessing,
-          "Up/Down ramp or Random jump, each patchable to L/R/Both" },
-        { "auto", "Auto Sequencer", StageKind::kProcessing, "Speed + Program fire triggers automatically" },
-        { "leftOutput", "Left Output", StageKind::kOutput, "L Mix blends against dry" },
-        { "rightOutput", "Right Output", StageKind::kOutput, "R Mix blends against dry" },
+          "Up/Down ramp or Random jump, each patchable to L/R/Both", nullptr, kSweepIds },
+        { "auto", "Auto Sequencer", StageKind::kProcessing, "Speed + Program fire triggers automatically", nullptr, kAutoIds },
+        { "leftOutput", "Left Output", StageKind::kOutput, "L Mix blends against dry", nullptr, kLeftOutIds },
+        { "rightOutput", "Right Output", StageKind::kOutput, "R Mix blends against dry", nullptr, kRightOutIds },
     };
     static const Connection connections[] = {
         { "leftInput", "leftShift", nullptr },

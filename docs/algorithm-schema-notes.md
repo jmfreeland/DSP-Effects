@@ -39,15 +39,29 @@ as a table of contents for the algorithm. Parameters no stage claims
 land in a trailing "More Parameters" section, and a schema with no
 `parameterIds` at all falls back to a single flat section - so plugins
 stay fully usable while schemas gain annotations incrementally
-(annotated so far: Concert Hall - whose plugin now shows the 4-Voice
-Reverb Shell as its root diagram, `concertHallAlgorithmSchema()`, with
-the core as a drill-down - and Pitch Correct). The panel validates
-every schema-listed ID against the processor's live parameter list in
-debug builds (jassert on drift), keeping the hand-authored schema
-honest. This stage<->parameter mapping is also exactly the linkage a
-future bidirectional highlight (touch a knob, its stage glows in the
-diagram; click a stage, its knobs highlight) and the generic
-cross-algorithm "Loom" UI need.
+(31 of 40 plugins are annotated: all 16 Lexicon - the five reverb-core
+plugins each show the 4-Voice Reverb Shell as their root diagram, e.g.
+`concertHallAlgorithmSchema()`, with the core as a drill-down - plus,
+on the Eventide side, every algorithm with more than ~a dozen
+parameters: Diatonic Shift, Swept Combs, Swept Reverb, Reverb Factory,
+Ultra-Tap, Patch Factory, Stutter, Dense Room, Multi-Shift, Band Delay,
+String Modeller, Phaser, Studio Sampler. Deliberately left on the
+flat-panel fallback: the nine small Eventide algorithms with <=11
+parameters, where grouping adds little, and the two mod factory
+patch-bays, whose inline-generated per-destination IDs and
+several-dozen-module surface deserve their own layout treatment
+rather than this grouping. Quad>Hall's shared Splice is the one
+deliberately unclaimed parameter - see that schema's comment). The
+panel validates every schema-listed ID against the processor's live
+parameter list in debug builds (jassert on drift), keeping the
+hand-authored schema honest. A scratchpad cross-checker used during
+annotation also verified every claimed ID against each processor's
+registered parameters, including the generated per-voice/per-tap/
+per-line families. This stage<->parameter mapping is also exactly the
+linkage the bidirectional highlight (hover a knob, its stage glows in
+the diagram; hover/click a stage, its knobs highlight/scroll into
+view - built, see LoomPluginEditor) and the generic cross-algorithm
+"Loom" UI need.
 
 Not yet done: full parameter *descriptions* in the schema
 (range/default/unit/setter - ranges still live in each plugin's

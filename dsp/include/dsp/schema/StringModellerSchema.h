@@ -6,15 +6,20 @@ namespace dsp::schema
 {
 inline const AlgorithmSchema& stringModellerSchema()
 {
+    static constexpr const char* kStimFilterIds[] = { "freq", "qfac", "highAmt", "bandAmt", "lowAmt", "inAmt" };
+    static constexpr const char* kVoiceIds[] = { "pitch", "decay", "gate", "bright", "trigger", "note1", "note2", "note3", "note4", "note5", "note6" };
+    static constexpr const char* kChorusIds[] = { "chorus", "chorusSpeed", "chorusDepth" };
+    static constexpr const char* kLeftOutIds[] = { "mix" };
+
     static const Stage stages[] = {
         { "leftInput", "Left Input", StageKind::kInput, nullptr },
         { "noise", "Noise Gen", StageKind::kInput, "excites the stimulation filter" },
         { "stimFilter", "Stimulation Filter", StageKind::kProcessing,
-          "simultaneous Low/Band/High, mixed by Low/Band/High Amt" },
+          "simultaneous Low/Band/High, mixed by Low/Band/High Amt", nullptr, kStimFilterIds },
         { "voices", "6 String Voices", StageKind::kFeedback,
-          "Karplus-Strong: Delay + damping Filter + feedback, own Note tuning" },
-        { "chorus", "Chorus", StageKind::kProcessing, "modulated delay, +/- combine to stereo" },
-        { "leftOutput", "Left Output", StageKind::kOutput, "Mix blends against dry" },
+          "Karplus-Strong: Delay + damping Filter + feedback, own Note tuning", nullptr, kVoiceIds },
+        { "chorus", "Chorus", StageKind::kProcessing, "modulated delay, +/- combine to stereo", nullptr, kChorusIds },
+        { "leftOutput", "Left Output", StageKind::kOutput, "Mix blends against dry", nullptr, kLeftOutIds },
         { "rightOutput", "Right Output", StageKind::kOutput, "Mix blends against dry" },
     };
     static const Connection connections[] = {

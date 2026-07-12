@@ -6,15 +6,21 @@ namespace dsp::schema
 {
 inline const AlgorithmSchema& diatonicShiftSchema()
 {
+    static constexpr const char* kInputIds[] = { "inLevelLeft", "inLevelRight" };
+    static constexpr const char* kDelayIds[] = { "delay", "grain" };
+    static constexpr const char* kTrackerIds[] = { "key", "scale", "tune", "lowNoteHz", "highNoteHz" };
+    static constexpr const char* kLeftVoiceIds[] = { "leftVoice", "leftFeedback", "leftMix" };
+    static constexpr const char* kRightVoiceIds[] = { "rightVoice", "rightFeedback", "rightMix" };
+
     static const Stage stages[] = {
-        { "input", "Input L/R", StageKind::kInput, "Summed to mono" },
-        { "delay", "Delay", StageKind::kProcessing, "0-1s, shared ahead of tracking and both Voices" },
+        { "input", "Input L/R", StageKind::kInput, "Summed to mono", nullptr, kInputIds },
+        { "delay", "Delay", StageKind::kProcessing, "0-1s, shared ahead of tracking and both Voices", nullptr, kDelayIds },
         { "tracker", "Pitch Tracker", StageKind::kProcessing,
-          "Real-time monophonic detection (autocorrelation) - drives both Voices' shift amount" },
+          "Real-time monophonic detection (autocorrelation) - drives both Voices' shift amount", nullptr, kTrackerIds },
         { "leftVoice", "Left Voice", StageKind::kProcessing,
-          "Pitch Shifter, interval relative to the tracked note's own scale degree" },
+          "Pitch Shifter, interval relative to the tracked note's own scale degree", nullptr, kLeftVoiceIds },
         { "rightVoice", "Right Voice", StageKind::kProcessing,
-          "Pitch Shifter, interval relative to the tracked note's own scale degree" },
+          "Pitch Shifter, interval relative to the tracked note's own scale degree", nullptr, kRightVoiceIds },
         { "output", "Output", StageKind::kOutput, "L/R Mix blends each Voice against dry" },
     };
     // Genuinely fan-out/fan-in (one delayed signal feeds three parallel
