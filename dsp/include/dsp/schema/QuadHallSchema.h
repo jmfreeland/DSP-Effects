@@ -6,14 +6,43 @@ namespace dsp::schema
 {
 inline const AlgorithmSchema& quadHallSchema()
 {
+    // Parameter IDs as authored in plugin/source/QuadHallPluginProcessor.cpp,
+    // validated against the live parameter list in debug builds. Splice
+    // (the shifters' shared grain length) is deliberately left unlisted:
+    // it belongs to all four voices at once, and this schema splits the
+    // voices across two stages - it lands in "More Parameters" instead of
+    // being arbitrarily assigned to one bus.
+    static constexpr const char* kInputIds[] = {
+        "inLevelLeft", "inLevelRight", "inPanLeft", "inPanRight",
+    };
+    static constexpr const char* kLeftVoiceIds[] = {
+        "voice0Delay", "voice0Cents", "voice0Feedback", "voice0CrossFeedback", "voice0Level", "voice0Pan",
+        "voice1Delay", "voice1Cents", "voice1Feedback", "voice1CrossFeedback", "voice1Level", "voice1Pan",
+    };
+    static constexpr const char* kRightVoiceIds[] = {
+        "voice2Delay", "voice2Cents", "voice2Feedback", "voice2CrossFeedback", "voice2Level", "voice2Pan",
+        "voice3Delay", "voice3Cents", "voice3Feedback", "voice3CrossFeedback", "voice3Level", "voice3Pan",
+    };
+    static constexpr const char* kReverbIds[] = {
+        "decay", "lowRatio", "crossover", "damping", "diffusion", "size", "link",
+        "definition", "depth", "rvbIn", "rvbOut", "preDelay",
+        "earlyReflectionLevelLeft", "earlyReflectionLevelRight",
+        "earlyReflectionDelayLeft", "earlyReflectionDelayRight", "spin", "chorus", "freeze",
+    };
+    static constexpr const char* kOutputIds[] = { "fxMix", "fxWidth", "hiCut", "fxAdjust", "mix" };
+
     static const Stage stages[] = {
-        { "input", "Input L/R", StageKind::kInput, "InLvl/InPan" },
+        { "input", "Input L/R", StageKind::kInput, "InLvl/InPan", nullptr, kInputIds },
         { "leftVoices", "Voices 1-2 (Left)", StageKind::kFeedback,
-          "own Delay/Pitch/Level/Pan; Fbk into own bus, X-Fbk into the right bus" },
+          "own Delay/Pitch/Level/Pan; Fbk into own bus, X-Fbk into the right bus", nullptr,
+          kLeftVoiceIds },
         { "rightVoices", "Voices 3-4 (Right)", StageKind::kFeedback,
-          "own Delay/Pitch/Level/Pan; Fbk into own bus, X-Fbk into the left bus" },
-        { "reverb", "Concert Hall (fixed, in series)", StageKind::kFeedback, "8-line Householder FDN tank" },
-        { "output", "Output", StageKind::kOutput, "FX Mix blends dry-shifted vs. reverbed signal; FX Width/Hi-Cut/Adjust/Mix" },
+          "own Delay/Pitch/Level/Pan; Fbk into own bus, X-Fbk into the left bus", nullptr,
+          kRightVoiceIds },
+        { "reverb", "Concert Hall (fixed, in series)", StageKind::kFeedback, "8-line Householder FDN tank",
+          nullptr, kReverbIds },
+        { "output", "Output", StageKind::kOutput, "FX Mix blends dry-shifted vs. reverbed signal; FX Width/Hi-Cut/Adjust/Mix",
+          nullptr, kOutputIds },
     };
     static const Connection connections[] = {
         { "input", "leftVoices", "Left bus" },

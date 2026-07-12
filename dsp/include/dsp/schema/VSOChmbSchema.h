@@ -6,13 +6,33 @@ namespace dsp::schema
 {
 inline const AlgorithmSchema& vsoChmbSchema()
 {
+    // Parameter IDs as authored in plugin/source/VSOChmbPluginProcessor.cpp,
+    // validated against the live parameter list in debug builds.
+    static constexpr const char* kInputIds[] = {
+        "sends", "returns", "routing", "rvbInLevel", "fxInLevel",
+    };
+    static constexpr const char* kRvbIds[] = {
+        "rvbMix", "decay", "lowRatio", "crossover", "damping", "diffusion", "size", "link",
+        "shape", "spread", "rvbIn", "rvbOut", "preDelay",
+        "earlyReflectionLevelLeft", "earlyReflectionLevelRight",
+        "earlyReflectionDelayLeft", "earlyReflectionDelayRight", "spin",
+        "ekoFeedbackLeft", "ekoFeedbackRight", "ekoDelayLeft", "ekoDelayRight",
+    };
+    static constexpr const char* kFxIds[] = {
+        "fxMix", "varispeed", "shiftDelay", "shiftFeedback", "splice",
+    };
+    static constexpr const char* kOutputIds[] = { "fxWidth", "hiCut", "fxAdjust", "mix" };
+
     static const Stage stages[] = {
-        { "input", "Input L/R", StageKind::kInput, "Submixer Sends: Stereo/L=Rvb,R=FX/Mono/L=FX,R=Rvb" },
-        { "rvb", "Chamber", StageKind::kFeedback, "own In Lvl / Mix" },
+        { "input", "Input L/R", StageKind::kInput, "Submixer Sends: Stereo/L=Rvb,R=FX/Mono/L=FX,R=Rvb",
+          nullptr, kInputIds },
+        { "rvb", "Chamber", StageKind::kFeedback, "own In Lvl / Mix", nullptr, kRvbIds },
         { "fx", "Stereo Shifter", StageKind::kFeedback,
-          "Varispeed (%) -> compensating cents; one shared value drives independent L/R PitchShifters in lockstep" },
+          "Varispeed (%) -> compensating cents; one shared value drives independent L/R PitchShifters in lockstep",
+          nullptr, kFxIds },
         { "output", "Output", StageKind::kOutput,
-          "Submixer Returns: Stereo/Rvb=L,FX=R/Mono/FX=L,Rvb=R; FX Width/Hi-Cut/Adjust/Mix" },
+          "Submixer Returns: Stereo/Rvb=L,FX=R/Mono/FX=L,Rvb=R; FX Width/Hi-Cut/Adjust/Mix", nullptr,
+          kOutputIds },
     };
     static const Connection connections[] = {
         { "input", "rvb", "Sends" },

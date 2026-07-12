@@ -6,13 +6,35 @@ namespace dsp::schema
 {
 inline const AlgorithmSchema& dualInvSchema()
 {
+    // Parameter IDs as authored in plugin/source/DualInvPluginProcessor.cpp,
+    // validated against the live parameter list in debug builds.
+    static constexpr const char* kInputIds[] = {
+        "sends", "returns", "routing", "rvbInLevel", "fxInLevel",
+    };
+    static constexpr const char* kRvbIds[] = {
+        "rvbMix", "duration", "lowSlope", "midSlope", "crossover", "damping", "diffusion",
+        "size", "shape", "rvbIn", "rvbOut", "preDelay",
+        "earlyReflectionLevelLeft", "earlyReflectionLevelRight",
+        "earlyReflectionDelayLeft", "earlyReflectionDelayRight", "spin",
+    };
+    static constexpr const char* kFxIds[] = {
+        "fxMix", "splice",
+        "voice0Delay", "voice0Cents", "voice0Feedback", "voice0CrossFeedback", "voice0Level", "voice0Pan",
+        "voice1Delay", "voice1Cents", "voice1Feedback", "voice1CrossFeedback", "voice1Level", "voice1Pan",
+    };
+    static constexpr const char* kOutputIds[] = { "fxWidth", "hiCut", "fxAdjust", "mix" };
+
     static const Stage stages[] = {
-        { "input", "Input L/R", StageKind::kInput, "Submixer Sends: Stereo/L=Rvb,R=FX/Mono/L=FX,R=Rvb" },
-        { "rvb", "Inverse", StageKind::kFeedback, "own In Lvl / Mix; Duration/Low Slope/Mid Slope/Shape" },
+        { "input", "Input L/R", StageKind::kInput, "Submixer Sends: Stereo/L=Rvb,R=FX/Mono/L=FX,R=Rvb",
+          nullptr, kInputIds },
+        { "rvb", "Inverse", StageKind::kFeedback, "own In Lvl / Mix; Duration/Low Slope/Mid Slope/Shape",
+          nullptr, kRvbIds },
         { "fx", "Dual Shifter (2 voices)", StageKind::kFeedback,
-          "own Delay/Pitch/Level/Pan; Fbk into own input, X-Fbk into the other voice's" },
+          "own Delay/Pitch/Level/Pan; Fbk into own input, X-Fbk into the other voice's", nullptr,
+          kFxIds },
         { "output", "Output", StageKind::kOutput,
-          "Submixer Returns: Stereo/Rvb=L,FX=R/Mono/FX=L,Rvb=R; FX Width/Hi-Cut/Adjust/Mix" },
+          "Submixer Returns: Stereo/Rvb=L,FX=R/Mono/FX=L,Rvb=R; FX Width/Hi-Cut/Adjust/Mix", nullptr,
+          kOutputIds },
     };
     static const Connection connections[] = {
         { "input", "rvb", "Sends" },
