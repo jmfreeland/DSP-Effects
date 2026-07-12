@@ -24,6 +24,16 @@
 // In debug builds the panel validates every schema-listed ID against the
 // processor's live parameter list (jassert on drift), keeping the
 // hand-authored schema honest - see Stage::parameterIds' doc comment.
+//
+// Cross-highlighting with the architecture diagram (see LoomPluginEditor):
+// hovering anywhere in a section fires onSectionHovered with that
+// section's own stage id plus its root-level ancestor's id (so the
+// diagram can glow whichever it is currently showing), and
+// setHighlightedStage() glows the header of every section belonging to
+// the given stage id (matching either the section's own stage or its
+// root ancestor - so hovering the diagram's "core" box lights every
+// core-internal section at once). sectionTopForStage() gives a parent
+// the scroll target for click-to-jump.
 class LoomParametersPanel : public juce::Component
 {
   public:
@@ -32,10 +42,24 @@ class LoomParametersPanel : public juce::Component
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    void mouseMove(const juce::MouseEvent& event) override;
+    void mouseExit(const juce::MouseEvent& event) override;
 
     // Height needed to lay out every section at the given width, so a
     // parent Viewport can size this component to fit its content.
     int preferredHeightForWidth(int width) const;
+
+    // Glows the headers of all sections whose own stage id or root
+    // ancestor id matches (empty string = clear).
+    void setHighlightedStage(const juce::String& stageId);
+
+    // Y position of the first section matching the stage id (own or root
+    // ancestor), or -1 if none - a parent Viewport's scroll target.
+    int sectionTopForStage(const juce::String& stageId) const;
+
+    // Fired with (own stage id, root ancestor stage id) when the mouse
+    // moves over a section; both empty when it leaves all sections.
+    std::function<void(const juce::String&, const juce::String&)> onSectionHovered;
 
   private:
     struct Cell
@@ -54,18 +78,26 @@ class LoomParametersPanel : public juce::Component
     struct Section
     {
         juce::String title;
+        juce::String stageId;     // the schema stage this section came from ("" for fallback/More)
+        juce::String rootStageId; // that stage's top-level ancestor in the root schema
         std::vector<Cell> cells;
         juce::Rectangle<int> headerBounds; // filled in by resized()
+        juce::Rectangle<int> bounds;       // header + cells, for hover hit-testing
     };
 
     void buildSections(juce::AudioProcessor& processor, const dsp::schema::AlgorithmSchema& schema);
     void collectStageSections(const dsp::schema::AlgorithmSchema& schema,
-                              std::vector<juce::RangedAudioParameter*>& unclaimed, int depth);
+                              std::vector<juce::RangedAudioParameter*>& unclaimed, int depth,
+                              const char* rootStageId);
     Cell makeCell(juce::RangedAudioParameter& parameter);
     int columnsForWidth(int width) const;
+    const Section* sectionAt(juce::Point<int> position) const;
+    static bool sectionMatches(const Section& section, const juce::String& stageId);
 
     juce::AudioProcessor* processor_ = nullptr;
     std::vector<Section> sections_;
+    juce::String highlightedStageId_;
+    const Section* hoveredSection_ = nullptr;
 
     static constexpr int kCellWidth = 108;
     static constexpr int kCellHeight = 104;

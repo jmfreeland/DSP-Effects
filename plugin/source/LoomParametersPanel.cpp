@@ -27,6 +27,9 @@ LoomParametersPanel::LoomParametersPanel(juce::AudioProcessor& processor,
                                          const dsp::schema::AlgorithmSchema& schema)
 {
     buildSections(processor, schema);
+    // Receive child controls' mouse events too, so hovering a knob (not
+    // just the gaps between knobs) reports its section for highlighting.
+    addMouseListener(this, true);
 }
 
 LoomParametersPanel::~LoomParametersPanel() = default;
@@ -45,7 +48,7 @@ void LoomParametersPanel::buildSections(juce::AudioProcessor& processor,
     }
 
     processor_ = &processor;
-    collectStageSections(schema, unclaimed, 0);
+    collectStageSections(schema, unclaimed, 0, nullptr);
 
     if (!unclaimed.empty())
     {
@@ -81,7 +84,7 @@ void LoomParametersPanel::buildSections(juce::AudioProcessor& processor,
 
 void LoomParametersPanel::collectStageSections(const dsp::schema::AlgorithmSchema& schema,
                                                std::vector<juce::RangedAudioParameter*>& unclaimed,
-                                               int depth)
+                                               int depth, const char* rootStageId)
 {
     if (depth >= kMaxDrillDepth)
     {
@@ -90,8 +93,14 @@ void LoomParametersPanel::collectStageSections(const dsp::schema::AlgorithmSchem
 
     for (const auto& stage : schema.stages)
     {
+        // At the root level each stage is its own ancestor; nested stages
+        // keep the top-level stage they live under, so highlighting can
+        // map them back to a root diagram box.
+        const auto* thisRootId = depth == 0 ? stage.id : rootStageId;
         Section section;
         section.title = stage.label;
+        section.stageId = stage.id;
+        section.rootStageId = thisRootId != nullptr ? thisRootId : "";
         for (const char* id : stage.parameterIds)
         {
             auto* parameter = processor_ != nullptr ? findParameter(*processor_, id) : nullptr;
@@ -112,7 +121,7 @@ void LoomParametersPanel::collectStageSections(const dsp::schema::AlgorithmSchem
         }
         if (stage.drillDown != nullptr)
         {
-            collectStageSections(*stage.drillDown, unclaimed, depth + 1);
+            collectStageSections(*stage.drillDown, unclaimed, depth + 1, thisRootId);
         }
     }
 }
@@ -200,7 +209,9 @@ void LoomParametersPanel::resized()
             ++index;
         }
         auto rows = (static_cast<int>(section.cells.size()) + columns - 1) / columns;
-        y += rows * kCellHeight + kSectionGap;
+        auto sectionBottom = y + rows * kCellHeight;
+        section.bounds = { 0, section.headerBounds.getY(), getWidth(), sectionBottom - section.headerBounds.getY() };
+        y = sectionBottom + kSectionGap;
     }
 }
 
@@ -210,11 +221,97 @@ void LoomParametersPanel::paint(juce::Graphics& g)
 
     for (const auto& section : sections_)
     {
+        auto highlighted =
+          highlightedStageId_.isNotEmpty() && sectionMatches(section, highlightedStageId_);
         auto bounds = section.headerBounds.toFloat();
-        g.setColour(getLookAndFeel().findColour(juce::Label::textColourId));
+        if (highlighted)
+        {
+            g.setColour(juce::Colours::orange.withAlpha(0.12f));
+            g.fillRect(section.bounds.toFloat());
+        }
+        g.setColour(highlighted ? juce::Colours::orange
+                                 : getLookAndFeel().findColour(juce::Label::textColourId));
         g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
         g.drawText(section.title, bounds.reduced(2.0f, 0.0f), juce::Justification::bottomLeft);
-        g.setColour(getLookAndFeel().findColour(juce::Label::textColourId).withAlpha(0.25f));
-        g.fillRect(bounds.removeFromBottom(1.0f));
+        g.setColour((highlighted ? juce::Colours::orange
+                                  : getLookAndFeel().findColour(juce::Label::textColourId))
+                      .withAlpha(highlighted ? 0.8f : 0.25f));
+        g.fillRect(bounds.removeFromBottom(highlighted ? 2.0f : 1.0f));
+    }
+}
+
+bool LoomParametersPanel::sectionMatches(const Section& section, const juce::String& stageId)
+{
+    return section.stageId == stageId || section.rootStageId == stageId;
+}
+
+void LoomParametersPanel::setHighlightedStage(const juce::String& stageId)
+{
+    if (highlightedStageId_ != stageId)
+    {
+        highlightedStageId_ = stageId;
+        repaint();
+    }
+}
+
+int LoomParametersPanel::sectionTopForStage(const juce::String& stageId) const
+{
+    for (const auto& section : sections_)
+    {
+        if (sectionMatches(section, stageId))
+        {
+            return section.bounds.getY();
+        }
+    }
+    return -1;
+}
+
+const LoomParametersPanel::Section* LoomParametersPanel::sectionAt(juce::Point<int> position) const
+{
+    for (const auto& section : sections_)
+    {
+        if (section.bounds.contains(position))
+        {
+            return &section;
+        }
+    }
+    return nullptr;
+}
+
+void LoomParametersPanel::mouseMove(const juce::MouseEvent& event)
+{
+    // Events may arrive via the child-listener registration, relative to
+    // whichever knob the mouse is over - normalize to panel coordinates.
+    auto position = event.getEventRelativeTo(this).position.toInt();
+    const auto* section = sectionAt(position);
+    if (section != hoveredSection_)
+    {
+        hoveredSection_ = section;
+        if (onSectionHovered != nullptr)
+        {
+            if (section != nullptr)
+            {
+                onSectionHovered(section->stageId, section->rootStageId);
+            }
+            else
+            {
+                onSectionHovered({}, {});
+            }
+        }
+    }
+}
+
+void LoomParametersPanel::mouseExit(const juce::MouseEvent& event)
+{
+    // Child->parent transitions fire exits whose position is still inside
+    // the panel; only a real departure clears the hover.
+    auto position = event.getEventRelativeTo(this).position.toInt();
+    if (!getLocalBounds().contains(position) && hoveredSection_ != nullptr)
+    {
+        hoveredSection_ = nullptr;
+        if (onSectionHovered != nullptr)
+        {
+            onSectionHovered({}, {});
+        }
     }
 }

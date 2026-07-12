@@ -89,12 +89,44 @@ void ArchitectureView::resized()
 void ArchitectureView::mouseMove(const juce::MouseEvent& event)
 {
     auto position = event.position;
-    auto clickable = boxAt(position) != nullptr && boxAt(position)->stage->drillDown != nullptr;
+    auto* box = boxAt(position);
+    auto clickable = box != nullptr; // every box now reacts to clicks (drill or panel-scroll)
     if (!clickable && !history_.empty())
     {
         clickable = backButtonBounds().contains(position);
     }
     setMouseCursor(clickable ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
+
+    auto* stage = box != nullptr ? box->stage : nullptr;
+    if (stage != hoveredStage_)
+    {
+        hoveredStage_ = stage;
+        if (onStageHovered != nullptr)
+        {
+            onStageHovered(stage);
+        }
+    }
+}
+
+void ArchitectureView::mouseExit(const juce::MouseEvent&)
+{
+    if (hoveredStage_ != nullptr)
+    {
+        hoveredStage_ = nullptr;
+        if (onStageHovered != nullptr)
+        {
+            onStageHovered(nullptr);
+        }
+    }
+}
+
+void ArchitectureView::setHighlightedStages(const juce::StringArray& ids)
+{
+    if (highlightedStageIds_ != ids)
+    {
+        highlightedStageIds_ = ids;
+        repaint();
+    }
 }
 
 void ArchitectureView::mouseUp(const juce::MouseEvent& event)
@@ -103,6 +135,7 @@ void ArchitectureView::mouseUp(const juce::MouseEvent& event)
     {
         currentSchema_ = history_.back();
         history_.pop_back();
+        hoveredStage_ = nullptr;
         resized();
         repaint();
         if (onContentSizeChanged != nullptr)
@@ -113,16 +146,26 @@ void ArchitectureView::mouseUp(const juce::MouseEvent& event)
     }
 
     auto* box = boxAt(event.position);
-    if (box != nullptr && box->stage->drillDown != nullptr)
+    if (box == nullptr)
+    {
+        return;
+    }
+    if (box->stage->drillDown != nullptr)
     {
         history_.push_back(currentSchema_);
         currentSchema_ = box->stage->drillDown;
+        hoveredStage_ = nullptr;
         resized();
         repaint();
         if (onContentSizeChanged != nullptr)
         {
             onContentSizeChanged();
         }
+        return;
+    }
+    if (onStageClicked != nullptr)
+    {
+        onStageClicked(*box->stage);
     }
 }
 
@@ -155,11 +198,21 @@ void ArchitectureView::paint(juce::Graphics& g)
     for (auto& box : boxes_)
     {
         auto clickable = box.stage->drillDown != nullptr;
-        g.setColour(colourForKind(box.stage->kind));
+        auto highlighted = highlightedStageIds_.contains(juce::String(box.stage->id));
+        auto fill = colourForKind(box.stage->kind);
+        g.setColour(highlighted ? fill.brighter(0.35f) : fill);
         g.fillRoundedRectangle(box.bounds, 8.0f);
-        g.setColour(clickable ? juce::Colours::lightblue.withAlpha(0.8f)
-                               : juce::Colours::white.withAlpha(0.35f));
-        g.drawRoundedRectangle(box.bounds, 8.0f, clickable ? 2.0f : 1.5f);
+        if (highlighted)
+        {
+            g.setColour(juce::Colours::orange.withAlpha(0.9f));
+            g.drawRoundedRectangle(box.bounds, 8.0f, 3.0f);
+        }
+        else
+        {
+            g.setColour(clickable ? juce::Colours::lightblue.withAlpha(0.8f)
+                                   : juce::Colours::white.withAlpha(0.35f));
+            g.drawRoundedRectangle(box.bounds, 8.0f, clickable ? 2.0f : 1.5f);
+        }
 
         auto textArea = box.bounds.reduced(10.0f, 6.0f);
         g.setColour(juce::Colours::white);
