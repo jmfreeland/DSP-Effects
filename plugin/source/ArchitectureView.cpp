@@ -370,7 +370,7 @@ void ArchitectureView::drawBox(juce::Graphics& g, const BoxLayout& box)
     auto callout = calloutTextFor(*box.stage);
     if (callout.isNotEmpty())
     {
-        juce::Rectangle<float> calloutArea(box.bounds.getX() - kColumnGap * 0.25f,
+        juce::Rectangle<float> calloutArea(std::max(box.bounds.getX() - kColumnGap * 0.25f, 2.0f),
                                             box.bounds.getBottom() + 2.0f,
                                             box.bounds.getWidth() + kColumnGap * 0.5f, kCalloutHeight);
         g.setFont(juce::Font(juce::FontOptions(10.0f)));
@@ -472,9 +472,13 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
 
     if (connection.label != nullptr)
     {
-        // Sit the label just above the first horizontal segment.
-        juce::Rectangle<float> labelArea(start.x - 4.0f, start.y - 14.0f,
-                                          std::max(elbowX - start.x + 8.0f, 72.0f), 11.0f);
+        // Above the first horizontal segment for level and upward runs,
+        // below it for downward ones - so the labels of two branches
+        // leaving the same box (e.g. Input -> voices above and -> core
+        // below) don't overprint each other.
+        auto labelY = end.y > start.y + 1.0f ? start.y + 4.0f : start.y - 14.0f;
+        juce::Rectangle<float> labelArea(start.x + 2.0f, labelY,
+                                          std::max(elbowX - start.x + 6.0f, 72.0f), 11.0f);
         g.setColour(juce::Colours::orange);
         g.drawFittedText(connection.label, labelArea.toNearestInt(), juce::Justification::centredLeft, 1);
         g.setColour(juce::Colours::white.withAlpha(0.6f));
