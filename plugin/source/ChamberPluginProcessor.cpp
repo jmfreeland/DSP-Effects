@@ -253,7 +253,7 @@ void LexiconChamberAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
 juce::AudioProcessorEditor* LexiconChamberAudioProcessor::createEditor()
 {
-    return new LoomPluginEditor(*this, dsp::schema::chamberSchema());
+    return new LoomPluginEditor(*this, dsp::schema::chamberAlgorithmSchema());
 }
 
 void LexiconChamberAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

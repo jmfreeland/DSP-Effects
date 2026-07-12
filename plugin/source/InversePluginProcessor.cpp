@@ -243,7 +243,7 @@ void LexiconInverseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
 juce::AudioProcessorEditor* LexiconInverseAudioProcessor::createEditor()
 {
-    return new LoomPluginEditor(*this, dsp::schema::inverseSchema());
+    return new LoomPluginEditor(*this, dsp::schema::inverseAlgorithmSchema());
 }
 
 void LexiconInverseAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

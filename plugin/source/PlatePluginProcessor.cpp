@@ -250,7 +250,7 @@ void LexiconPlateAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
 
 juce::AudioProcessorEditor* LexiconPlateAudioProcessor::createEditor()
 {
-    return new LoomPluginEditor(*this, dsp::schema::plateSchema());
+    return new LoomPluginEditor(*this, dsp::schema::plateAlgorithmSchema());
 }
 
 void LexiconPlateAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

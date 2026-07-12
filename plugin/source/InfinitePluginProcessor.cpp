@@ -253,7 +253,7 @@ void LexiconInfiniteAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 
 juce::AudioProcessorEditor* LexiconInfiniteAudioProcessor::createEditor()
 {
-    return new LoomPluginEditor(*this, dsp::schema::infiniteSchema());
+    return new LoomPluginEditor(*this, dsp::schema::infiniteAlgorithmSchema());
 }
 
 void LexiconInfiniteAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
