@@ -235,7 +235,7 @@ void LexiconHallAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 
 juce::AudioProcessorEditor* LexiconHallAudioProcessor::createEditor()
 {
-    return new LoomPluginEditor(*this, dsp::schema::concertHallSchema());
+    return new LoomPluginEditor(*this, dsp::schema::concertHallAlgorithmSchema());
 }
 
 void LexiconHallAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

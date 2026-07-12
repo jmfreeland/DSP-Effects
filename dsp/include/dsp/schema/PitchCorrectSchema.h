@@ -6,13 +6,33 @@ namespace dsp::schema
 {
 inline const AlgorithmSchema& pitchCorrectSchema()
 {
+    // Parameter IDs as authored in plugin/source/PitchCorrectPluginProcessor.cpp,
+    // validated against the live parameter list in debug builds.
+    static constexpr const char* kInputIds[] = { "inLevelLeft", "inLevelRight" };
+    static constexpr const char* kCorrectIds[] = {
+        "delay",    "lowPitch", "highPitch",  "tuning",         "correction",
+        "tracking", "grain",    "shiftCents", "shiftSemitones",
+    };
+    static constexpr const char* kReverbIds[] = {
+        "decay",   "lowRatio", "crossover", "damping", "diffusion",
+        "size",    "link",     "shape",     "spread",  "rvbIn",
+        "rvbOut",  "preDelay", "earlyReflectionLevelLeft", "earlyReflectionLevelRight",
+        "earlyReflectionDelayLeft", "earlyReflectionDelayRight", "spin",
+        "ekoFeedbackLeft", "ekoFeedbackRight", "ekoDelayLeft", "ekoDelayRight",
+    };
+    static constexpr const char* kOutputIds[] = { "fxMix", "fxWidth", "hiCut", "fxAdjust", "mix" };
+
     static const Stage stages[] = {
-        { "input", "Input L/R", StageKind::kInput, "InLvl only, no InPan - internally mono, see doc comment" },
+        { "input", "Input L/R", StageKind::kInput,
+          "InLvl only, no InPan - internally mono, see doc comment", nullptr, kInputIds },
         { "correct", "Pitch Correct", StageKind::kFeedback,
-          "PitchDetector -> nearest chromatic semitone (Tuning ref) -> PitchShifter; Correction blends the amount" },
-        { "reverb", "Chamber (fixed, in series)", StageKind::kFeedback, "8-line Householder FDN tank" },
+          "PitchDetector -> nearest chromatic semitone (Tuning ref) -> PitchShifter; Correction blends the amount",
+          nullptr, kCorrectIds },
+        { "reverb", "Chamber (fixed, in series)", StageKind::kFeedback, "8-line Householder FDN tank",
+          nullptr, kReverbIds },
         { "output", "Output", StageKind::kOutput,
-          "FX Mix blends dry-corrected vs. reverbed signal (default near 0); FX Width/Hi-Cut/Adjust/Mix" },
+          "FX Mix blends dry-corrected vs. reverbed signal (default near 0); FX Width/Hi-Cut/Adjust/Mix",
+          nullptr, kOutputIds },
     };
     static const Connection connections[] = {
         { "input", "correct", "mono sum" },

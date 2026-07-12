@@ -1,17 +1,18 @@
 #pragma once
 
 #include "ArchitectureView.h"
+#include "LoomParametersPanel.h"
 #include "dsp/schema/AlgorithmSchema.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-// The standard editor for every Loom plugin: the full generic parameter
-// list (unchanged from before), plus a "Show Architecture" button that
-// swaps it out for a read-only signal-flow diagram of whichever reverb
-// core the plugin wraps (see ArchitectureView / dsp/schema/). One editor
-// class shared by all five plugins, parameterized only by which
-// AlgorithmSchema to show - adding a sixth algorithm needs no new editor
-// code, just a schema.
+// The standard editor for every Loom plugin: a stage-grouped knob panel
+// (LoomParametersPanel, sections in signal-flow order per the schema),
+// plus a "Show Architecture" button that swaps it out for a read-only
+// signal-flow diagram of the same schema (see ArchitectureView /
+// dsp/schema/). One editor class shared by every plugin, parameterized
+// only by which AlgorithmSchema to show - adding a new algorithm needs
+// no new editor code, just a schema.
 class LoomPluginEditor : public juce::AudioProcessorEditor
 {
   public:
@@ -22,8 +23,9 @@ class LoomPluginEditor : public juce::AudioProcessorEditor
   private:
     void toggleView();
     void updateArchitectureViewSize();
+    void updateParametersPanelSize();
 
-    juce::GenericAudioProcessorEditor parametersEditor_;
+    LoomParametersPanel parametersPanel_;
     juce::Viewport parametersViewport_;
 
     ArchitectureView architectureView_;

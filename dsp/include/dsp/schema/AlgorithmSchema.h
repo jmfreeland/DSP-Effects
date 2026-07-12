@@ -46,6 +46,17 @@ struct Stage
     // ReverbCoreSchemas.h's tankDetailSchema()/diffusionDetailSchema().
     // nullptr means the stage has no drill-down.
     const AlgorithmSchema* drillDown = nullptr;
+    // Optional: the plugin parameter IDs (APVTS IDs, as authored in that
+    // algorithm's PluginProcessor) that drive this stage. Lets a UI group
+    // its parameter controls by stage and cross-highlight a stage when
+    // one of its parameters is touched (and vice versa). Empty means "no
+    // parameters map here" (fine for pure-topology stages like an input
+    // junction, and for the shared drill-down mechanism schemas, which
+    // multiple algorithms reuse and so can't name any one plugin's IDs).
+    // Hand-authored like everything else in this file: the editor
+    // validates every listed ID against the live parameter list in debug
+    // builds, so drift from the processor is caught at first open.
+    std::span<const char* const> parameterIds = {};
 };
 
 struct Connection

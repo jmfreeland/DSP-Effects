@@ -22,6 +22,7 @@ target_sources(LexiconHallPlugin PRIVATE
     source/PluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconHallPlugin PRIVATE
@@ -58,6 +59,7 @@ target_sources(LexiconPlatePlugin PRIVATE
     source/PlatePluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconPlatePlugin PRIVATE
@@ -94,6 +96,7 @@ target_sources(LexiconChamberPlugin PRIVATE
     source/ChamberPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconChamberPlugin PRIVATE
@@ -130,6 +133,7 @@ target_sources(LexiconInfinitePlugin PRIVATE
     source/InfinitePluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconInfinitePlugin PRIVATE
@@ -166,6 +170,7 @@ target_sources(LexiconInversePlugin PRIVATE
     source/InversePluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconInversePlugin PRIVATE
@@ -202,6 +207,7 @@ target_sources(LexiconGlideHallPlugin PRIVATE
     source/GlideHallPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconGlideHallPlugin PRIVATE
@@ -238,6 +244,7 @@ target_sources(LexiconChorusRvbPlugin PRIVATE
     source/ChorusRvbPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconChorusRvbPlugin PRIVATE
@@ -274,6 +281,7 @@ target_sources(LexiconMBandRvbPlugin PRIVATE
     source/MBandRvbPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconMBandRvbPlugin PRIVATE
@@ -310,6 +318,7 @@ target_sources(LexiconRes1PlatePlugin PRIVATE
     source/Res1PlatePluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconRes1PlatePlugin PRIVATE
@@ -346,6 +355,7 @@ target_sources(LexiconRes2PlatePlugin PRIVATE
     source/Res2PlatePluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconRes2PlatePlugin PRIVATE
@@ -382,6 +392,7 @@ target_sources(LexiconQuadHallPlugin PRIVATE
     source/QuadHallPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconQuadHallPlugin PRIVATE
@@ -418,6 +429,7 @@ target_sources(LexiconDualChmbPlugin PRIVATE
     source/DualChmbPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconDualChmbPlugin PRIVATE
@@ -454,6 +466,7 @@ target_sources(LexiconDualPltPlugin PRIVATE
     source/DualPltPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconDualPltPlugin PRIVATE
@@ -490,6 +503,7 @@ target_sources(LexiconDualInvPlugin PRIVATE
     source/DualInvPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconDualInvPlugin PRIVATE
@@ -526,6 +540,7 @@ target_sources(LexiconStereoChmbPlugin PRIVATE
     source/StereoChmbPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconStereoChmbPlugin PRIVATE
@@ -562,6 +577,7 @@ target_sources(LexiconVSOChmbPlugin PRIVATE
     source/VSOChmbPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconVSOChmbPlugin PRIVATE
@@ -598,6 +614,7 @@ target_sources(LexiconPitchCorrectPlugin PRIVATE
     source/PitchCorrectPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(LexiconPitchCorrectPlugin PRIVATE
@@ -634,6 +651,7 @@ target_sources(EventideDiatonicShiftPlugin PRIVATE
     source/DiatonicShiftPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideDiatonicShiftPlugin PRIVATE
@@ -670,6 +688,7 @@ target_sources(EventideLayeredShiftPlugin PRIVATE
     source/LayeredShiftPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideLayeredShiftPlugin PRIVATE
@@ -706,6 +725,7 @@ target_sources(EventideDualShiftPlugin PRIVATE
     source/DualShiftPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideDualShiftPlugin PRIVATE
@@ -742,6 +762,7 @@ target_sources(EventideStereoShiftPlugin PRIVATE
     source/StereoShiftPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideStereoShiftPlugin PRIVATE
@@ -778,6 +799,7 @@ target_sources(EventideReverseShiftPlugin PRIVATE
     source/ReverseShiftPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideReverseShiftPlugin PRIVATE
@@ -814,6 +836,7 @@ target_sources(EventideSweptCombsPlugin PRIVATE
     source/SweptCombsPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideSweptCombsPlugin PRIVATE
@@ -850,6 +873,7 @@ target_sources(EventideSweptReverbPlugin PRIVATE
     source/SweptReverbPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideSweptReverbPlugin PRIVATE
@@ -886,6 +910,7 @@ target_sources(EventideReverbFactoryPlugin PRIVATE
     source/ReverbFactoryPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideReverbFactoryPlugin PRIVATE
@@ -922,6 +947,7 @@ target_sources(EventideUltraTapPlugin PRIVATE
     source/UltraTapPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideUltraTapPlugin PRIVATE
@@ -958,6 +984,7 @@ target_sources(EventideLongDigiplexPlugin PRIVATE
     source/LongDigiplexPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideLongDigiplexPlugin PRIVATE
@@ -994,6 +1021,7 @@ target_sources(EventideDualDigiplexPlugin PRIVATE
     source/DualDigiplexPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideDualDigiplexPlugin PRIVATE
@@ -1030,6 +1058,7 @@ target_sources(EventidePatchFactoryPlugin PRIVATE
     source/PatchFactoryPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventidePatchFactoryPlugin PRIVATE
@@ -1066,6 +1095,7 @@ target_sources(EventideStutterPlugin PRIVATE
     source/StutterPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideStutterPlugin PRIVATE
@@ -1102,6 +1132,7 @@ target_sources(EventideTimesqueezePlugin PRIVATE
     source/TimesqueezePluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideTimesqueezePlugin PRIVATE
@@ -1138,6 +1169,7 @@ target_sources(EventideDenseRoomPlugin PRIVATE
     source/DenseRoomPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideDenseRoomPlugin PRIVATE
@@ -1174,6 +1206,7 @@ target_sources(EventideVocoderPlugin PRIVATE
     source/VocoderPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideVocoderPlugin PRIVATE
@@ -1210,6 +1243,7 @@ target_sources(EventideMultiShiftPlugin PRIVATE
     source/MultiShiftPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideMultiShiftPlugin PRIVATE
@@ -1246,6 +1280,7 @@ target_sources(EventideBandDelayPlugin PRIVATE
     source/BandDelayPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideBandDelayPlugin PRIVATE
@@ -1282,6 +1317,7 @@ target_sources(EventideStringModellerPlugin PRIVATE
     source/StringModellerPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideStringModellerPlugin PRIVATE
@@ -1318,6 +1354,7 @@ target_sources(EventidePhaserPlugin PRIVATE
     source/PhaserPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventidePhaserPlugin PRIVATE
@@ -1354,6 +1391,7 @@ target_sources(EventideStudioSamplerPlugin PRIVATE
     source/StudioSamplerPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideStudioSamplerPlugin PRIVATE
@@ -1390,6 +1428,7 @@ target_sources(EventideModFactoryOnePlugin PRIVATE
     source/ModFactoryOnePluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideModFactoryOnePlugin PRIVATE
@@ -1426,6 +1465,7 @@ target_sources(EventideModFactoryTwoPlugin PRIVATE
     source/ModFactoryTwoPluginProcessor.cpp
     source/ArchitectureView.cpp
     source/LoomPluginEditor.cpp
+    source/LoomParametersPanel.cpp
 )
 
 target_include_directories(EventideModFactoryTwoPlugin PRIVATE

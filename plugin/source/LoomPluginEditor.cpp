@@ -3,20 +3,21 @@
 namespace
 {
 constexpr int kToggleBarHeight = 30;
-constexpr int kEditorWidth = 480;
-constexpr int kEditorHeight = 640;
+constexpr int kEditorWidth = 560;
+constexpr int kEditorHeight = 680;
 }
 
 LoomPluginEditor::LoomPluginEditor(juce::AudioProcessor& audioProcessor,
                                     const dsp::schema::AlgorithmSchema& schema)
-  : AudioProcessorEditor(audioProcessor), parametersEditor_(audioProcessor), architectureView_(schema)
+  : AudioProcessorEditor(audioProcessor), parametersPanel_(audioProcessor, schema),
+    architectureView_(schema)
 {
     addAndMakeVisible(toggleButton_);
     toggleButton_.setButtonText("Show Architecture");
     toggleButton_.onClick = [this] { toggleView(); };
 
     addAndMakeVisible(parametersViewport_);
-    parametersViewport_.setViewedComponent(&parametersEditor_, false);
+    parametersViewport_.setViewedComponent(&parametersPanel_, false);
 
     addChildComponent(architectureViewport_);
     architectureViewport_.setViewedComponent(&architectureView_, false);
@@ -32,11 +33,16 @@ void LoomPluginEditor::resized()
     toggleButton_.setBounds(bounds.removeFromTop(kToggleBarHeight).reduced(4));
 
     parametersViewport_.setBounds(bounds);
-    parametersEditor_.setSize(parametersViewport_.getWidth() - parametersViewport_.getScrollBarThickness(),
-                               parametersEditor_.getHeight());
+    updateParametersPanelSize();
 
     architectureViewport_.setBounds(bounds);
     updateArchitectureViewSize();
+}
+
+void LoomPluginEditor::updateParametersPanelSize()
+{
+    auto panelWidth = parametersViewport_.getWidth() - parametersViewport_.getScrollBarThickness();
+    parametersPanel_.setSize(panelWidth, parametersPanel_.preferredHeightForWidth(panelWidth));
 }
 
 void LoomPluginEditor::updateArchitectureViewSize()

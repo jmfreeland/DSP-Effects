@@ -27,10 +27,33 @@ stages both drill into shared detail schemas (`tankDetailSchema()`/
 all 5 cores - only parameter values differ, so one detail schema each
 is reused by every top-level schema rather than duplicated 5 times.
 
-Not yet done: the *parameter* half (name/range/default/unit/setter, to
-drive a generic cross-algorithm UI) - only topology exists so far. And
-the schema is still hand/AI-authored prose-derived, not generated from
-or generating the C++, per the original tier-1 framing.
+**Update 2:** the first slice of the *parameter* half is now built, as
+a linkage rather than a full parameter description: `Stage` carries an
+optional `parameterIds` span naming the plugin parameter (APVTS) IDs
+that drive that stage. `plugin/source/LoomParametersPanel.*` (which
+replaced the stock `GenericAudioProcessorEditor` in every plugin's
+editor) walks the schema depth-first (stages, then each stage's
+drillDown) and renders one titled knob-grid section per stage that
+claims parameters - so the parameter panel reads in signal-flow order,
+as a table of contents for the algorithm. Parameters no stage claims
+land in a trailing "More Parameters" section, and a schema with no
+`parameterIds` at all falls back to a single flat section - so plugins
+stay fully usable while schemas gain annotations incrementally
+(annotated so far: Concert Hall - whose plugin now shows the 4-Voice
+Reverb Shell as its root diagram, `concertHallAlgorithmSchema()`, with
+the core as a drill-down - and Pitch Correct). The panel validates
+every schema-listed ID against the processor's live parameter list in
+debug builds (jassert on drift), keeping the hand-authored schema
+honest. This stage<->parameter mapping is also exactly the linkage a
+future bidirectional highlight (touch a knob, its stage glows in the
+diagram; click a stage, its knobs highlight) and the generic
+cross-algorithm "Loom" UI need.
+
+Not yet done: full parameter *descriptions* in the schema
+(range/default/unit/setter - ranges still live in each plugin's
+`createParameterLayout()`), and the schema is still hand/AI-authored
+prose-derived, not generated from or generating the C++, per the
+original tier-1 framing.
 
 ## Is this achievable?
 

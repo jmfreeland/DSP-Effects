@@ -80,14 +80,31 @@ inline const AlgorithmSchema& tankDetailSchema()
 
 inline const AlgorithmSchema& concertHallSchema()
 {
+    // Parameter IDs as authored in plugin/source/PluginProcessor.cpp (the
+    // Concert Hall plugin) - validated against the live parameter list in
+    // debug builds by LoomParametersPanel.
+    static constexpr const char* kEarlyReflectionIds[] = {
+        "earlyReflectionLevelLeft", "earlyReflectionLevelRight",
+        "earlyReflectionDelayLeft", "earlyReflectionDelayRight",
+    };
+    static constexpr const char* kPreDelayIds[] = { "rvbIn", "preDelay" };
+    static constexpr const char* kDiffusionIds[] = { "diffusion" };
+    static constexpr const char* kTankIds[] = {
+        "decay", "lowRatio", "crossover", "damping", "size",
+        "link",  "definition", "spin",   "chorus",  "freeze",
+    };
+    static constexpr const char* kCoreOutputIds[] = { "depth", "rvbOut" };
+
     static const Stage stages[] = {
         { "input", "Input L/R", StageKind::kInput },
-        { "earlyReflections", "Early Reflections", StageKind::kProcessing, "RefDly/RefLvl per channel" },
-        { "preDelay", "PreDelay", StageKind::kProcessing, "0-930ms" },
-        { "diffusion", "Diffusion", StageKind::kProcessing, "4x Allpass, prime lengths", &diffusionDetailSchema() },
+        { "earlyReflections", "Early Reflections", StageKind::kProcessing, "RefDly/RefLvl per channel",
+          nullptr, kEarlyReflectionIds },
+        { "preDelay", "PreDelay", StageKind::kProcessing, "0-930ms", nullptr, kPreDelayIds },
+        { "diffusion", "Diffusion", StageKind::kProcessing, "4x Allpass, prime lengths",
+          &diffusionDetailSchema(), kDiffusionIds },
         { "tank", "8-Line FDN Tank", StageKind::kFeedback, "Householder mix, Rt HC damping, Spin/Chorus",
-          &tankDetailSchema() },
-        { "output", "Output", StageKind::kOutput, "Depth blend, Mix" },
+          &tankDetailSchema(), kTankIds },
+        { "output", "Core Output", StageKind::kOutput, "Depth blend", nullptr, kCoreOutputIds },
     };
     static const Connection connections[] = {
         { "input", "earlyReflections", nullptr },
@@ -99,8 +116,65 @@ inline const AlgorithmSchema& concertHallSchema()
         { "tank", "output", "* RvbOut" },
     };
     static const AlgorithmSchema schema = {
-        "Concert Hall", "The reference core - every other core is this plus one addition.", stages,
+        "Concert Hall Core", "The reference core - every other core is this plus one addition.", stages,
         connections
+    };
+    return schema;
+}
+
+// The full Concert Hall *algorithm* as the plugin presents it: the manual's
+// 4-Voice "Reverb Shell" (input conditioning, a parallel 4-voice delay
+// bank, post delay, and the shared FX output chain) wrapped around the
+// core above, which stays reachable as this diagram's own drill-down -
+// matching the manual's algorithm page, which draws the voices and the
+// reverb block together in one diagram.
+inline const AlgorithmSchema& concertHallAlgorithmSchema()
+{
+    static constexpr const char* kInputIds[] = {
+        "inLevelLeft", "inLevelRight", "inPanLeft", "inPanRight",
+    };
+    static constexpr const char* kVoiceIds[] = {
+        "voiceDiffusion",
+        "voice0Delay", "voice0Feedback", "voice0Level", "voice0Pan",
+        "voice1Delay", "voice1Feedback", "voice1Level", "voice1Pan",
+        "voice2Delay", "voice2Feedback", "voice2Level", "voice2Pan",
+        "voice3Delay", "voice3Feedback", "voice3Level", "voice3Pan",
+        "voiceGlideResponse", "voiceGlideRange", "clear",
+    };
+    static constexpr const char* kCoreIds[] = { "rvbWidth" };
+    static constexpr const char* kPostDelayIds[] = {
+        "postDelayLeft", "postDelayRight", "postDelayGlideResponse", "postDelayGlideRange",
+        "postDelayMix",
+    };
+    static constexpr const char* kOutputIds[] = { "fxMix", "fxWidth", "hiCut", "fxAdjust", "mix" };
+
+    static const Stage stages[] = {
+        { "input", "Input L/R", StageKind::kInput, "InLvl/InPan conditioning", nullptr, kInputIds },
+        { "voices", "4-Voice Bank", StageKind::kProcessing,
+          "4 parallel delay voices (own Delay/Feedback/Level/Pan) behind a shared Voice Diffusion, "
+          "fed from the mono sum; delay changes glide per GldResp/GldRange",
+          nullptr, kVoiceIds },
+        { "core", "Concert Hall Core", StageKind::kFeedback,
+          "The shared reverb core; Rvb Width rotates its stereo output", &concertHallSchema(),
+          kCoreIds },
+        { "postDelay", "Post Delay", StageKind::kProcessing,
+          "Independent L/R delay taps on the reverb output, glided, blended in by Post Mix",
+          nullptr, kPostDelayIds },
+        { "output", "Output", StageKind::kOutput, "FX Mix (voices vs. reverb), FX Width/Hi-Cut/Adjust, Mix",
+          nullptr, kOutputIds },
+    };
+    static const Connection connections[] = {
+        { "input", "voices", "mono sum" },
+        { "input", "core", "stereo" },
+        { "voices", "output", "FX Mix = 0" },
+        { "core", "output", "FX Mix = 1" },
+        { "core", "postDelay", nullptr },
+        { "postDelay", "output", "Post Mix" },
+    };
+    static const AlgorithmSchema schema = {
+        "Concert Hall",
+        "The PCM81's 4-Voice Reverb Shell around the Concert Hall core - click the core to see inside it.",
+        stages, connections
     };
     return schema;
 }
