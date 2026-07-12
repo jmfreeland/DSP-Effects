@@ -336,9 +336,19 @@ void ArchitectureView::paint(juce::Graphics& g)
         g.drawText("< Back", backButtonBounds(), juce::Justification::centredLeft);
         header.removeFromTop(22.0f);
     }
+    auto titleRow = header.removeFromTop(24.0f);
     g.setColour(juce::Colours::white);
     g.setFont(juce::Font(juce::FontOptions(18.0f, juce::Font::bold)));
-    g.drawText(currentSchema_->name, header.removeFromTop(24.0f), juce::Justification::centredLeft);
+    g.drawText(currentSchema_->name, titleRow, juce::Justification::centredLeft);
+
+    // Wordmark, quiet and letter-spaced, in the family accent - anchored
+    // within the typical visible width so it doesn't drift off-screen on
+    // wide, horizontally-scrolled diagrams.
+    auto wordmarkRow = titleRow.withWidth(juce::jmin(titleRow.getWidth(), 530.0f));
+    g.setColour(accent_.withAlpha(0.55f));
+    g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)).withExtraKerningFactor(0.35f));
+    g.drawText("LOOM", wordmarkRow, juce::Justification::centredRight);
+
     g.setFont(juce::Font(juce::FontOptions(12.0f)));
     g.setColour(juce::Colours::lightgrey);
     g.drawFittedText(currentSchema_->characterNote, header.toNearestInt(), juce::Justification::topLeft, 2);

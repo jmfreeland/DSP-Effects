@@ -84,10 +84,14 @@ void LoomPluginEditor::resized()
 
 void LoomPluginEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
-    auto separatorY = architectureViewport_.getBottom();
-    g.setColour(juce::Colours::white.withAlpha(0.2f));
-    g.fillRect(0, separatorY + kSeparatorHeight / 2, getWidth(), 1);
+    g.fillAll(loom::colours::kPanelBackground);
+    // Split separator as the language's bevel pair: dark line over light
+    // line, reading as a recessed seam between the two halves.
+    auto separatorY = architectureViewport_.getBottom() + kSeparatorHeight / 2;
+    g.setColour(loom::colours::kBevelDark);
+    g.fillRect(0, separatorY, getWidth(), 1);
+    g.setColour(loom::colours::kBevelLight);
+    g.fillRect(0, separatorY + 1, getWidth(), 1);
 }
 
 void LoomPluginEditor::updateParametersPanelSize()
