@@ -21,7 +21,7 @@ inline const AlgorithmSchema& sweptReverbSchema()
     static const Connection connections[] = {
         { "input", "lines", nullptr },
         { "lines", "network", "tapped" },
-        { "network", "lines", "* Feedback - closes the loop" },
+        { "network", "lines", "closes the loop", "Feedback" },
         { "lines", "output", "tapped" },
     };
     static const AlgorithmSchema schema = {

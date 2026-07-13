@@ -23,8 +23,8 @@ inline const AlgorithmSchema& dualShiftSchema()
         { "rightDelay", "rightShift", nullptr },
         { "leftShift", "leftOutput", nullptr },
         { "rightShift", "rightOutput", nullptr },
-        { "leftShift", "leftInput", "* L Feedback - own channel only" },
-        { "rightShift", "rightInput", "* R Feedback - own channel only" },
+        { "leftShift", "leftInput", "own channel only", "L Feedback" },
+        { "rightShift", "rightInput", "own channel only", "R Feedback" },
     };
     static const AlgorithmSchema schema = {
         "Dual Shift",

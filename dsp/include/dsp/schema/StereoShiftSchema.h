@@ -23,8 +23,8 @@ inline const AlgorithmSchema& stereoShiftSchema()
         { "rightDelay", "rightShift", nullptr },
         { "leftShift", "leftOutput", nullptr },
         { "rightShift", "rightOutput", nullptr },
-        { "leftShift", "leftInput", "* shared Feedback - own channel only" },
-        { "rightShift", "rightInput", "* shared Feedback - own channel only" },
+        { "leftShift", "leftInput", "shared, own channel only", "Feedback" },
+        { "rightShift", "rightInput", "shared, own channel only", "Feedback" },
     };
     static const AlgorithmSchema schema = {
         "Stereo Shift",

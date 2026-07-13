@@ -144,11 +144,11 @@ inline const AlgorithmSchema& concertHallSchema()
     static const Connection connections[] = {
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
-        { "input", "preDelay", "mono sum * RvbIn" },
+        { "input", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "Low Rt/Mid Rt per band (Link: scales w/ Size)" },
-        { "tank", "output", "* RvbOut" },
+        { "tank", "tank", "per band (Link: scales w/ Size)", "Decay Gain" },
+        { "tank", "output", nullptr, "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Concert Hall Core", "The reference core - every other core is this plus one addition.", stages,
@@ -178,11 +178,11 @@ inline const AlgorithmSchema& plateSchema()
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
         { "input", "preEcho", "raw L/R" },
-        { "preEcho", "preDelay", "mono sum * RvbIn" },
+        { "preEcho", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "Low Rt/Mid Rt per band" },
-        { "tank", "output", "* RvbOut" },
+        { "tank", "tank", "per band", "Decay Gain" },
+        { "tank", "output", nullptr, "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Plate Core", "Concert Hall + a recirculating Pre-Echo + Attack-shaped Diffusion.", stages,
@@ -212,11 +212,11 @@ inline const AlgorithmSchema& chamberSchema()
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
         { "input", "preEcho", "raw L/R" },
-        { "preEcho", "preDelay", "mono sum * RvbIn" },
+        { "preEcho", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "Low Rt/Mid Rt per band" },
-        { "tank", "output", "* RvbOut, then Shape+Spread envelope" },
+        { "tank", "tank", "per band", "Decay Gain" },
+        { "tank", "output", "then Shape+Spread envelope", "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Chamber Core",
@@ -248,11 +248,11 @@ inline const AlgorithmSchema& infiniteSchema()
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
         { "input", "preEcho", "raw L/R" },
-        { "preEcho", "preDelay", "mono sum * RvbIn" },
+        { "preEcho", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "Low Rt/Mid Rt per band, or ~0.9999/no damping while frozen" },
-        { "tank", "output", "* RvbOut, then Shape+Spread envelope" },
+        { "tank", "tank", "per band, or ~0.9999/no damping while frozen", "Decay Gain" },
+        { "tank", "output", "then Shape+Spread envelope", "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Infinite Core", "Chamber + Freeze: the tank's own damping is bypassed too, so a frozen tail holds "
@@ -288,11 +288,11 @@ inline const AlgorithmSchema& inverseSchema()
     static const Connection connections[] = {
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
-        { "input", "preDelay", "mono sum * RvbIn" },
+        { "input", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "fixed sustain gain (~2.5s) - not user-adjustable" },
-        { "tank", "output", "* RvbOut, then band-split + Low Slope/Mid Slope, then Shape swell" },
+        { "tank", "tank", "~2.5s, not user-adjustable", "Fixed Gain" },
+        { "tank", "output", "then band-split + Low Slope/Mid Slope, then Shape swell", "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Inverse Core", "Concert Hall's tank kept healthy internally, but RT60 decay replaced entirely by a "

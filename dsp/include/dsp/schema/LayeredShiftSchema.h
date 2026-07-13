@@ -21,8 +21,8 @@ inline const AlgorithmSchema& layeredShiftSchema()
         { "rightDelay", "rightShift", nullptr },
         { "leftShift", "output", nullptr },
         { "rightShift", "output", nullptr },
-        { "leftShift", "input", "* L Feedback - cascades another lap" },
-        { "rightShift", "input", "* R Feedback - cascades another lap" },
+        { "leftShift", "input", "cascades another lap", "L Feedback" },
+        { "rightShift", "input", "cascades another lap", "R Feedback" },
     };
     static const AlgorithmSchema schema = {
         "Layered Shift",

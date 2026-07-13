@@ -31,8 +31,8 @@ inline const AlgorithmSchema& stutterSchema()
     static const Connection connections[] = {
         { "leftInput", "leftShift", nullptr },
         { "rightInput", "rightShift", nullptr },
-        { "leftShift", "leftShift", "* L Feedback (via L Delay)" },
-        { "rightShift", "rightShift", "* R Feedback (via R Delay)" },
+        { "leftShift", "leftShift", "via L Delay", "L Feedback" },
+        { "rightShift", "rightShift", "via R Delay", "R Feedback" },
         { "leftShift", "leftStutter", nullptr },
         { "rightShift", "rightStutter", nullptr },
         { "sweeps", "leftShift", "Sweep Target 1/2" },

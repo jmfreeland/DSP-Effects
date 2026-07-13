@@ -476,6 +476,35 @@ void ArchitectureView::drawBox(juce::Graphics& g, const BoxLayout& box)
     }
 }
 
+void ArchitectureView::drawGainGlyph(juce::Graphics& g, juce::Point<float> center,
+                                     const char* gainLabel, bool withText)
+{
+    if (gainLabel == nullptr)
+    {
+        return;
+    }
+
+    // The manuals' own circled-times: a scalar multiply named right on
+    // the wire, distinct from the sum glyph's circled-plus.
+    g.setColour(loom::colours::kDiagramBackground);
+    g.fillEllipse(center.x - 6.5f, center.y - 6.5f, 13.0f, 13.0f);
+    g.setColour(accent_.withAlpha(0.9f));
+    g.drawEllipse(center.x - 6.5f, center.y - 6.5f, 13.0f, 13.0f, 1.3f);
+    auto r = 3.3f;
+    g.drawLine(center.x - r, center.y - r, center.x + r, center.y + r, 1.3f);
+    g.drawLine(center.x - r, center.y + r, center.x + r, center.y - r, 1.3f);
+
+    if (withText)
+    {
+        g.setFont(juce::Font(juce::FontOptions(9.5f, juce::Font::bold)));
+        g.drawFittedText(
+          gainLabel, juce::Rectangle<float>(center.x - 42.0f, center.y + 6.0f, 84.0f, 11.0f).toNearestInt(),
+          juce::Justification::centred, 1);
+    }
+
+    g.setColour(loom::colours::kWire);
+}
+
 void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Connection& connection,
                                       int& backEdgeIndex, int& skipEdgeIndex)
 {
@@ -513,6 +542,7 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
         loop.lineTo(b.getX() + 18.0f, b.getBottom() + 1.0f);
         g.strokePath(loop, juce::PathStrokeType(1.4f));
         drawArrowHead(g, { b.getX() + 18.0f, b.getBottom() + 1.0f }, { 0.0f, -1.0f });
+        drawGainGlyph(g, { b.getCentreX(), b.getBottom() + loopDrop }, connection.gainLabel, false);
         annotate({ b.getX(), b.getBottom() + loopDrop + 1.0f, b.getWidth(), 12.0f },
                  juce::Justification::centred);
         return;
@@ -544,6 +574,7 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
         }
 
         auto midX = (start.x + entryX) * 0.5f;
+        drawGainGlyph(g, { midX, returnY }, connection.gainLabel);
         annotate({ midX - 110.0f, returnY - 12.0f, 220.0f, 11.0f }, juce::Justification::centred);
         return;
     }
@@ -573,6 +604,7 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
         }
 
         auto midX = (start.x + entryX) * 0.5f;
+        drawGainGlyph(g, { midX, skipY }, connection.gainLabel);
         annotate({ midX - 110.0f, skipY - 12.0f, 220.0f, 11.0f }, juce::Justification::centred);
         return;
     }
@@ -602,16 +634,19 @@ void ArchitectureView::drawConnection(juce::Graphics& g, const dsp::schema::Conn
 
     if (std::abs(start.y - end.y) < 1.0f)
     {
-        // Straight run: label just above the wire.
+        // Straight run: gain glyph on the wire, label just above it.
+        drawGainGlyph(g, { (start.x + end.x) * 0.5f, start.y }, connection.gainLabel);
         annotate({ start.x + 2.0f, start.y - 14.0f, std::max(end.x - start.x - 4.0f, 72.0f), 11.0f },
                  juce::Justification::centredLeft);
     }
     else
     {
-        // Elbowed run: label beside the vertical segment, at its
-        // midpoint - unique per target row, so several branches leaving
-        // one node (a patch-bay fan-out) don't overprint each other the
-        // way shared start-point labels would.
+        // Elbowed run: gain glyph on the horizontal run leaving the
+        // source, label beside the vertical segment at its midpoint -
+        // unique per target row, so several branches leaving one node (a
+        // patch-bay fan-out) don't overprint each other the way
+        // shared start-point labels would.
+        drawGainGlyph(g, { (start.x + elbowX) * 0.5f, start.y }, connection.gainLabel);
         auto midY = (start.y + end.y) * 0.5f - 5.5f;
         auto available = elbowX - start.x - 6.0f;
         if (available >= 40.0f)
