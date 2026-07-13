@@ -110,7 +110,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuadHallAudioProcessor::crea
 
     // -- Four voices (1-2 = Left shifts, 3-4 = Right shifts) --
     static constexpr float kDefaultDelay[4] = { 0.02f, 0.03f, 0.02f, 0.03f };
-    static constexpr float kDefaultCents[4] = { 700.0f, -700.0f, 700.0f, -700.0f };
+    static constexpr float kDefaultCents[4] = { 12.0f, -12.0f, 15.0f, -15.0f };
     static constexpr float kDefaultPan[4] = { -0.6f, -0.3f, 0.3f, 0.6f };
     for (int i = 0; i < 4; ++i)
     {

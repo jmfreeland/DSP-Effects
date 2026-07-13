@@ -99,9 +99,11 @@ than a verified match to an undrawn diagram detail.
   Glide FX row (Gld Lvl, A/B Left/Right, Fbk L/R, X-Fbk L/R) has no glide
   *response* parameter of its own (unlike the 4-Voice algorithms'
   post-delay, which explicitly has `GldResp`/`GldRange`). A fixed,
-  moderate internal glide response (35/100, 1s range) produces the
+  fast-but-audible internal glide response (60/100, 1s range - a ~0.2s
+  tap-change chirp rather than a multi-second pitch-bend) produces the
   "pitch modulation, flange" character the manual describes without
-  inventing an unlisted control.
+  inventing an unlisted control, or leaving the signal detuned for
+  seconds after every tweak.
 - **No PstMix/PstGld post-delay** — the manual scopes those to the
   4-Voice algorithms only; Glide>Hall's own Rvb Time row (Low Rt/Mid
   Rt/Crossover/Rt HC/Pre Delay/Ref Lvl+Dly) has no post-delay position.
