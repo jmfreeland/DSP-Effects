@@ -4,7 +4,10 @@
 #include "EngineAdapter.h"
 #include "dsp/graphs/ChamberAlgorithm.h"
 #include "dsp/schema/ReverbCoreSchemas.h"
+#include "pcm80/Pcm80UnitConvert.h"
 
+#include <cmath>
+#include <functional>
 #include <span>
 
 // Adapts dsp::graphs::ChamberAlgorithm to EngineAdapter - see
@@ -170,7 +173,100 @@ class ChamberAdapter : public EngineAdapter
         engine_.process(left, right);
     }
 
+    // See PlateAdapter.h's importPcm80Preset() for the pattern and its
+    // doc comment; Chamber's PCM80 field list is identical to Plate's
+    // except RvbDesign Shape+Spread replace Attack (matching this
+    // adapter's own shape/spread parameters). Definition, Depth, Chorus,
+    // Freeze have no PCM80 Chamber equivalent and are left untouched.
+    const char* pcm80AlgorithmName() const override { return "Chamber"; }
+
+    void importPcm80Preset(const pcm80::Preset& preset, juce::AudioProcessorValueTreeState& apvts) const override
+    {
+        using namespace pcm80;
+        auto pid = [](const char* suffix) { return prefixedId("chamber", suffix); };
+
+        auto apply = [&](const char* group, const char* label, const juce::String& paramId, float lo,
+                          float hi, const std::function<float(const Field&)>& convert) {
+            auto* f = preset.find(group, label);
+            if (f == nullptr || !f->numeric.has_value())
+            {
+                return;
+            }
+            setParamValue(apvts, paramId, clampf(convert(*f), lo, hi));
+        };
+
+        auto percent = [](const Field& f) { return percentToFraction(*f.numeric); };
+        auto db = [](const Field& f) { return dbToLinear(*f.numeric); };
+        auto dbSigned = [](const Field& f) {
+            auto linear = dbToLinear(*f.numeric);
+            return f.unit == "db_phase_inverted" ? -linear : linear;
+        };
+        auto ms = [](const Field& f) { return msToSeconds(*f.numeric); };
+        auto direct = [](const Field& f) { return static_cast<float>(*f.numeric); };
+        auto boolean = direct;
+
+        apply("Controls", "Mix", pid("mix"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX ADJUST", pid("fxAdjust"), -73.0f, 12.0f, direct);
+        apply("Controls", "InLvl L", pid("inLevelLeft"), -1.0f, 1.0f, dbSigned);
+        apply("Controls", "InLvl R", pid("inLevelRight"), -1.0f, 1.0f, dbSigned);
+        apply("Controls", "InPan L", pid("inPanLeft"), -1.0f, 1.0f, direct);
+        apply("Controls", "InPan R", pid("inPanRight"), -1.0f, 1.0f, direct);
+        apply("Controls", "High Cut", pid("hiCut"), 1000.0f, 20000.0f, direct);
+        apply("Controls", "Voice Dif", pid("voiceDiffusion"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX Mix", pid("fxMix"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX Width", pid("fxWidth"), -360.0f, 360.0f, direct);
+
+        apply("Rvb Time", "Low Rt", pid("lowRatio"), 0.2f, 2.0f, direct);
+        apply("Rvb Time", "Mid Rt", pid("decay"), 0.3f, 8.0f, ms);
+        apply("Rvb Time", "Crossover", pid("crossover"), 100.0f, 2000.0f, direct);
+        apply("Rvb Time", "Rt HC", pid("damping"), 0.0f, 1.0f,
+              [](const Field& f) { return 1.0f - (direct_(f) - 1000.0f) / 19000.0f; });
+        apply("Rvb Time", "Pre Delay", pid("preDelay"), 0.0f, 0.93f, ms);
+        apply("Rvb Time", "RefLvl L", pid("earlyReflectionLevelLeft"), 0.0f, 1.0f, db);
+        apply("Rvb Time", "RefDly L", pid("earlyReflectionDelayLeft"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "RefLvl R", pid("earlyReflectionLevelRight"), 0.0f, 1.0f, db);
+        apply("Rvb Time", "RefDly R", pid("earlyReflectionDelayRight"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "EkoFbk L", pid("ekoFeedbackLeft"), 0.0f, 0.95f,
+              [](const Field& f) { return std::fabs(direct_(f)) / 100.0f * 0.95f; });
+        apply("Rvb Time", "EkoDly L", pid("ekoDelayLeft"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "EkoFbk R", pid("ekoFeedbackRight"), 0.0f, 0.95f,
+              [](const Field& f) { return std::fabs(direct_(f)) / 100.0f * 0.95f; });
+        apply("Rvb Time", "EkoDly R", pid("ekoDelayRight"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "PstMix", pid("postDelayMix"), 0.0f, 1.0f, percent);
+        apply("Rvb Time", "PstDly L", pid("postDelayLeft"), 0.0f, 1.365f, ms);
+        apply("Rvb Time", "PstDly R", pid("postDelayRight"), 0.0f, 1.365f, ms);
+        apply("Rvb Time", "GldResp", pid("postDelayGlideResponse"), 0.0f, 100.0f, direct);
+        apply("Rvb Time", "GldRange", pid("postDelayGlideRange"), 0.0f, 1.365f, ms);
+
+        apply("RvbDesign", "Size", pid("size"), 0.0f, 1.0f,
+              [](const Field& f) { return (direct_(f) - 4.0f) / 72.0f; });
+        apply("RvbDesign", "Diffusion", pid("diffusion"), 0.0f, 1.0f, percent);
+        apply("RvbDesign", "Shape", pid("shape"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 100.0f; });
+        apply("RvbDesign", "Spread", pid("spread"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 100.0f; });
+        apply("RvbDesign", "Spin", pid("spin"), 0.0f, 1.0f, percent);
+        apply("RvbDesign", "Link", pid("link"), 0.0f, 1.0f, boolean);
+        apply("RvbDesign", "Rvb Width", pid("rvbWidth"), -360.0f, 360.0f, direct);
+        apply("RvbDesign", "Rvb In", pid("rvbIn"), 0.0f, 1.0f, db);
+        apply("RvbDesign", "Rvb Out", pid("rvbOut"), 0.0f, 1.0f, db);
+
+        apply("DelayTime", "GldResp", pid("voiceGlideResponse"), 0.0f, 100.0f, direct);
+        apply("DelayTime", "GldRange", pid("voiceGlideRange"), 0.0f, 1.365f, ms);
+        apply("DelayTime", "Clear", pid("clear"), 0.0f, 1.0f, boolean);
+
+        static constexpr const char* kVoiceLabels[4] = { "Voice1", "Voice2", "Voice3", "Voice4" };
+        for (int i = 0; i < 4; ++i)
+        {
+            apply("Levels", kVoiceLabels[i], voiceParamId("chamber", i, "Level"), -1.0f, 1.0f, dbSigned);
+            apply("DelayTime", kVoiceLabels[i], voiceParamId("chamber", i, "Delay"), 0.0f, 1.365f, ms);
+            apply("Feedback", kVoiceLabels[i], voiceParamId("chamber", i, "Feedback"), -1.0f, 1.0f,
+                  [](const Field& f) { return direct_(f) / 100.0f; });
+            apply("Panning", kVoiceLabels[i], voiceParamId("chamber", i, "Pan"), -1.0f, 1.0f, direct);
+        }
+    }
+
   private:
+    static float direct_(const pcm80::Field& f) { return static_cast<float>(*f.numeric); }
+
     dsp::graphs::ChamberAlgorithm engine_;
 };
 }
