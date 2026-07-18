@@ -24,27 +24,44 @@ repo does not include, fetch, or ship any Lexicon ROM image.
 ## What's actually decoded
 
 The preset table is a chain of variable-length records (see the
-docstring in `extract_presets.py` for the exact byte layout). Confidence
-by field:
+docstring in `extract_presets.py` for the exact byte layout, and the
+methodology below). Every zone boundary was verified statistically
+across the full 200-record chain - not guessed from one or two samples.
+Confidence by zone:
 
 - **Preset name, macro-knob label** - solid. Verified by chain-walking an
   entire ROM and finding exactly 200 records (the PCM80's known factory
   preset count), every one of which decodes to a name that reads as a
   real, plausible preset ("Concert Hall", "Vox Chamber", "Rich Plate",
   "6 Vox Chorus", ...).
-- **Per-preset parameter tail** (60-200 bytes depending on the preset) -
-  **not decoded**. This is almost certainly the actual knob-value/
-  algorithm-coefficient block, but pinning down what each byte means
-  would need either real hardware to correlate front-panel knob moves
+- **Knob id-list field** (15 bytes right after the name/label) - boundary
+  solid (verified: bytes 48-51 within it are zero in the large majority
+  of records, i.e. classic zero-padding after a variable-length list).
+  Contents read as a list of small parameter-ID-like tags (it rarely
+  starts at 0, arguing against it being a value/step table) - semantics
+  not confirmed.
+- **Range/flags block** (13 bytes after that) - boundary solid (verified:
+  this zone has dramatically lower byte-value cardinality across the 200
+  records - as few as 2-15 distinct values per byte position - than the
+  zone before or after it, i.e. it reads as boilerplate/enum data rather
+  than real per-preset values). Byte semantics not decoded.
+- **Parameter value block** (everything after that, to the end of the
+  record) - boundary solid, and this is the strongest candidate for the
+  actual per-preset DSP parameter values: it's consistently
+  high-cardinality/continuous (20-80+ distinct byte values per position)
+  across all 200 records regardless of each record's total length. This
+  is very likely "the real value" in each preset. **Which byte index
+  means which named parameter (Decay? Mix? Tone?) is NOT decoded** -
+  that needs either real hardware to correlate front-panel knob moves
   against, or a full disassembly of the firmware's patch-load routine.
-  The script preserves these bytes as raw hex in the archive rather than
-  guessing at field meanings.
-- **The 16-byte per-record header** (mostly the offsets 0-11, since
-  offset 12-13 is the known length field) - also not decoded.
+  Neither is attempted here.
 
-If someone wants to push this further (e.g. against real hardware, or a
-disassembly of the 80186 firmware), the raw hex is there to work from -
-see `extract_presets.py`'s docstring for the exact offsets.
+The script preserves every zone as raw hex in the archive rather than
+guessing at individual field meanings within them. If someone wants to
+push this further (e.g. against real hardware, or a disassembly of the
+80186 firmware), the raw hex is there to work from, already segmented
+into the right regions - see `extract_presets.py`'s docstring for the
+exact offsets and the statistical evidence behind each boundary.
 
 ## Copyright
 

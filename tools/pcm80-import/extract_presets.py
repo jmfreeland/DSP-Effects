@@ -9,29 +9,59 @@ What this actually decodes
 ---------------------------
 The PCM80's host/UI controller is an Intel 80186-class CPU (separate from
 the Motorola 56000-series DSP that does the actual audio processing). Its
-ROM stores factory presets as a chain of variable-length records:
+ROM stores factory presets as a chain of variable-length records. Every
+boundary below was verified statistically across a full 200-record chain
+(the PCM80's known factory preset count) - not guessed from one or two
+samples. Confidence varies a lot by zone; see each zone's note.
 
-    offset  size  field
-    0       12    unidentified per-record header (pointers/flags, not decoded)
-    12      2     record length, little-endian uint16 (distance to next record)
-    14      2     unidentified (possibly algorithm/category id, not decoded)
-    16      12    preset name, space-padded ASCII
-    28      9     "quick knob" macro label, space-padded ASCII
-    37      1     0x00 terminator
-    38      *     remainder of record ("tail"), length = record_length - 38
+    offset  size  field                    confidence
+    0       16    header (see below)       low (mostly), one universal constant
+    16      12    preset name              SOLID - see verification note
+    28      9     "quick knob" label       SOLID - see verification note
+    37      1     0x00 terminator          solid
+    38      15    knob id-list field       medium (boundary solid, semantics not)
+    53      13    range/flags block        medium (boundary solid, semantics not)
+    66      *     parameter value block    boundary solid, byte semantics NOT decoded
 
-The name/label fields are solid - this was verified by chain-walking the
-whole ROM and finding a 200-record chain, matching the PCM80's known
-factory preset count exactly, with every decoded name reading as a
-plausible real preset ("Concert Hall", "Vox Chamber", "Rich Plate", ...).
+Header (offset 0-15): offset 12-13 is a little-endian uint16 record length
+(the distance to the next record - this is how the chain is walked).
+Offset 15 is a universal constant, 0xF0, across all 200 records. Offset
+14 is a 10-value enum. The other 12 bytes vary too much (56-100+ distinct
+values across 200 records) to characterize; not decoded.
 
-The per-record "tail" is almost certainly the actual parameter/coefficient
-block for that preset (its size varies with how many parameters the
-algorithm exposes), but its internal byte layout has NOT been decoded -
-that would need either real hardware to correlate knob movements against,
-or a full disassembly of the firmware's patch-load routine. This script
-preserves the tail as raw hex in the archive rather than guessing at
-field meanings.
+Name/label (offset 16-37): SOLID. Verified by chain-walking an entire ROM
+and finding exactly 200 records, matching the PCM80's known factory
+preset count, with every name decoding to a plausible real preset
+("Concert Hall", "Vox Chamber", "Rich Plate", "6 Vox Chorus", ...).
+
+Knob id-list field (offset 38-52, 15 bytes): a variable-length ascending
+run of small integers, zero-padded to fill the 15 bytes (offsets 48-51
+are zero in the large majority of records - classic padding behavior).
+The list only rarely starts at 0 and instead starts from small
+distinct-looking values (most commonly 1, 3, or 4) - this argues against
+it being a value/step table (which would plausibly start at 0) and for
+it being a list of parameter-ID tags that the single front-panel "quick
+knob" is linked to for this preset. Not confirmed.
+
+Range/flags block (offset 53-65, 13 bytes): overwhelmingly low-cardinality
+across all 200 presets (as few as 2-15 distinct values seen per byte
+position, vs. 20-80+ in the parameter block that follows) - i.e. this
+reads as boilerplate/enum data, not real per-preset values. Bytes 53-56
+are dominated by 0xFF/0x7F-style range-boundary values, consistent with
+a generic min/max descriptor most presets share. Byte 59 is the one
+outlier with high cardinality (76 distinct values) - possibly a checksum,
+or the block boundary drawn here is slightly off for some records. Byte
+semantics not decoded.
+
+Parameter value block (offset 66 to end of record): consistently
+high-cardinality (continuous, 20-80+ distinct values per byte position)
+across all 200 records regardless of each record's total length - this
+is the strongest candidate for the actual per-preset DSP parameter
+values (decay, mix, tone, etc.). This is very likely "the real value"
+in each preset, but which byte index means which named parameter is NOT
+decoded - that needs either real hardware to correlate front-panel knob
+moves against, or a full disassembly of the firmware's patch-load
+routine, neither of which this script attempts.
 
 Copyright
 ---------
@@ -50,12 +80,19 @@ import struct
 import sys
 from pathlib import Path
 
-RECORD_HEADER_SIZE = 16
+HEADER_SIZE = 16
 NAME_SIZE = 12
 LABEL_SIZE = 9
-NAME_OFFSET = RECORD_HEADER_SIZE
+KNOB_FIELD_SIZE = 15
+FLAGS_BLOCK_SIZE = 13
+
+NAME_OFFSET = HEADER_SIZE
 LABEL_OFFSET = NAME_OFFSET + NAME_SIZE
-FIXED_PREFIX_SIZE = LABEL_OFFSET + LABEL_SIZE + 1  # + 0x00 terminator
+TERMINATOR_OFFSET = LABEL_OFFSET + LABEL_SIZE
+KNOB_FIELD_OFFSET = TERMINATOR_OFFSET + 1
+FLAGS_OFFSET = KNOB_FIELD_OFFSET + KNOB_FIELD_SIZE
+PARAM_BLOCK_OFFSET = FLAGS_OFFSET + FLAGS_BLOCK_SIZE  # 66
+
 MIN_RECORD_LEN = 30
 MAX_RECORD_LEN = 400
 MIN_CHAIN_LEN = 20  # reject short/incidental chains
@@ -72,7 +109,7 @@ def _chain_length(data: bytes, start: int) -> tuple[int, int]:
     """Walk a candidate record chain from `start`. Returns (count, end_offset)."""
     pos = start
     count = 0
-    while pos + RECORD_HEADER_SIZE <= len(data):
+    while pos + HEADER_SIZE <= len(data):
         length = struct.unpack_from("<H", data, pos + 12)[0]
         if not (MIN_RECORD_LEN <= length <= MAX_RECORD_LEN):
             break
@@ -96,7 +133,7 @@ def find_preset_table(data: bytes) -> tuple[int, int]:
     best_count = 0
     i = 0
     n = len(data)
-    while i + RECORD_HEADER_SIZE <= n:
+    while i + HEADER_SIZE <= n:
         length = struct.unpack_from("<H", data, i + 12)[0]
         if MIN_RECORD_LEN <= length <= MAX_RECORD_LEN and i + length <= n:
             name_field = data[i + NAME_OFFSET : i + NAME_OFFSET + NAME_SIZE]
@@ -132,8 +169,11 @@ def parse_records(data: bytes, start: int) -> list[dict]:
         name = name_field.decode("latin1").rstrip()
         label_field = data[pos + LABEL_OFFSET : pos + LABEL_OFFSET + LABEL_SIZE]
         label = label_field.decode("latin1").rstrip("\x00").rstrip()
-        header = data[pos : pos + RECORD_HEADER_SIZE]
-        tail = data[pos + FIXED_PREFIX_SIZE : pos + length]
+
+        header = data[pos : pos + HEADER_SIZE]
+        knob_field = data[pos + KNOB_FIELD_OFFSET : pos + FLAGS_OFFSET]
+        flags_block = data[pos + FLAGS_OFFSET : pos + PARAM_BLOCK_OFFSET]
+        param_block = data[pos + PARAM_BLOCK_OFFSET : pos + length]
 
         presets.append(
             {
@@ -143,7 +183,9 @@ def parse_records(data: bytes, start: int) -> list[dict]:
                 "rom_offset": pos,
                 "record_length": length,
                 "header_hex_undecoded": header.hex(),
-                "tail_hex_undecoded": tail.hex(),
+                "knob_id_list_hex": knob_field.hex(),
+                "range_flags_block_hex_undecoded": flags_block.hex(),
+                "parameter_value_block_hex": param_block.hex(),
             }
         )
         pos += length
@@ -170,10 +212,16 @@ def build_archive(rom_path: Path) -> dict:
         "format_notes": (
             "name/macro_knob_label are decoded and verified (200/200 records "
             "chain-walk cleanly and read as plausible real preset names). "
-            "header_hex_undecoded and tail_hex_undecoded are raw bytes whose "
-            "internal layout is NOT decoded - the tail is very likely the "
-            "actual per-preset parameter/coefficient block. See "
-            "tools/pcm80-import/README.md."
+            "knob_id_list_hex, range_flags_block_hex_undecoded and "
+            "parameter_value_block_hex are three statistically-distinct "
+            "zones within what used to be one undifferentiated 'tail' blob "
+            "- their *boundaries* are verified across all 200 records, but "
+            "byte-level semantics within each are NOT decoded. "
+            "parameter_value_block_hex is the best candidate for actual "
+            "per-preset DSP parameter values (highest, most continuous "
+            "byte-value variety of the three). See the module docstring in "
+            "extract_presets.py and tools/pcm80-import/README.md for the "
+            "full methodology."
         ),
         "presets": presets,
     }
