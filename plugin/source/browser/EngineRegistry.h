@@ -5,6 +5,7 @@
 #include "ConcertHallAdapter.h"
 #include "DiatonicShiftAdapter.h"
 #include "DualChmbAdapter.h"
+#include "DualDigiplexAdapter.h"
 #include "DualInvAdapter.h"
 #include "DualPltAdapter.h"
 #include "DualShiftAdapter.h"
@@ -15,6 +16,7 @@
 #include "LayeredShiftAdapter.h"
 #include "LongDigiplexAdapter.h"
 #include "MBandRvbAdapter.h"
+#include "PatchFactoryAdapter.h"
 #include "PitchCorrectAdapter.h"
 #include "PlateAdapter.h"
 #include "QuadHallAdapter.h"
@@ -24,8 +26,10 @@
 #include "ReverseShiftAdapter.h"
 #include "StereoChmbAdapter.h"
 #include "StereoShiftAdapter.h"
+#include "StutterAdapter.h"
 #include "SweptCombsAdapter.h"
 #include "SweptReverbAdapter.h"
+#include "TimesqueezeAdapter.h"
 #include "UltraTapAdapter.h"
 #include "VSOChmbAdapter.h"
 
@@ -49,7 +53,7 @@ struct RegistryEntry
     AdapterFactory create;
 };
 
-inline constexpr std::array<RegistryEntry, 27> kEngineRegistry {{
+inline constexpr std::array<RegistryEntry, 31> kEngineRegistry {{
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<ConcertHallAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<PlateAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<ChamberAdapter>()); } },
@@ -77,6 +81,10 @@ inline constexpr std::array<RegistryEntry, 27> kEngineRegistry {{
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<ReverbFactoryAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<UltraTapAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<LongDigiplexAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<DualDigiplexAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<PatchFactoryAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<StutterAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<TimesqueezeAdapter>()); } },
 }};
 
 inline int engineRegistrySize() { return static_cast<int>(kEngineRegistry.size()); }
