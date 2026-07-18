@@ -78,7 +78,7 @@ class StereoChmbAlgorithm
         setFxInLevel(1.0f);
         setRvbMix(1.0f);
         setFxMix(1.0f);
-        setShiftCents(700.0f);
+        setShiftCents(12.0f);
         setShiftDelaySeconds(0.02f);
         setSpliceSeconds(0.004f);
         setFxWidth(0.0f);

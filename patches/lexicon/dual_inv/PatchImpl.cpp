@@ -2,6 +2,8 @@
 
 #include "dsp/graphs/DualInvAlgorithm.h"
 
+#include <cmath>
+
 // Lexicon PCM81-inspired Dual-Inv algorithm for the Polyend Endless: a
 // Submixer routing an Inverse reverb against a 2-voice "Dual Shifter" FX
 // block, in parallel by default - the same Submixer + Dual Shifter shape
@@ -63,8 +65,10 @@ class PatchImpl : public Patch
         {
             case endless::ParamId::kParamLeft:
             {
-                // 0 (unison) .. 1 (+-1 octave spread).
-                auto cents = value * 1200.0f;
+                // 0 (unison) .. 1 (+-1 octave spread), curved (^4) so the
+                // knob's middle range stays in doubling territory instead
+                // of racing past it to dissonant multi-semitone detune.
+                auto cents = 1200.0f * std::pow(value, 4.0f);
                 engine_.setVoice(0, 0.02f, cents, 0.7f, -0.7f);
                 engine_.setVoice(1, 0.03f, -cents, 0.7f, 0.7f);
                 break;
