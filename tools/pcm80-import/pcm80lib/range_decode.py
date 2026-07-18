@@ -339,3 +339,219 @@ def rd51(v):
 
 
 RANGE_DECODE_FUNCS = {i: globals()[f"rd{i}"] for i in range(0, 52)}
+
+
+# Numeric decode: a second interpretation of each range decode, parallel
+# to the rdN() display-string functions above, for consumers (like the
+# Loom browser plugin's PCM80 preset importer) that want an actual
+# (value, unit) pair to convert into their own engine's parameter units
+# rather than a formatted-for-humans string to re-parse. Each entry is
+# fn(raw[, link, size]) -> (float_or_None, unit_str_or_None). None means
+# "this raw value has no single-number meaning for this field" (a pure
+# enum, a named source, "Off"/mute, etc.) - callers should leave their
+# corresponding parameter at its own default rather than guess.
+def _nd_percent(v):
+    return (float(v), "percent")
+
+
+def _nd_bipolar_percent(table):
+    def fn(v):
+        return (float(table[v]), "percent") if 0 <= v < len(table) else (None, None)
+
+    return fn
+
+
+def _nd_ms(scale):
+    def fn(v):
+        return (v * scale, "ms")
+
+    return fn
+
+
+def _nd_passthrough(unit):
+    def fn(v):
+        return (float(v), unit)
+
+    return fn
+
+
+def _nd_hz_table(table):
+    def fn(v):
+        if 0 <= v < len(table):
+            t = table[v]
+            return (float(t), "hz") if isinstance(t, (int, float)) else (None, None)
+        return (None, None)
+
+    return fn
+
+
+def _nd_db_table(table):
+    def fn(v):
+        if 0 <= v < len(table):
+            t = table[v]
+            if isinstance(t, (int, float)):
+                return (float(t), "db")
+            if t == "Full":
+                return (0.0, "db")
+            return (None, None)  # "Off"
+        return (None, None)
+
+    return fn
+
+
+def _nd_none(v):
+    return (None, None)
+
+
+def _nd0(v):
+    return (None, None)
+
+
+def _nd1(v):
+    return (float(v + 40), "bpm")
+
+
+def _nd6(v):
+    return (float(TAP_AVERAGES[v]), "count") if 0 <= v < len(TAP_AVERAGES) else (None, None)
+
+
+def _nd9(v):
+    return (float(v), "percent")
+
+
+def _nd10(v):
+    if v == 0:
+        return (None, None)  # "Off"
+    if 1 <= v < len(FX_ADJUST_VALUES):
+        s = FX_ADJUST_VALUES[v]
+        return (float(s.replace("db", "")), "db")
+    return (None, None)
+
+
+def _nd11(v):
+    # Returns (dB, "db_phase") for v<80 (phase-inverted half) so callers
+    # that care about polarity can check the unit; (dB, "db") otherwise.
+    # v==80 is "Off" (mute).
+    if v == 80:
+        return (None, None)
+    if v < 80:
+        db = -80 * (v / 79)
+        return (db, "db_phase_inverted")
+    idx = v - 81
+    db = -85 + 85 * (idx / 79)
+    return (db, "db")
+
+
+def _nd12(v):
+    return (float(v - 50) / 50.0, "pan-1to1")
+
+
+def _nd14(v):
+    return (float(v - 360), "degrees")
+
+
+def _nd15(v):
+    if 0 <= v < len(LOW_RT_MULT):
+        return (float(LOW_RT_MULT[v].rstrip("X")), "ratio")
+    return (None, None)
+
+
+def _nd16(v, link=None, size=None):
+    ms_table = [242, 291, 329, 363, 395, 425, 454, 483, 512, 541, 570, 600, 629, 660, 691, 723, 755, 789, 824, 860,
+                897, 935, 975, 1017, 1061, 1106, 1154, 1203, 1256, 1311, 1369, 1430, 1495, 1564, 1637, 1715, 1799,
+                1888, 1984, 2088, 2200, 2321, 2453, 2598, 2757, 2932, 3126, 3344, 3588, 3864, 4179, 4543, 4967, 5468,
+                6069, 6802, 7719, 8897, 10468, 12666, 15963, 21456, 32441, 65393]
+    ms = ms_table[v] if 0 <= v < len(ms_table) else 0
+    if link:
+        ms = ((size + 16) // 16) * ms // 10
+    ms = (ms // 50 + (1 if ms % 50 else 0)) * 50
+    return (float(ms), "ms")
+
+
+def _nd19(v):
+    return (float((v - 16) * 4), "percent")
+
+
+def _nd20(v):
+    return (1.0 if v else 0.0, "bool")
+
+
+def _nd25(v):
+    return (float(v), "raw")
+
+
+def _nd26(v):
+    return (4.0 + v * 0.5, "meters")
+
+
+def _nd27(v):
+    return (float(140 + v * 5), "ms")
+
+
+def _nd29(v, link=None, size=None):
+    if link:
+        return (float(((size + 16) * v) // 160), "raw")
+    return (float(v), "raw")
+
+
+def _nd30(v):
+    return (None, None) if v == 0 else (float(v), "percent")
+
+
+def _nd31(v):
+    return (None, None) if v == 0 else (float(v), "raw")
+
+
+def _nd33(v):
+    return (float(v - 40), "db")
+
+
+def _nd34(v):
+    return (float(v - 100), "percent")
+
+
+def _nd35(v):
+    return (v / 100.0, "hz")
+
+
+def _nd37(v):
+    return (float(v + 1), "percent")
+
+
+def _nd41(v):
+    return (float(v - 121), "raw")
+
+
+def _nd42(v):
+    table = [None] + CROSSOVER_FREQS_13[:-1]
+    return (float(table[v]), "hz") if 0 <= v < len(table) and table[v] is not None else (None, None)
+
+
+def _nd43(v):
+    return (v / 10.0, "ms")
+
+
+def _nd44(v):
+    return (float(CHORUS_RATE_HZ[v]), "hz") if 0 <= v < len(CHORUS_RATE_HZ) else (None, None)
+
+
+def _nd49(v):
+    return (float(v + 1), "raw")
+
+
+NUMERIC_DECODE_FUNCS = {
+    0: _nd0, 1: _nd1, 2: _nd_passthrough("raw"), 3: _nd_none, 4: _nd_none, 5: _nd_none, 6: _nd6,
+    7: _nd_passthrough("raw"), 8: _nd_passthrough("raw"), 9: _nd9, 10: _nd10, 11: _nd11, 12: _nd12,
+    13: _nd_hz_table(CROSSOVER_FREQS_13), 14: _nd14, 15: _nd15, 16: _nd16,
+    17: _nd_hz_table(CROSSOVER_FREQS_17), 18: _nd_hz_table(CROSSOVER_FREQS_18), 19: _nd19, 20: _nd20,
+    21: _nd_ms(2), 22: _nd_db_table(["Off", -24.0, -18.0, -14.5, -12.0, -10.1, -8.5, -7.2, -6.0, -5.0,
+                                       -4.0, -3.3, -2.5, -1.8, -1.0, "Full"]),
+    23: _nd_bipolar_percent([-100, -93, -87, -80, -73, -67, -60, -53, -47, -40, -33, -27, -20, -13, -7, 0,
+                              7, 13, 20, 27, 33, 40, 47, 53, 60, 67, 73, 80, 87, 93, 100]),
+    24: _nd_ms(1), 25: _nd25, 26: _nd26, 27: _nd27, 28: lambda v: (float(v * 2), "percent"),
+    29: _nd29, 30: _nd30, 31: _nd31,
+    32: _nd_db_table(list(range(-85, 1))),
+    33: _nd33, 34: _nd34, 35: _nd35, 36: _nd_none, 37: _nd37, 38: _nd_ms(20), 39: _nd_none, 40: _nd_none,
+    41: _nd41, 42: _nd42, 43: _nd43, 44: _nd44, 45: _nd_none, 46: _nd_passthrough("hz"), 47: _nd_none,
+    48: _nd_none, 49: _nd49, 50: _nd_none, 51: _nd_none,
+}

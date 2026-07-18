@@ -69,7 +69,7 @@ decode's trailing patchable fields and all patches as untrustworthy.
 """
 
 from .bitreader import BitReader
-from .range_decode import RANGE_DECODE_FUNCS
+from .range_decode import RANGE_DECODE_FUNCS, NUMERIC_DECODE_FUNCS
 from .algorithm_tables import ALGORITHM_TABLES, UNPATCHABLE_TABLE, ALGORITHM_NAMES
 from .patch_sources import PATCH_SOURCE_NAMES
 
@@ -86,6 +86,23 @@ def apply_rd(rd_id, value, ctx):
         return fn(value)
     except Exception as exc:
         return f"<rd{rd_id} err:{exc} raw={value}>"
+
+
+def apply_rd_numeric(rd_id, value, ctx):
+    """The (numeric, unit) counterpart to apply_rd() - see
+    range_decode.py's NUMERIC_DECODE_FUNCS doc comment. Returns
+    (None, None) on any lookup miss or exception, same as an
+    unconvertible field, rather than raising - a numeric-import
+    consumer should treat that as "leave this parameter alone"."""
+    fn = NUMERIC_DECODE_FUNCS.get(rd_id)
+    if fn is None:
+        return (None, None)
+    try:
+        if rd_id in (16, 29):
+            return fn(value, ctx.get("rvbdesign_link"), ctx.get("rvbdesign_size"))
+        return fn(value)
+    except Exception:
+        return (None, None)
 
 
 def decode_tempo_value(raw10, rd_id):
@@ -193,9 +210,16 @@ def decode_preset(name: str, knob_label: str, algorithm_id: int, bitpack: bytes)
     for f in raw_fields:
         if f["tempo_active"]:
             value = decode_tempo_value(f["raw"], f["range_decode"])
+            # Converting tempo-form Echo:Beat/Cycl:Beat back to a real
+            # seconds/Hz value needs the preset's own Tempo Rate (BPM)
+            # and the manual doesn't fully spell out the echoes/beats
+            # arithmetic - out of scope for now, see decoder.py's module
+            # docstring. Numeric consumers should leave these alone.
+            numeric, unit = (None, None)
         else:
             value = apply_rd(f["range_decode"], f["raw"], ctx)
-        patchable.append({**f, "value": value})
+            numeric, unit = apply_rd_numeric(f["range_decode"], f["raw"], ctx)
+        patchable.append({**f, "value": value, "numeric": numeric, "unit": unit})
     out["patchable"] = patchable
 
     patches = []

@@ -9,10 +9,9 @@ documents - the fully decoded, named parameter set for each preset (Mix,
 Reverb Time, Diffusion, every patch, etc.), plus the raw per-preset
 parameter bytes as a fallback.
 
-This is unrelated to the rest of the DSP-Effects archive - it isn't part
-of the `dsp/`/`patches/`/`plugin/` build, has no CMake wiring, and doesn't
-feed into any of the Lexicon/Eventide-inspired engines here. It exists
-purely as a firmware-archaeology/archival utility for people who own a
+The importer script and decoder itself have no CMake wiring and don't
+feed into any of the Lexicon/Eventide-inspired engines here - they're a
+standalone firmware-archaeology/archival utility for people who own a
 PCM80 and want a readable catalog of their unit's presets.
 
 ## Usage
@@ -77,6 +76,38 @@ chain - not guessed from one or two samples.
 The raw hex zones (`knob_id_list_hex`, `range_flags_block_hex_undecoded`,
 `parameter_value_block_hex`) are still included for every preset as a
 fallback/cross-check, even where `decoded` is present.
+
+Every field in `decoded.patchable` also carries a `numeric`/`unit` pair
+alongside its human-readable `value` string (e.g. `"value": "-6db",
+"numeric": -6.46, "unit": "db"`) - a machine-usable interpretation for
+consumers that want to convert into their own units rather than re-parse
+a formatted string. `unit` is one of `percent`, `db`, `db_phase_inverted`,
+`hz`, `ms`, `ratio`, `degrees`, `meters`, `pan-1to1`, `bool`, `raw`,
+`bpm`, `count`; `numeric` is `null` for fields with no single-number
+meaning (enums, named sources, "Off"/mute, and tempo-synced Echo:Beat
+values, which would need the preset's own BPM to convert - not attempted
+here). See `pcm80lib/range_decode.py`'s `NUMERIC_DECODE_FUNCS`.
+
+## Loading presets into the Loom Browser plugin
+
+`plugin/`'s `LoomBrowserPlugin` (see the repo root `CLAUDE.md`) can load
+a decoded PCM80 archive at runtime: its "Import PCM80 Preset..." button
+opens a file picker for an archive JSON produced by this tool, then
+offers that algorithm's presets. Picking one converts each PCM80 field's
+`numeric`/`unit` value into the currently-selected engine's own
+parameter units (dB -> linear gain, ms -> seconds, percent -> 0-1
+fraction, etc.) and applies it - see
+`plugin/source/browser/PlateAdapter.h`'s `importPcm80Preset()` for the
+first mapping (Plate) and `plugin/source/browser/pcm80/` for the
+shared archive-loading/unit-conversion code other algorithms' adapters
+can reuse. PCM80 and this codebase's own engines are different hardware
+generations with the same algorithm names/topology family but not
+parameter-for-parameter identical ranges, so this is a best-effort
+approximation, not a faithful recreation - fields with no corresponding
+parameter, or no numeric interpretation, are left at their current
+value rather than guessed. Nothing from a loaded archive is written back
+to disk or bundled with the plugin; this is purely a runtime import,
+same copyright posture as the rest of this tool.
 
 ## Copyright
 

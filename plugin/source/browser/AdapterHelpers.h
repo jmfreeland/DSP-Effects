@@ -41,4 +41,18 @@ inline float paramValue(juce::AudioProcessorValueTreeState& apvts, const juce::S
 {
     return apvts.getRawParameterValue(id)->load();
 }
+
+// Sets a parameter to an engineering-unit value (the same units its own
+// createParameters() range is declared in), notifying the host as if a
+// user had moved the control - used by EngineAdapter::importPcm80Preset()
+// implementations. No-ops if id doesn't exist (e.g. a stale mapping
+// after a parameter rename) rather than crashing.
+inline void setParamValue(juce::AudioProcessorValueTreeState& apvts, const juce::String& id,
+                           float engineeringValue)
+{
+    if (auto* param = apvts.getParameter(id))
+    {
+        param->setValueNotifyingHost(param->convertTo0to1(engineeringValue));
+    }
+}
 }

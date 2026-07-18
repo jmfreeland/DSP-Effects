@@ -1546,6 +1546,7 @@ juce_add_plugin(LoomBrowserPlugin
 target_sources(LoomBrowserPlugin PRIVATE
     source/browser/LoomBrowserPluginProcessor.cpp
     source/browser/LoomBrowserPluginEditor.cpp
+    source/browser/pcm80/Pcm80Archive.cpp
     source/ArchitectureView.cpp
     source/LoomParametersPanel.cpp
     source/LoomTheme.cpp
