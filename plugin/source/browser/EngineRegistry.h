@@ -1,8 +1,10 @@
 #pragma once
 
+#include "BandDelayAdapter.h"
 #include "ChamberAdapter.h"
 #include "ChorusRvbAdapter.h"
 #include "ConcertHallAdapter.h"
+#include "DenseRoomAdapter.h"
 #include "DiatonicShiftAdapter.h"
 #include "DualChmbAdapter.h"
 #include "DualDigiplexAdapter.h"
@@ -16,6 +18,7 @@
 #include "LayeredShiftAdapter.h"
 #include "LongDigiplexAdapter.h"
 #include "MBandRvbAdapter.h"
+#include "MultiShiftAdapter.h"
 #include "PatchFactoryAdapter.h"
 #include "PitchCorrectAdapter.h"
 #include "PlateAdapter.h"
@@ -32,6 +35,7 @@
 #include "TimesqueezeAdapter.h"
 #include "UltraTapAdapter.h"
 #include "VSOChmbAdapter.h"
+#include "VocoderAdapter.h"
 
 #include <algorithm>
 #include <array>
@@ -53,7 +57,7 @@ struct RegistryEntry
     AdapterFactory create;
 };
 
-inline constexpr std::array<RegistryEntry, 31> kEngineRegistry {{
+inline constexpr std::array<RegistryEntry, 35> kEngineRegistry {{
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<ConcertHallAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<PlateAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<ChamberAdapter>()); } },
@@ -85,6 +89,10 @@ inline constexpr std::array<RegistryEntry, 31> kEngineRegistry {{
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<PatchFactoryAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<StutterAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<TimesqueezeAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<DenseRoomAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<VocoderAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<MultiShiftAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<BandDelayAdapter>()); } },
 }};
 
 inline int engineRegistrySize() { return static_cast<int>(kEngineRegistry.size()); }
