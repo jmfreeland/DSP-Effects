@@ -71,3 +71,7 @@ cmake -S . -B build-plugin -DDSP_EFFECTS_BUILD_PLUGIN=ON -DCMAKE_BUILD_TYPE=Rele
 cmake --build build-plugin -j -t LexiconHallPlugin_VST3
 ```
 Produces a `.vst3` under `build-plugin/plugin/LexiconHallPlugin_artefacts/Release/VST3/`.
+
+## Firmware archive tools
+
+`tools/pcm80-import/` is a standalone, unwired-into-the-build utility unrelated to the `dsp/`/`patches/`/`plugin/` engines above: it extracts the factory preset name table out of a user-supplied Lexicon PCM80 host-CPU ROM dump into a JSON archive. It ships only the importer script — never a ROM image or a pre-extracted archive (`.gitignore` blocks both) — since that data is Lexicon's copyright. See `tools/pcm80-import/README.md`.
