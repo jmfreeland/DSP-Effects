@@ -34,10 +34,20 @@
 // root ancestor - so hovering the diagram's "core" box lights every
 // core-internal section at once). sectionTopForStage() gives a parent
 // the scroll target for click-to-jump.
+//
+// idPrefix lets one processor's APVTS hold several algorithms' worth of
+// identically-shaped ids at once (the Loom browser plugin's "concert
+// Hall_decay" vs. "plate_decay") without schemas needing to know about
+// it: every schema-listed id is resolved as idPrefix + "_" + id, and
+// only parameters carrying that prefix are ever considered "this
+// panel's" for the unclaimed-parameter fallback section. Empty (the
+// default) reproduces every single-algorithm plugin's original
+// behavior exactly.
 class LoomParametersPanel : public juce::Component
 {
   public:
-    LoomParametersPanel(juce::AudioProcessor& processor, const dsp::schema::AlgorithmSchema& schema);
+    LoomParametersPanel(juce::AudioProcessor& processor, const dsp::schema::AlgorithmSchema& schema,
+                       const juce::String& idPrefix = {});
     ~LoomParametersPanel() override;
 
     void paint(juce::Graphics& g) override;
@@ -101,6 +111,7 @@ class LoomParametersPanel : public juce::Component
     static bool sectionMatches(const Section& section, const juce::String& stageId);
 
     juce::AudioProcessor* processor_ = nullptr;
+    juce::String idPrefix_;
     std::vector<Section> sections_;
     juce::String highlightedStageId_;
     const Section* hoveredSection_ = nullptr;
