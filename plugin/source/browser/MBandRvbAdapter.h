@@ -4,7 +4,10 @@
 #include "EngineAdapter.h"
 #include "dsp/graphs/MBandRvbAlgorithm.h"
 #include "dsp/schema/MBandRvbSchema.h"
+#include "pcm80/Pcm80UnitConvert.h"
 
+#include <cmath>
+#include <functional>
 #include <span>
 
 // Adapts dsp::graphs::MBandRvbAlgorithm to EngineAdapter - see
@@ -151,7 +154,98 @@ class MBandRvbAdapter : public EngineAdapter
         engine_.process(left, right);
     }
 
+    // See PlateAdapter.h's importPcm80Preset() for the pattern. M-Band's
+    // PCM80 field list uses CONTROLS_MINIMAL (no Controls High Cut or
+    // Voice Dif), has no glide or post-delay stage at all, and its
+    // per-voice filters live under a "Filters" group rather than in
+    // Levels/DelayTime/etc - Filters Mstr HC maps to this adapter's
+    // shared hiCut (no PCM80 field exists for a master low cut or for
+    // freeze/clear, so those parameters are left untouched). Eko
+    // Feedback is genuinely bipolar here (this adapter's own range is
+    // -1..1, unlike Plate's 0..0.95), so no abs() clamp is needed.
+    const char* pcm80AlgorithmName() const override { return "M-Band+Rvb"; }
+
+    void importPcm80Preset(const pcm80::Preset& preset, juce::AudioProcessorValueTreeState& apvts) const override
+    {
+        using namespace pcm80;
+        auto pid = [](const char* suffix) { return prefixedId("mBandRvb", suffix); };
+
+        auto apply = [&](const juce::String& group, const juce::String& label, const juce::String& paramId,
+                          float lo, float hi, const std::function<float(const Field&)>& convert) {
+            auto* f = preset.find(group, label);
+            if (f == nullptr || !f->numeric.has_value())
+            {
+                return;
+            }
+            setParamValue(apvts, paramId, clampf(convert(*f), lo, hi));
+        };
+
+        auto percent = [](const Field& f) { return percentToFraction(*f.numeric); };
+        auto db = [](const Field& f) { return dbToLinear(*f.numeric); };
+        auto dbSigned = [](const Field& f) {
+            auto linear = dbToLinear(*f.numeric);
+            return f.unit == "db_phase_inverted" ? -linear : linear;
+        };
+        auto ms = [](const Field& f) { return msToSeconds(*f.numeric); };
+        auto direct = [](const Field& f) { return static_cast<float>(*f.numeric); };
+        auto boolean = direct;
+
+        apply("Controls", "Mix", pid("mix"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX ADJUST", pid("fxAdjust"), -73.0f, 12.0f, direct);
+        apply("Controls", "InLvl L", pid("inLevelLeft"), -1.0f, 1.0f, dbSigned);
+        apply("Controls", "InLvl R", pid("inLevelRight"), -1.0f, 1.0f, dbSigned);
+        apply("Controls", "InPan L", pid("inPanLeft"), -1.0f, 1.0f, direct);
+        apply("Controls", "InPan R", pid("inPanRight"), -1.0f, 1.0f, direct);
+        apply("Controls", "FX Mix", pid("fxMix"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX Width", pid("fxWidth"), -360.0f, 360.0f, direct);
+
+        apply("Rvb Time", "Low Rt", pid("lowRatio"), 0.2f, 2.0f, direct);
+        apply("Rvb Time", "Mid Rt", pid("decay"), 0.3f, 8.0f, ms);
+        apply("Rvb Time", "Crossover", pid("crossover"), 100.0f, 2000.0f, direct);
+        apply("Rvb Time", "Rt HC", pid("damping"), 0.0f, 1.0f,
+              [](const Field& f) { return 1.0f - (direct_(f) - 1000.0f) / 19000.0f; });
+        apply("Rvb Time", "Pre Delay", pid("preDelay"), 0.0f, 0.93f, ms);
+        apply("Rvb Time", "RefLvl L", pid("earlyReflectionLevelLeft"), 0.0f, 1.0f, db);
+        apply("Rvb Time", "RefDly L", pid("earlyReflectionDelayLeft"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "RefLvl R", pid("earlyReflectionLevelRight"), 0.0f, 1.0f, db);
+        apply("Rvb Time", "RefDly R", pid("earlyReflectionDelayRight"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "EkoFbk L", pid("ekoFeedbackLeft"), -1.0f, 1.0f,
+              [](const Field& f) { return direct_(f) / 100.0f; });
+        apply("Rvb Time", "EkoDly L", pid("ekoDelayLeft"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "EkoFbk R", pid("ekoFeedbackRight"), -1.0f, 1.0f,
+              [](const Field& f) { return direct_(f) / 100.0f; });
+        apply("Rvb Time", "EkoDly R", pid("ekoDelayRight"), 0.0f, 1.2f, ms);
+
+        apply("RvbDesign", "Size", pid("size"), 0.0f, 1.0f,
+              [](const Field& f) { return (direct_(f) - 4.0f) / 72.0f; });
+        apply("RvbDesign", "Diffusion", pid("diffusion"), 0.0f, 1.0f, percent);
+        apply("RvbDesign", "Shape", pid("shape"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 255.0f; });
+        apply("RvbDesign", "Spread", pid("spread"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 255.0f; });
+        apply("RvbDesign", "Spin", pid("spin"), 0.0f, 1.0f, percent);
+        apply("RvbDesign", "Link", pid("link"), 0.0f, 1.0f, boolean);
+        apply("RvbDesign", "Rvb Out", pid("rvbOut"), 0.0f, 1.0f, db);
+
+        apply("Filters", "Mstr HC", pid("hiCut"), 1000.0f, 20000.0f, direct);
+
+        static constexpr const char* kVoiceLabels[6] = { "Voice1", "Voice2", "Voice3",
+                                                           "Voice4", "Voice5", "Voice6" };
+        for (int i = 0; i < 6; ++i)
+        {
+            apply("Levels", kVoiceLabels[i], voiceParamId("mBandRvb", i, "Level"), -1.0f, 1.0f, dbSigned);
+            apply("DelayTime", kVoiceLabels[i], voiceParamId("mBandRvb", i, "Delay"), 0.0f, 10.922f, ms);
+            apply("Feedback", kVoiceLabels[i], voiceParamId("mBandRvb", i, "Feedback"), -1.0f, 1.0f,
+                  [](const Field& f) { return direct_(f) / 100.0f; });
+            apply("Panning", kVoiceLabels[i], voiceParamId("mBandRvb", i, "Pan"), -1.0f, 1.0f, direct);
+            apply("Filters", "V" + juce::String(i + 1) + " HiCut", voiceParamId("mBandRvb", i, "HiCut"),
+                  200.0f, 20000.0f, direct);
+            apply("Filters", "V" + juce::String(i + 1) + " LoCut", voiceParamId("mBandRvb", i, "LoCut"),
+                  20.0f, 2000.0f, direct);
+        }
+    }
+
   private:
+    static float direct_(const pcm80::Field& f) { return static_cast<float>(*f.numeric); }
+
     dsp::graphs::MBandRvbAlgorithm engine_;
 };
 }
