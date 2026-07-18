@@ -18,6 +18,8 @@
 #include "LayeredShiftAdapter.h"
 #include "LongDigiplexAdapter.h"
 #include "MBandRvbAdapter.h"
+#include "ModFactoryOneAdapter.h"
+#include "ModFactoryTwoAdapter.h"
 #include "MultiShiftAdapter.h"
 #include "PatchFactoryAdapter.h"
 #include "PhaserAdapter.h"
@@ -31,6 +33,7 @@
 #include "StereoChmbAdapter.h"
 #include "StereoShiftAdapter.h"
 #include "StringModellerAdapter.h"
+#include "StudioSamplerAdapter.h"
 #include "StutterAdapter.h"
 #include "SweptCombsAdapter.h"
 #include "SweptReverbAdapter.h"
@@ -59,7 +62,7 @@ struct RegistryEntry
     AdapterFactory create;
 };
 
-inline constexpr std::array<RegistryEntry, 37> kEngineRegistry {{
+inline constexpr std::array<RegistryEntry, 40> kEngineRegistry {{
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<ConcertHallAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<PlateAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<ChamberAdapter>()); } },
@@ -97,6 +100,9 @@ inline constexpr std::array<RegistryEntry, 37> kEngineRegistry {{
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<BandDelayAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<StringModellerAdapter>()); } },
     { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<PhaserAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<StudioSamplerAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<ModFactoryOneAdapter>()); } },
+    { [] { return std::unique_ptr<EngineAdapter>(std::make_unique<ModFactoryTwoAdapter>()); } },
 }};
 
 inline int engineRegistrySize() { return static_cast<int>(kEngineRegistry.size()); }
