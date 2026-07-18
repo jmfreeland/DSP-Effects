@@ -125,7 +125,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout DualPltAudioProcessor::creat
 
     // -- Dual Shifter (2 voices) --
     static constexpr float kDefaultDelay[2] = { 0.02f, 0.03f };
-    static constexpr float kDefaultCents[2] = { 700.0f, -700.0f };
+    static constexpr float kDefaultCents[2] = { 12.0f, -12.0f };
     static constexpr float kDefaultPan[2] = { -0.7f, 0.7f };
     for (int i = 0; i < 2; ++i)
     {

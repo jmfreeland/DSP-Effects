@@ -1526,3 +1526,47 @@ target_link_libraries(EventideModFactoryTwoPlugin
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+
+# The Loom browser plugin: a single instance that can switch between any
+# of EngineRegistry's registered algorithms without the host seeing its
+# parameter list change (see source/browser/LoomBrowserPluginProcessor.h).
+# Proof-of-concept slice covering the five Lexicon reverb cores; adding
+# an algorithm means adding its adapter and one line in EngineRegistry.h.
+juce_add_plugin(LoomBrowserPlugin
+    COMPANY_NAME "Loom"
+    PLUGIN_MANUFACTURER_CODE Loom
+    PLUGIN_CODE Lmbr
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "Loom - Browser"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+)
+
+target_sources(LoomBrowserPlugin PRIVATE
+    source/browser/LoomBrowserPluginProcessor.cpp
+    source/browser/LoomBrowserPluginEditor.cpp
+    source/ArchitectureView.cpp
+    source/LoomParametersPanel.cpp
+    source/LoomTheme.cpp
+)
+
+target_include_directories(LoomBrowserPlugin PRIVATE
+    ${CMAKE_SOURCE_DIR}/dsp/include
+    source
+)
+
+target_compile_definitions(LoomBrowserPlugin PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+target_link_libraries(LoomBrowserPlugin
+    PRIVATE
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)

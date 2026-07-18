@@ -37,8 +37,8 @@ inline const AlgorithmSchema& diatonicShiftSchema()
         { "tracker", "rightVoice", "sets shift amount" },
         { "leftVoice", "output", nullptr },
         { "rightVoice", "output", nullptr },
-        { "leftVoice", "input", "* L Feedback - cascades another lap" },
-        { "rightVoice", "input", "* R Feedback - cascades another lap" },
+        { "leftVoice", "input", "cascades another lap", "L Feedback" },
+        { "rightVoice", "input", "cascades another lap", "R Feedback" },
     };
     static const AlgorithmSchema schema = {
         "Diatonic Shift",

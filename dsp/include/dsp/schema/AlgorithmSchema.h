@@ -63,10 +63,16 @@ struct Connection
 {
     const char* fromId;
     const char* toId;
-    // Optional label on the arrow (e.g. "diffused", "* RvbOut") - may be
-    // nullptr. A connection from a stage to itself is drawn as a
-    // feedback loop rather than an arrow.
+    // Optional label on the arrow (e.g. "diffused", "cascades another
+    // lap") - may be nullptr. A connection from a stage to itself is
+    // drawn as a feedback loop rather than an arrow.
     const char* label = nullptr;
+    // Optional gain-stage name (e.g. "Rvb In", "L Feedback") for wires
+    // the manual draws passing through a scalar multiply - rendered as
+    // a small (x) glyph on the wire with this name beside it, the
+    // manuals' own circled-times convention. nullptr means the wire is
+    // unity gain (or its gain isn't worth calling out at this altitude).
+    const char* gainLabel = nullptr;
 };
 
 struct AlgorithmSchema

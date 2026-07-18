@@ -44,6 +44,23 @@ inline constexpr const char* kShellVoiceIds[] = {
     "voice3Delay", "voice3Feedback", "voice3Level", "voice3Pan",
     "voiceGlideResponse", "voiceGlideRange", "clear",
 };
+// The same 20 IDs, split out per sub-stage for voiceBankDetailSchema()'s
+// drill-down - one array per parallel voice, plus the shared diffusion
+// and glide/clear controls.
+inline constexpr const char* kShellVoiceDiffusionIds[] = { "voiceDiffusion" };
+inline constexpr const char* kShellVoice0Ids[] = {
+    "voice0Delay", "voice0Feedback", "voice0Level", "voice0Pan",
+};
+inline constexpr const char* kShellVoice1Ids[] = {
+    "voice1Delay", "voice1Feedback", "voice1Level", "voice1Pan",
+};
+inline constexpr const char* kShellVoice2Ids[] = {
+    "voice2Delay", "voice2Feedback", "voice2Level", "voice2Pan",
+};
+inline constexpr const char* kShellVoice3Ids[] = {
+    "voice3Delay", "voice3Feedback", "voice3Level", "voice3Pan",
+};
+inline constexpr const char* kShellVoiceGlideIds[] = { "voiceGlideResponse", "voiceGlideRange", "clear" };
 inline constexpr const char* kShellCoreIds[] = { "rvbWidth" };
 inline constexpr const char* kShellPostDelayIds[] = {
     "postDelayLeft", "postDelayRight", "postDelayGlideResponse", "postDelayGlideRange",
@@ -128,6 +145,49 @@ inline const AlgorithmSchema& tankDetailSchema()
     return schema;
 }
 
+inline const AlgorithmSchema& voiceBankDetailSchema()
+{
+    static const Stage stages[] = {
+        { "monoSum", "Mono Sum (in)", StageKind::kInput },
+        { "diffusion", "Voice Diffusion", StageKind::kProcessing, "Shared coefficient ahead of all 4 taps",
+          nullptr, detail::kShellVoiceDiffusionIds },
+        { "voice0", "Voice 1", StageKind::kProcessing, "Own Delay/Feedback/Level/Pan, glided",
+          nullptr, detail::kShellVoice0Ids },
+        { "voice1", "Voice 2", StageKind::kProcessing, "Own Delay/Feedback/Level/Pan, glided",
+          nullptr, detail::kShellVoice1Ids },
+        { "voice2", "Voice 3", StageKind::kProcessing, "Own Delay/Feedback/Level/Pan, glided",
+          nullptr, detail::kShellVoice2Ids },
+        { "voice3", "Voice 4", StageKind::kProcessing, "Own Delay/Feedback/Level/Pan, glided",
+          nullptr, detail::kShellVoice3Ids },
+        { "sum", "Voice Bank Output", StageKind::kOutput,
+          "Sums all 4 voices; GldResp/GldRange shape delay-change glides, Clear flushes every line",
+          nullptr, detail::kShellVoiceGlideIds },
+    };
+    static const Connection connections[] = {
+        { "monoSum", "diffusion", nullptr },
+        { "diffusion", "voice0", nullptr },
+        { "diffusion", "voice1", nullptr },
+        { "diffusion", "voice2", nullptr },
+        { "diffusion", "voice3", nullptr },
+        { "voice0", "sum", nullptr, "Level" },
+        { "voice1", "sum", nullptr, "Level" },
+        { "voice2", "sum", nullptr, "Level" },
+        { "voice3", "sum", nullptr, "Level" },
+        { "voice0", "voice0", "recirculates into the diffused mono sum", "Feedback" },
+        { "voice1", "voice1", "recirculates into the diffused mono sum", "Feedback" },
+        { "voice2", "voice2", "recirculates into the diffused mono sum", "Feedback" },
+        { "voice3", "voice3", "recirculates into the diffused mono sum", "Feedback" },
+    };
+    static const AlgorithmSchema schema = {
+        "4-Voice Bank (inside the shell)",
+        "4 parallel delay voices sharing one Diffusion stage ahead of them, each independently "
+        "panned/leveled and summed to feed the shell's own Output mix - the manual's own parallel "
+        "voice bank, split out from its single collapsed box.",
+        stages, connections
+    };
+    return schema;
+}
+
 inline const AlgorithmSchema& concertHallSchema()
 {
     static const Stage stages[] = {
@@ -144,11 +204,11 @@ inline const AlgorithmSchema& concertHallSchema()
     static const Connection connections[] = {
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
-        { "input", "preDelay", "mono sum * RvbIn" },
+        { "input", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "Low Rt/Mid Rt per band (Link: scales w/ Size)" },
-        { "tank", "output", "* RvbOut" },
+        { "tank", "tank", "per band (Link: scales w/ Size)", "Decay Gain" },
+        { "tank", "output", nullptr, "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Concert Hall Core", "The reference core - every other core is this plus one addition.", stages,
@@ -178,11 +238,11 @@ inline const AlgorithmSchema& plateSchema()
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
         { "input", "preEcho", "raw L/R" },
-        { "preEcho", "preDelay", "mono sum * RvbIn" },
+        { "preEcho", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "Low Rt/Mid Rt per band" },
-        { "tank", "output", "* RvbOut" },
+        { "tank", "tank", "per band", "Decay Gain" },
+        { "tank", "output", nullptr, "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Plate Core", "Concert Hall + a recirculating Pre-Echo + Attack-shaped Diffusion.", stages,
@@ -212,11 +272,11 @@ inline const AlgorithmSchema& chamberSchema()
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
         { "input", "preEcho", "raw L/R" },
-        { "preEcho", "preDelay", "mono sum * RvbIn" },
+        { "preEcho", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "Low Rt/Mid Rt per band" },
-        { "tank", "output", "* RvbOut, then Shape+Spread envelope" },
+        { "tank", "tank", "per band", "Decay Gain" },
+        { "tank", "output", "then Shape+Spread envelope", "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Chamber Core",
@@ -248,11 +308,11 @@ inline const AlgorithmSchema& infiniteSchema()
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
         { "input", "preEcho", "raw L/R" },
-        { "preEcho", "preDelay", "mono sum * RvbIn" },
+        { "preEcho", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "Low Rt/Mid Rt per band, or ~0.9999/no damping while frozen" },
-        { "tank", "output", "* RvbOut, then Shape+Spread envelope" },
+        { "tank", "tank", "per band, or ~0.9999/no damping while frozen", "Decay Gain" },
+        { "tank", "output", "then Shape+Spread envelope", "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Infinite Core", "Chamber + Freeze: the tank's own damping is bypassed too, so a frozen tail holds "
@@ -288,11 +348,11 @@ inline const AlgorithmSchema& inverseSchema()
     static const Connection connections[] = {
         { "input", "earlyReflections", nullptr },
         { "earlyReflections", "output", "parallel, Depth-blended" },
-        { "input", "preDelay", "mono sum * RvbIn" },
+        { "input", "preDelay", "mono sum", "Rvb In" },
         { "preDelay", "diffusion", nullptr },
         { "diffusion", "tank", "diffused" },
-        { "tank", "tank", "fixed sustain gain (~2.5s) - not user-adjustable" },
-        { "tank", "output", "* RvbOut, then band-split + Low Slope/Mid Slope, then Shape swell" },
+        { "tank", "tank", "~2.5s, not user-adjustable", "Fixed Gain" },
+        { "tank", "output", "then band-split + Low Slope/Mid Slope, then Shape swell", "Rvb Out" },
     };
     static const AlgorithmSchema schema = {
         "Inverse Core", "Concert Hall's tank kept healthy internally, but RT60 decay replaced entirely by a "
@@ -325,7 +385,7 @@ inline const AlgorithmSchema& concertHallAlgorithmSchema()
         { "voices", "4-Voice Bank", StageKind::kProcessing,
           "4 parallel delay voices (own Delay/Feedback/Level/Pan) behind a shared Voice Diffusion, "
           "fed from the mono sum; delay changes glide per GldResp/GldRange",
-          nullptr, detail::kShellVoiceIds },
+          &voiceBankDetailSchema(), detail::kShellVoiceIds },
         { "core", "Concert Hall Core", StageKind::kFeedback,
           "The shared reverb core; Rvb Width rotates its stereo output", &concertHallSchema(),
           detail::kShellCoreIds },
@@ -351,7 +411,7 @@ inline const AlgorithmSchema& plateAlgorithmSchema()
         { "voices", "4-Voice Bank", StageKind::kProcessing,
           "4 parallel delay voices (own Delay/Feedback/Level/Pan) behind a shared Voice Diffusion, "
           "fed from the mono sum; delay changes glide per GldResp/GldRange",
-          nullptr, detail::kShellVoiceIds },
+          &voiceBankDetailSchema(), detail::kShellVoiceIds },
         { "core", "Plate Core", StageKind::kFeedback,
           "The shared reverb core with Pre-Echo and Attack; Rvb Width rotates its stereo output",
           &plateSchema(), detail::kShellCoreIds },
@@ -377,7 +437,7 @@ inline const AlgorithmSchema& chamberAlgorithmSchema()
         { "voices", "4-Voice Bank", StageKind::kProcessing,
           "4 parallel delay voices (own Delay/Feedback/Level/Pan) behind a shared Voice Diffusion, "
           "fed from the mono sum; delay changes glide per GldResp/GldRange",
-          nullptr, detail::kShellVoiceIds },
+          &voiceBankDetailSchema(), detail::kShellVoiceIds },
         { "core", "Chamber Core", StageKind::kFeedback,
           "The shared reverb core with Pre-Echo and Shape/Spread; Rvb Width rotates its stereo output",
           &chamberSchema(), detail::kShellCoreIds },
@@ -403,7 +463,7 @@ inline const AlgorithmSchema& infiniteAlgorithmSchema()
         { "voices", "4-Voice Bank", StageKind::kProcessing,
           "4 parallel delay voices (own Delay/Feedback/Level/Pan) behind a shared Voice Diffusion, "
           "fed from the mono sum; delay changes glide per GldResp/GldRange",
-          nullptr, detail::kShellVoiceIds },
+          &voiceBankDetailSchema(), detail::kShellVoiceIds },
         { "core", "Infinite Core", StageKind::kFeedback,
           "Chamber's core with Freeze holding the tail near-losslessly; Rvb Width rotates its output",
           &infiniteSchema(), detail::kShellCoreIds },
@@ -429,7 +489,7 @@ inline const AlgorithmSchema& inverseAlgorithmSchema()
         { "voices", "4-Voice Bank", StageKind::kProcessing,
           "4 parallel delay voices (own Delay/Feedback/Level/Pan) behind a shared Voice Diffusion, "
           "fed from the mono sum; delay changes glide per GldResp/GldRange",
-          nullptr, detail::kShellVoiceIds },
+          &voiceBankDetailSchema(), detail::kShellVoiceIds },
         { "core", "Inverse Core", StageKind::kFeedback,
           "The envelope-shaped core (Duration/Slopes, no RT60); Rvb Width rotates its stereo output",
           &inverseSchema(), detail::kShellCoreIds },

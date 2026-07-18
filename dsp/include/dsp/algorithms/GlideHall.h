@@ -88,11 +88,14 @@ class GlideHall
         // GldResp/GldRange controls of its own (unlike the 4-Voice
         // algorithms' post-delay), so a moderate always-on glide is used
         // to produce the "pitch modulation, flange" character the manual
-        // describes without inventing an unlisted control.
+        // describes without inventing an unlisted control. Response 60
+        // glides a tap change in ~0.2s - long enough to read as a
+        // deliberate pitch-bend chirp, short enough that it doesn't leave
+        // the whole signal audibly detuned for seconds after every tweak.
         for (auto* glide : { &glideTapADelayLeft_, &glideTapBDelayLeft_, &glideTapADelayRight_,
                               &glideTapBDelayRight_ })
         {
-            glide->setResponse(35.0f);
+            glide->setResponse(60.0f);
             glide->setRangeSeconds(1.0f);
         }
 

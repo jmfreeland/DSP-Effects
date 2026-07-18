@@ -12,8 +12,10 @@
 // (e.g. the PCM81 User Guide's Reverb Shell, p.3-2): horizontal
 // left-to-right flow, small labeled boxes, parallel branches straddling
 // the center line, orthogonal connectors with arrowheads, feedback
-// returns routed underneath the row, and each stage's parameter names
-// called out in small text under its box (from Stage::parameterIds).
+// returns routed underneath the row, circled-plus sum glyphs where wires
+// merge, circled-times gain glyphs where a Connection::gainLabel names a
+// scalar multiply on the wire, and each stage's parameter names called
+// out in small text under its box (from Stage::parameterIds).
 // Stage *detail* text doesn't fit manual-sized boxes, so the hovered
 // stage's detail shows in a footer strip instead.
 //
@@ -84,6 +86,8 @@ class ArchitectureView : public juce::Component
     void drawBox(juce::Graphics& g, const BoxLayout& box);
     void drawConnection(juce::Graphics& g, const dsp::schema::Connection& connection,
                         int& backEdgeIndex, int& skipEdgeIndex);
+    void drawGainGlyph(juce::Graphics& g, juce::Point<float> center, const char* gainLabel,
+                       bool withText = true);
     void drawFooter(juce::Graphics& g);
     juce::Rectangle<float> backButtonBounds() const;
 

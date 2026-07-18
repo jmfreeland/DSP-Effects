@@ -47,7 +47,7 @@ inline const AlgorithmSchema& glideHallSchema()
     static const Connection connections[] = {
         { "input", "glideTaps", nullptr },
         { "glideTaps", "glideTaps", "Fbk L/R (own channel), X-Fbk L/R (cross channel)" },
-        { "glideTaps", "voiceBank", "* Gld Lvl" },
+        { "glideTaps", "voiceBank", nullptr, "Gld Lvl" },
         { "voiceBank", "voiceBank", "Voice Fbk (own bank), Voice X-Fbk (cross bank)" },
         { "voiceBank", "reverb", "series - the six-voice output becomes the reverb's input" },
         { "voiceBank", "output", "FX Mix = 0" },

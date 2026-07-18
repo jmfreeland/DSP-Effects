@@ -20,8 +20,8 @@ inline const AlgorithmSchema& dualDigiplexSchema()
         { "leftInput", "rightDelay", "mono mode only" },
         { "leftDelay", "leftOutput", nullptr },
         { "rightDelay", "rightOutput", nullptr },
-        { "leftDelay", "leftDelay", "* L Feedback" },
-        { "rightDelay", "rightDelay", "* R Feedback" },
+        { "leftDelay", "leftDelay", nullptr, "L Feedback" },
+        { "rightDelay", "rightDelay", nullptr, "R Feedback" },
     };
     static const AlgorithmSchema schema = {
         "Dual Digiplex",

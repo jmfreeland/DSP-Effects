@@ -83,10 +83,10 @@ class QuadHallAlgorithm
 
         setInLevel(1.0f, 1.0f);
         setInPan(-1.0f, 1.0f);
-        setVoice(0, 0.02f, 700.0f, 0.5f, -0.6f);
-        setVoice(1, 0.03f, -700.0f, 0.5f, -0.3f);
-        setVoice(2, 0.02f, 700.0f, 0.5f, 0.3f);
-        setVoice(3, 0.03f, -700.0f, 0.5f, 0.6f);
+        setVoice(0, 0.02f, 12.0f, 0.5f, -0.6f);
+        setVoice(1, 0.03f, -12.0f, 0.5f, -0.3f);
+        setVoice(2, 0.02f, 15.0f, 0.5f, 0.3f);
+        setVoice(3, 0.03f, -15.0f, 0.5f, 0.6f);
         setVoiceFeedback(0, 0.0f, 0.0f);
         setVoiceFeedback(1, 0.0f, 0.0f);
         setVoiceFeedback(2, 0.0f, 0.0f);

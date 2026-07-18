@@ -14,7 +14,7 @@ inline const AlgorithmSchema& longDigiplexSchema()
     static const Connection connections[] = {
         { "input", "delay", nullptr },
         { "delay", "output", nullptr },
-        { "delay", "delay", "* Feedback" },
+        { "delay", "delay", nullptr, "Feedback" },
     };
     static const AlgorithmSchema schema = {
         "Long Digiplex",

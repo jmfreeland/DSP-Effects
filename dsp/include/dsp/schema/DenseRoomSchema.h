@@ -26,7 +26,7 @@ inline const AlgorithmSchema& denseRoomSchema()
         { "leftInput", "predelay", nullptr },
         { "predelay", "diffusion", nullptr },
         { "diffusion", "tank", nullptr },
-        { "tank", "tank", "* per-line Rev Time" },
+        { "tank", "tank", "per-line", "Rev Time" },
         { "diffusion", "earlyMixPan", "Position: front" },
         { "tank", "earlyMixPan", "Position: rear" },
         { "earlyMixPan", "leftOutput", nullptr },

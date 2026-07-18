@@ -81,8 +81,8 @@ class DualChmbAlgorithm
         setFxInLevel(1.0f);
         setRvbMix(1.0f);
         setFxMix(1.0f);
-        setVoice(0, 0.02f, 700.0f, 0.7f, -0.7f);
-        setVoice(1, 0.03f, -700.0f, 0.7f, 0.7f);
+        setVoice(0, 0.02f, 12.0f, 0.7f, -0.7f);
+        setVoice(1, 0.03f, -12.0f, 0.7f, 0.7f);
         setVoiceFeedback(0, 0.0f, 0.0f);
         setVoiceFeedback(1, 0.0f, 0.0f);
         setSpliceSeconds(0.004f);

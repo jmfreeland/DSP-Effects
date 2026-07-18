@@ -123,7 +123,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout StereoChmbAudioProcessor::cr
     params.push_back(floatParam(kEkoDelayRightId, "Eko Dly R", 0.0f, 1.2f, 0.07f, "s"));
 
     // -- Stereo Shifter --
-    params.push_back(floatParam(kShiftCentsId, "Shift", -3600.0f, 3600.0f, 700.0f, "cents"));
+    params.push_back(floatParam(kShiftCentsId, "Shift", -3600.0f, 3600.0f, 12.0f, "cents"));
     params.push_back(floatParam(kShiftDelayId, "Shift Delay", 0.0f, 0.5f, 0.02f, "s"));
     params.push_back(floatParam(kShiftFeedbackId, "Shift Fbk", 0.0f, 0.99f, 0.0f));
     params.push_back(floatParam(kSpliceId, "Splice", 0.001f, 0.05f, 0.004f, "s"));

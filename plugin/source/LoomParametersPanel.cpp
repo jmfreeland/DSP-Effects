@@ -26,7 +26,9 @@ juce::RangedAudioParameter* findParameter(juce::AudioProcessor& processor, const
 }
 
 LoomParametersPanel::LoomParametersPanel(juce::AudioProcessor& processor,
-                                         const dsp::schema::AlgorithmSchema& schema)
+                                         const dsp::schema::AlgorithmSchema& schema,
+                                         const juce::String& idPrefix)
+  : idPrefix_(idPrefix)
 {
     buildSections(processor, schema);
     // Receive child controls' mouse events too, so hovering a knob (not
@@ -39,13 +41,22 @@ LoomParametersPanel::~LoomParametersPanel() = default;
 void LoomParametersPanel::buildSections(juce::AudioProcessor& processor,
                                         const dsp::schema::AlgorithmSchema& schema)
 {
-    // Everything not claimed by a stage ends up here, in processor order.
+    // Everything not claimed by a stage ends up here, in processor
+    // order - restricted to this panel's own prefix when one is set, so
+    // a shared multi-algorithm APVTS (the browser plugin) doesn't dump
+    // every *other* algorithm's parameters into "More Parameters".
+    auto ownParameter = [&](juce::RangedAudioParameter* parameter) {
+        return idPrefix_.isEmpty() || parameter->getParameterID().startsWith(idPrefix_ + "_");
+    };
     std::vector<juce::RangedAudioParameter*> unclaimed;
     for (auto* parameter : processor.getParameters())
     {
         if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(parameter))
         {
-            unclaimed.push_back(ranged);
+            if (ownParameter(ranged))
+            {
+                unclaimed.push_back(ranged);
+            }
         }
     }
 
@@ -107,7 +118,9 @@ void LoomParametersPanel::collectStageSections(const dsp::schema::AlgorithmSchem
         section.hasKind = true;
         for (const char* id : stage.parameterIds)
         {
-            auto* parameter = processor_ != nullptr ? findParameter(*processor_, id) : nullptr;
+            auto resolvedId = idPrefix_.isEmpty() ? juce::String(id) : idPrefix_ + "_" + id;
+            auto* parameter =
+              processor_ != nullptr ? findParameter(*processor_, resolvedId.toRawUTF8()) : nullptr;
             // A schema-listed ID that doesn't resolve is drift between the
             // hand-authored schema and the processor - fail loudly in
             // debug, skip quietly in release.

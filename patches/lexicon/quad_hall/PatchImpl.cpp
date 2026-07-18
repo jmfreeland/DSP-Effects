@@ -2,6 +2,8 @@
 
 #include "dsp/graphs/QuadHallAlgorithm.h"
 
+#include <cmath>
+
 // Lexicon PCM81-inspired Quad>Hall algorithm for the Polyend Endless: a
 // 4-voice pitch shifter (Voices 1-2 from the Left input, 3-4 from the
 // Right) in series with a Concert Hall reverb. See
@@ -66,9 +68,13 @@ class PatchImpl : public Patch
         {
             case endless::ParamId::kParamLeft:
             {
-                // 0 (unison, all voices silent-detune) .. 1 (+-1 octave
-                // spread), scaling the default quartet's own cents ratios.
-                auto cents = value * 1200.0f;
+                // 0 (unison) .. 1 (+-1 octave spread), scaling the default
+                // quartet's own cents ratios. Curved (^4) rather than
+                // linear so the knob's middle range stays in "doubling"
+                // territory (a few tens of cents) instead of racing past it
+                // to dissonant multi-semitone detunes; only the last
+                // stretch of travel reaches for the full octave extreme.
+                auto cents = 1200.0f * std::pow(value, 4.0f);
                 engine_.setVoice(0, 0.02f, cents * 0.58f, 0.5f, -0.6f);
                 engine_.setVoice(1, 0.03f, -cents * 0.58f, 0.5f, -0.3f);
                 engine_.setVoice(2, 0.02f, cents * 0.58f, 0.5f, 0.3f);

@@ -78,9 +78,11 @@ the footer display text. One hue per plugin - accents never mix.
   destinations.
 - **Sum glyph ⊕** (circled plus) where several wires merge into one
   input - the manuals' own summing junction.
-- **Gain glyph ⊗ is reserved**: the manuals put one wherever a level
-  control sits on a wire, but placing it honestly needs finer-grained
-  schema stages than today's. Don't fake it with heuristics.
+- **Gain glyph ⊗** (circled times) where a wire passes through a named
+  scalar multiply - `Connection::gainLabel`, schema-backed rather than
+  a heuristic: only wires the manual itself shows a level control on
+  (Rvb In/Out, per-line Decay Gain, the various Feedback returns) carry
+  one, with the control's name set beside it.
 - **Terminal arrows**: input nodes with no upstream get a short entry
   arrow from the left edge; output nodes with no downstream get an exit
   arrow - the manuals' "L In ->" / "-> Left" stubs.

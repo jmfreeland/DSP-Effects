@@ -22,7 +22,7 @@ inline const AlgorithmSchema& ultraTapSchema()
         { "input", "diffusor", nullptr },
         { "diffusor", "taps", nullptr },
         { "taps", "output", nullptr },
-        { "taps", "diffusor", "* Feedback - one selected tap" },
+        { "taps", "diffusor", "one selected tap", "Feedback" },
     };
     static const AlgorithmSchema schema = {
         "Ultra-Tap",
