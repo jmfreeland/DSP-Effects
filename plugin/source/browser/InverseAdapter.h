@@ -229,7 +229,7 @@ class InverseAdapter : public EngineAdapter
 
         apply("RvbDesign", "Duration", pid("duration"), 0.05f, 8.0f, ms);
         apply("RvbDesign", "Diffusion", pid("diffusion"), 0.0f, 1.0f, percent);
-        apply("RvbDesign", "Shape", pid("shape"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 100.0f; });
+        apply("RvbDesign", "Shape", pid("shape"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 255.0f; });
         apply("RvbDesign", "Rvb Width", pid("rvbWidth"), -360.0f, 360.0f, direct);
         apply("RvbDesign", "Rvb In", pid("rvbIn"), 0.0f, 1.0f, db);
 

@@ -244,8 +244,8 @@ class InfiniteAdapter : public EngineAdapter
         apply("RvbDesign", "Size", pid("size"), 0.0f, 1.0f,
               [](const Field& f) { return (direct_(f) - 4.0f) / 72.0f; });
         apply("RvbDesign", "Diffusion", pid("diffusion"), 0.0f, 1.0f, percent);
-        apply("RvbDesign", "Shape", pid("shape"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 100.0f; });
-        apply("RvbDesign", "Spread", pid("spread"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 100.0f; });
+        apply("RvbDesign", "Shape", pid("shape"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 255.0f; });
+        apply("RvbDesign", "Spread", pid("spread"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 255.0f; });
         apply("RvbDesign", "Spin", pid("spin"), 0.0f, 1.0f, percent);
         apply("RvbDesign", "Link", pid("link"), 0.0f, 1.0f, boolean);
         apply("RvbDesign", "Rvb Width", pid("rvbWidth"), -360.0f, 360.0f, direct);
