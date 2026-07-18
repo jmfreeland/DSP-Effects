@@ -9,24 +9,23 @@ What this actually decodes
 ---------------------------
 The PCM80's host/UI controller is an Intel 80186-class CPU (separate from
 the Motorola 56000-series DSP that does the actual audio processing). Its
-ROM stores factory presets as a chain of variable-length records. Every
-boundary below was verified statistically across a full 200-record chain
+ROM stores factory presets as a chain of variable-length records. Record
+*boundaries* were verified statistically across a full 200-record chain
 (the PCM80's known factory preset count) - not guessed from one or two
-samples. Confidence varies a lot by zone; see each zone's note.
+samples.
 
     offset  size  field                    confidence
     0       16    header (see below)       low (mostly), one universal constant
     16      12    preset name              SOLID - see verification note
     28      9     "quick knob" label       SOLID - see verification note
-    37      1     0x00 terminator          solid
-    38      15    knob id-list field       medium (boundary solid, semantics not)
-    53      13    range/flags block        medium (boundary solid, semantics not)
-    66      *     parameter value block    boundary solid, byte semantics NOT decoded
+    37      *     bitpacked Effect Control Data (see pcm80lib/)
 
 Header (offset 0-15): offset 12-13 is a little-endian uint16 record length
 (the distance to the next record - this is how the chain is walked).
-Offset 15 is a universal constant, 0xF0, across all 200 records. Offset
-14 is a 10-value enum. The other 12 bytes vary too much (56-100+ distinct
+Offset 15 is a universal constant, 0xF0, across all 200 records (Soft Row
+Slot 0). Offset 14 is the Algorithm ID (0-9 for the 10 algorithms this
+manual documents; other values are presumably expansion-card algorithms
+not covered here). The other 12 bytes vary too much (56-100+ distinct
 values across 200 records) to characterize; not decoded.
 
 Name/label (offset 16-37): SOLID. Verified by chain-walking an entire ROM
@@ -34,34 +33,24 @@ and finding exactly 200 records, matching the PCM80's known factory
 preset count, with every name decoding to a plausible real preset
 ("Concert Hall", "Vox Chamber", "Rich Plate", "6 Vox Chorus", ...).
 
-Knob id-list field (offset 38-52, 15 bytes): a variable-length ascending
-run of small integers, zero-padded to fill the 15 bytes (offsets 48-51
-are zero in the large majority of records - classic padding behavior).
-The list only rarely starts at 0 and instead starts from small
-distinct-looking values (most commonly 1, 3, or 4) - this argues against
-it being a value/step table (which would plausibly start at 0) and for
-it being a list of parameter-ID tags that the single front-panel "quick
-knob" is linked to for this preset. Not confirmed.
-
-Range/flags block (offset 53-65, 13 bytes): overwhelmingly low-cardinality
-across all 200 presets (as few as 2-15 distinct values seen per byte
-position, vs. 20-80+ in the parameter block that follows) - i.e. this
-reads as boilerplate/enum data, not real per-preset values. Bytes 53-56
-are dominated by 0xFF/0x7F-style range-boundary values, consistent with
-a generic min/max descriptor most presets share. Byte 59 is the one
-outlier with high cardinality (76 distinct values) - possibly a checksum,
-or the block boundary drawn here is slightly off for some records. Byte
-semantics not decoded.
-
-Parameter value block (offset 66 to end of record): consistently
-high-cardinality (continuous, 20-80+ distinct values per byte position)
-across all 200 records regardless of each record's total length - this
-is the strongest candidate for the actual per-preset DSP parameter
-values (decay, mix, tone, etc.). This is very likely "the real value"
-in each preset, but which byte index means which named parameter is NOT
-decoded - that needs either real hardware to correlate front-panel knob
-moves against, or a full disassembly of the firmware's patch-load
-routine, neither of which this script attempts.
+Bitpacked Effect Control Data (offset 37 to end of record): this used to
+be three undecoded statistically-distinct "zones" (a byte previously
+misidentified as a terminator, a "knob id-list", and a "range/flags
+block") before Lexicon's own MIDI Implementation Details manual became
+available. That manual documents this whole region as one continuous
+LSB-first bitpacked structure (Soft Row Assignments, Unpatchable
+Parameter Information, ADJUST Knob Initial Value, per-algorithm
+Patchable Parameter Information, then Patching Information) - see
+pcm80lib/decoder.py for the decoder and its validation status. For
+algorithms 0-9, the "decoded" key below is now that structured, named
+data - this really is "the real value" the earlier zone-splitting was
+only estimating the boundaries of. pcm80lib/decoder.py documents a
+still-unresolved anomaly where ~19% of presets (always the shortest ROM
+record for a given algorithm) don't contain enough bitpacked data for
+the algorithm's full documented field table; those are flagged rather
+than silently decoded wrong. The three legacy hex zones are still
+included as a raw fallback for every preset (useful for algorithms
+outside 0-9, and as a cross-check).
 
 Copyright
 ---------
@@ -79,6 +68,8 @@ import json
 import struct
 import sys
 from pathlib import Path
+
+from pcm80lib.decoder import decode_preset, is_algorithm_decodable
 
 HEADER_SIZE = 16
 NAME_SIZE = 12
@@ -174,20 +165,41 @@ def parse_records(data: bytes, start: int) -> list[dict]:
         knob_field = data[pos + KNOB_FIELD_OFFSET : pos + FLAGS_OFFSET]
         flags_block = data[pos + FLAGS_OFFSET : pos + PARAM_BLOCK_OFFSET]
         param_block = data[pos + PARAM_BLOCK_OFFSET : pos + length]
+        algorithm_id = data[pos + 14]
+        bitpack = data[pos + TERMINATOR_OFFSET : pos + length]
 
-        presets.append(
-            {
-                "index": index,
-                "name": name,
-                "macro_knob_label": label,
-                "rom_offset": pos,
-                "record_length": length,
-                "header_hex_undecoded": header.hex(),
-                "knob_id_list_hex": knob_field.hex(),
-                "range_flags_block_hex_undecoded": flags_block.hex(),
-                "parameter_value_block_hex": param_block.hex(),
-            }
-        )
+        preset = {
+            "index": index,
+            "name": name,
+            "macro_knob_label": label,
+            "rom_offset": pos,
+            "record_length": length,
+            "algorithm_id": algorithm_id,
+            "header_hex_undecoded": header.hex(),
+            "knob_id_list_hex": knob_field.hex(),
+            "range_flags_block_hex_undecoded": flags_block.hex(),
+            "parameter_value_block_hex": param_block.hex(),
+        }
+
+        if is_algorithm_decodable(algorithm_id):
+            decoded = decode_preset(name, label, algorithm_id, bitpack)
+            preset["decoded"] = decoded
+            if not decoded["reliable"]:
+                preset["decode_warning"] = (
+                    "This record is shorter than the fields documented for its algorithm "
+                    "require - see pcm80lib/decoder.py's 'Known unresolved anomaly' note. "
+                    "Fields near the end of 'decoded.patchable' and everything in "
+                    "'decoded.patches' were read past the end of valid data and are not "
+                    "trustworthy; raw hex zones above are the fallback for this preset."
+                )
+        else:
+            preset["decode_warning"] = (
+                f"Algorithm ID {algorithm_id} is not one of the 10 base algorithms the "
+                "MIDI Implementation Details manual documents (0-9) - likely an expansion "
+                "card algorithm. Only raw hex zones are available for this preset."
+            )
+
+        presets.append(preset)
         pos += length
         index += 1
     return presets
@@ -212,14 +224,13 @@ def build_archive(rom_path: Path) -> dict:
         "format_notes": (
             "name/macro_knob_label are decoded and verified (200/200 records "
             "chain-walk cleanly and read as plausible real preset names). "
-            "knob_id_list_hex, range_flags_block_hex_undecoded and "
-            "parameter_value_block_hex are three statistically-distinct "
-            "zones within what used to be one undifferentiated 'tail' blob "
-            "- their *boundaries* are verified across all 200 records, but "
-            "byte-level semantics within each are NOT decoded. "
-            "parameter_value_block_hex is the best candidate for actual "
-            "per-preset DSP parameter values (highest, most continuous "
-            "byte-value variety of the three). See the module docstring in "
+            "For presets using algorithm IDs 0-9 (the 10 algorithms Lexicon's "
+            "MIDI Implementation Details manual documents), 'decoded' holds "
+            "the fully parsed, named parameter set - see pcm80lib/decoder.py "
+            "for validation status per algorithm and a known unresolved "
+            "anomaly affecting a minority of (flagged) presets. Presets using "
+            "other algorithm IDs, and the trailing raw hex zones on every "
+            "preset, are undecoded - see the module docstring in "
             "extract_presets.py and tools/pcm80-import/README.md for the "
             "full methodology."
         ),

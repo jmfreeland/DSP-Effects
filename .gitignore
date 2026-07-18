@@ -5,6 +5,7 @@ patches/**/build/
 *.o
 *.elf
 *.endl
+__pycache__/
 
 # Firmware ROM dumps and anything extracted from them are the hardware
 # vendor's copyrighted property - never committed, regardless of where a

@@ -4,7 +4,10 @@ A standalone script that reads a Lexicon PCM80 host-CPU firmware ROM dump
 (the M27C2001/DIP32 EPROM that sits on the control board, *not* the
 Motorola 56000-series DSP program) and extracts its factory preset table
 into a JSON archive: preset name, the front-panel "quick knob" label, and
-the raw per-preset parameter bytes.
+- for the 10 algorithms Lexicon's own MIDI Implementation Details manual
+documents - the fully decoded, named parameter set for each preset (Mix,
+Reverb Time, Diffusion, every patch, etc.), plus the raw per-preset
+parameter bytes as a fallback.
 
 This is unrelated to the rest of the DSP-Effects archive - it isn't part
 of the `dsp/`/`patches/`/`plugin/` build, has no CMake wiring, and doesn't
@@ -24,44 +27,56 @@ repo does not include, fetch, or ship any Lexicon ROM image.
 ## What's actually decoded
 
 The preset table is a chain of variable-length records (see the
-docstring in `extract_presets.py` for the exact byte layout, and the
-methodology below). Every zone boundary was verified statistically
-across the full 200-record chain - not guessed from one or two samples.
-Confidence by zone:
+docstring in `extract_presets.py` for the exact byte layout). Record
+*boundaries* were verified statistically across the full 200-record
+chain - not guessed from one or two samples.
 
 - **Preset name, macro-knob label** - solid. Verified by chain-walking an
   entire ROM and finding exactly 200 records (the PCM80's known factory
   preset count), every one of which decodes to a name that reads as a
   real, plausible preset ("Concert Hall", "Vox Chamber", "Rich Plate",
   "6 Vox Chorus", ...).
-- **Knob id-list field** (15 bytes right after the name/label) - boundary
-  solid (verified: bytes 48-51 within it are zero in the large majority
-  of records, i.e. classic zero-padding after a variable-length list).
-  Contents read as a list of small parameter-ID-like tags (it rarely
-  starts at 0, arguing against it being a value/step table) - semantics
-  not confirmed.
-- **Range/flags block** (13 bytes after that) - boundary solid (verified:
-  this zone has dramatically lower byte-value cardinality across the 200
-  records - as few as 2-15 distinct values per byte position - than the
-  zone before or after it, i.e. it reads as boilerplate/enum data rather
-  than real per-preset values). Byte semantics not decoded.
-- **Parameter value block** (everything after that, to the end of the
-  record) - boundary solid, and this is the strongest candidate for the
-  actual per-preset DSP parameter values: it's consistently
-  high-cardinality/continuous (20-80+ distinct byte values per position)
-  across all 200 records regardless of each record's total length. This
-  is very likely "the real value" in each preset. **Which byte index
-  means which named parameter (Decay? Mix? Tone?) is NOT decoded** -
-  that needs either real hardware to correlate front-panel knob moves
-  against, or a full disassembly of the firmware's patch-load routine.
-  Neither is attempted here.
+- **Bitpacked Effect Control Data** (everything after the name/label, to
+  the end of the record) - this used to be three undecoded
+  statistically-distinct hex zones. Lexicon's own MIDI Implementation
+  Details manual (a separate document from the PCM81 User Guide already
+  in `docs/references/`, covering the PCM80's SysEx protocol) documents
+  this whole region as one continuous LSB-first bitpacked structure, and
+  `tools/pcm80-import/pcm80lib/` implements that documented format:
+  Soft Row Assignments, Unpatchable Parameter Information, the ADJUST
+  Knob's initial value, each algorithm's own Patchable Parameter list
+  (named, range-decoded values - percent, dB, Hz, ms, tempo-synced
+  Echo:Beat form, enums, pan position, etc.), and the Patching
+  Information (which MIDI/internal sources are patched to which
+  parameters, and by how much). For a preset using one of the 10
+  algorithms this manual documents (Plate, Chamber, Infinite, Inverse,
+  Concert Hall, M-Band+Rvb, Glide>Hall, Chorus+Rvb, Res1>Plate,
+  Res2>Plate - `algorithm_id` 0-9), the archive's `decoded` key holds
+  this structured output. Presets using other algorithm IDs (expansion
+  cards this manual doesn't cover) only get the raw hex fallback.
 
-The script preserves every zone as raw hex in the archive rather than
-guessing at individual field meanings within them. If someone wants to
-push this further (e.g. against real hardware, or a disassembly of the
-80186 firmware), the raw hex is there to work from, already segmented
-into the right regions - see `extract_presets.py`'s docstring for the
-exact offsets and the statistical evidence behind each boundary.
+  **Validation status**: the bit-reader, Soft Row Assignments,
+  Unpatchable Parameter Information, and Patchable Parameter Information
+  logic were checked end-to-end against the manual's own four worked
+  examples (two on Chorus+Rvb, one each on Plate and Glide>Hall), and
+  every field decoded within rounding of the manual's documented display
+  values. The other 6 algorithm tables share the same validated building
+  blocks and were transcribed with the same care but aren't directly
+  checked against a known answer - the manual only worked through 3 of
+  the 10 algorithms. See `pcm80lib/decoder.py`'s module docstring for
+  the full validation notes, known imprecisions in a couple of the range
+  decode lookup tables, and a still-unresolved anomaly: about 19% of
+  presets in a real v1.10 ROM (always the shortest ROM record for a
+  given algorithm) don't contain enough bitpacked data for that
+  algorithm's full documented field table, even though both the fixed
+  header and (independently, directly from the manual) the Plate
+  algorithm's own field table check out exactly. Those presets are
+  flagged with `decoded.reliable: false` and a `decode_warning` rather
+  than silently decoded wrong - use the raw hex fallback for them.
+
+The raw hex zones (`knob_id_list_hex`, `range_flags_block_hex_undecoded`,
+`parameter_value_block_hex`) are still included for every preset as a
+fallback/cross-check, even where `decoded` is present.
 
 ## Copyright
 
