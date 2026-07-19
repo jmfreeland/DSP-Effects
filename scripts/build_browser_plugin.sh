@@ -7,10 +7,12 @@
 # you actually want those built too.
 #
 # Usage:
-#   scripts/build_browser_plugin.sh [output-dir]
+#   scripts/build_browser_plugin.sh [--install] [output-dir]
 #
 # output-dir defaults to build-plugin/LoomBrowserPlugin_dist under the
-# repo root.
+# repo root. --install additionally copies each built format into this
+# platform's standard plugin search path (see INSTALL below) so a DAW
+# picks it up on its next rescan - no manual copying needed.
 #
 # Formats built:
 #   VST3       - all platforms
@@ -25,7 +27,17 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$REPO_ROOT/build-plugin"
-OUTPUT_DIR="${1:-$BUILD_DIR/LoomBrowserPlugin_dist}"
+
+INSTALL=0
+OUTPUT_DIR=""
+for arg in "$@"; do
+    if [[ "$arg" == "--install" ]]; then
+        INSTALL=1
+    else
+        OUTPUT_DIR="$arg"
+    fi
+done
+OUTPUT_DIR="${OUTPUT_DIR:-$BUILD_DIR/LoomBrowserPlugin_dist}"
 
 echo "Configuring $BUILD_DIR ..."
 cmake -S "$REPO_ROOT" -B "$BUILD_DIR" -DDSP_EFFECTS_BUILD_PLUGIN=ON -DCMAKE_BUILD_TYPE=Release
@@ -75,10 +87,49 @@ fi
 
 echo
 echo "Done. LoomBrowserPlugin artefacts are in: $OUTPUT_DIR"
-echo "  VST3:       drop the .vst3 into your DAW's VST3 search path"
-echo "  AU:         cp -R \"$OUTPUT_DIR\"/*.component ~/Library/Audio/Plug-Ins/Components/"
-echo "  CLAP:       drop the .clap into your DAW's CLAP search path"
-echo "  Standalone: run it directly"
+
+install_matching() {
+    # install_matching <glob-pattern> <destination-dir>
+    local pattern="$1" dest="$2"
+    shopt -s nullglob nocaseglob
+    local matches=("$OUTPUT_DIR"/$pattern)
+    shopt -u nullglob nocaseglob
+    if [[ ${#matches[@]} -eq 0 ]]; then
+        return
+    fi
+    mkdir -p "$dest"
+    for item in "${matches[@]}"; do
+        echo "  installing $(basename "$item") -> $dest/"
+        rm -rf "${dest:?}/$(basename "$item")"
+        cp -R "$item" "$dest/"
+    done
+}
+
+if [[ "$INSTALL" -eq 1 ]]; then
+    echo
+    echo "Installing into this platform's plugin search paths ..."
+    case "$(uname -s)" in
+        Darwin)
+            install_matching "*.vst3" "$HOME/Library/Audio/Plug-Ins/VST3"
+            install_matching "*.component" "$HOME/Library/Audio/Plug-Ins/Components"
+            install_matching "*.clap" "$HOME/Library/Audio/Plug-Ins/CLAP"
+            ;;
+        Linux)
+            install_matching "*.vst3" "$HOME/.vst3"
+            install_matching "*.clap" "$HOME/.clap"
+            ;;
+        *)
+            echo "warning: don't know the standard plugin install paths for $(uname -s) - skipping --install, use the paths below manually." >&2
+            ;;
+    esac
+    echo "Done installing. Rescan plugins in your DAW to pick them up."
+else
+    echo "  VST3:       drop the .vst3 into your DAW's VST3 search path"
+    echo "  AU:         cp -R \"$OUTPUT_DIR\"/*.component ~/Library/Audio/Plug-Ins/Components/"
+    echo "  CLAP:       drop the .clap into your DAW's CLAP search path"
+    echo "  Standalone: run it directly"
+    echo "  (or re-run with --install to copy these into place automatically)"
+fi
 
 if [[ ${#FAILED[@]} -gt 0 ]]; then
     echo
