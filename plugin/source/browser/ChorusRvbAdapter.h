@@ -159,10 +159,17 @@ class ChorusRvbAdapter : public EngineAdapter
     }
 
     // See PlateAdapter.h's importPcm80Preset() for the pattern. Chorus+
-    // Rvb's PCM80 field list uses CONTROLS_NO_VOICEDIF (has Controls
-    // High Cut, mapped onto this adapter's shared hiCut - there's no
-    // distinct PCM80 field for its own separate chorusHighCut, left
-    // untouched), no glide, no clear. Chorus MstDepth/MstRate and each
+    // Rvb's PCM80 field list uses CONTROLS_NO_VOICEDIF (has one Controls
+    // High Cut field, applied to both this adapter's shared hiCut AND
+    // its own separate chorusHighCut - like RvbDesign Diffusion
+    // elsewhere in this same algorithm, "the Diffusion parameter... is
+    // shared by both the reverb and the chorus effect", one decoded
+    // control value driving two internal filters rather than one; before
+    // this, chorusHighCut silently stayed at its hardcoded 10kHz default
+    // for every imported preset regardless of the real Controls High Cut
+    // value, an unintended extra low-pass stacked ahead of the delay
+    // bank on top of the correctly-imported one at the Graph's output),
+    // no glide, no clear. Chorus MstDepth/MstRate and each
     // voice's Depth/Rate are already in this adapter's own declared
     // units (0-200% and ms/Hz respectively, not 0-1 fractions or
     // seconds), so they're copied directly rather than through the
@@ -204,6 +211,7 @@ class ChorusRvbAdapter : public EngineAdapter
         apply("Controls", "InPan L", pid("inPanLeft"), -1.0f, 1.0f, direct);
         apply("Controls", "InPan R", pid("inPanRight"), -1.0f, 1.0f, direct);
         apply("Controls", "High Cut", pid("hiCut"), 1000.0f, 20000.0f, direct);
+        apply("Controls", "High Cut", pid("chorusHighCut"), 1000.0f, 20000.0f, direct);
         apply("Controls", "FX Mix", pid("fxMix"), 0.0f, 1.0f, percent);
         apply("Controls", "FX Width", pid("fxWidth"), -360.0f, 360.0f, direct);
 

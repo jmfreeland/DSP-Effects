@@ -73,12 +73,22 @@ own six lines.
 
 ## Known simplifications
 
-- **FX/Rvb Width behavior** is the same original `rotateStereoWidth()`
-  reconstruction used throughout this archive's PCM81 side.
+- **FX Width** uses `rotatePcm81Width()` (see `dsp/StereoRotate.h`), a
+  re-phasing of the archive's original `rotateStereoWidth()`
+  reconstruction so its degrees convention matches the manual's own
+  display table (0=MONO, 45=STEREO/normal) instead of that primitive's
+  own 0-is-identity convention - real preset Width values previously
+  collapsed one channel to a fraction of the other's level.
 - **Chorus path's own Diffusion is a separate `DiffuserChain` instance**
   from Plate's internal one (see above) — a shared control value, not a
   shared signal path, since the manual's block diagram draws the chorus
-  path's Diffusion box distinctly from Plate's own sub-diagram.
+  path's Diffusion box distinctly from Plate's own sub-diagram. The same
+  "one decoded value, two internal filters" pattern applies to Controls
+  High Cut: `ChorusRvbAdapter::importPcm80Preset()` applies it to both
+  the Graph's shared `hiCut` and the Block's own `chorusHighCut` (ahead
+  of the delay bank) - it used to only touch `hiCut`, leaving
+  `chorusHighCut` stuck at a hardcoded 10kHz default for every preset,
+  an extra unintended low-pass stage.
 
 ## Status
 
