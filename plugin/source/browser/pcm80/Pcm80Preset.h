@@ -20,6 +20,14 @@ struct Field
     juce::String label;
     double raw = 0.0;
     bool tempoActive = false;
+    // The range_decode id this field was encoded with (see
+    // range_decode.py) - only actually needed by tempo-override logic
+    // (Pcm80TempoOverride.h) to tell tempo-active "Echo:Beat" delay/time
+    // fields (any rd id) from "Cycl:Beat" LFO-rate fields (rd 35 -
+    // decoder.py's CYCL_BEAT_RDS), since those two need different
+    // real-value formulas (time vs frequency) and only the former is
+    // implemented.
+    int rangeDecode = -1;
     // The archive's own unit-tagged numeric interpretation of raw, where
     // one exists (see range_decode.py's NUMERIC_DECODE_FUNCS) - unset for
     // pure enums, named sources, "Off"/mute, and tempo-synced "Cycl:Beat"

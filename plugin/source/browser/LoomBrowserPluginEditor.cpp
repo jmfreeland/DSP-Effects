@@ -1,5 +1,7 @@
 #include "LoomBrowserPluginEditor.h"
 
+#include "AdapterHelpers.h"
+
 #include <cmath>
 
 namespace
@@ -7,6 +9,7 @@ namespace
 constexpr int kEditorWidth = 560;
 constexpr int kEditorHeight = 860;
 constexpr int kPickerHeight = 32;
+constexpr int kPcm80OptionsHeight = 24;
 constexpr int kSeparatorHeight = 6;
 // Diagram share of the remaining (post-picker) height; the rest is
 // knobs. Matches LoomPluginEditor's own split.
@@ -33,6 +36,8 @@ LoomBrowserPluginEditor::LoomBrowserPluginEditor(LoomBrowserAudioProcessor& proc
 
     addAndMakeVisible(pcm80ImportButton_);
     pcm80ImportButton_.onClick = [this] { showPcm80ImportMenu(); };
+    addAndMakeVisible(useDawTempoToggle_);
+    addAndMakeVisible(keepMixToggle_);
 
     addAndMakeVisible(architectureViewport_);
     addAndMakeVisible(parametersViewport_);
@@ -123,6 +128,11 @@ void LoomBrowserPluginEditor::resized()
     pcm80ImportButton_.setBounds(pickerRow.removeFromRight(180));
     pickerRow.removeFromRight(6);
     algorithmPicker_.setBounds(pickerRow);
+
+    auto pcm80OptionsRow = bounds.removeFromTop(kPcm80OptionsHeight).reduced(10, 2);
+    keepMixToggle_.setBounds(pcm80OptionsRow.removeFromRight(150));
+    pcm80OptionsRow.removeFromRight(6);
+    useDawTempoToggle_.setBounds(pcm80OptionsRow.removeFromRight(150));
 
     auto diagramHeight = static_cast<int>(static_cast<float>(bounds.getHeight()) * kDiagramShare);
     architectureViewport_.setBounds(bounds.removeFromTop(diagramHeight));
@@ -254,14 +264,56 @@ void LoomBrowserPluginEditor::showPcm80ImportMenu()
 
 void LoomBrowserPluginEditor::applyPcm80Preset(const loom::browser::pcm80::Preset& preset)
 {
+    using namespace loom::browser::pcm80;
+
+    // "Use DAW Tempo": swap in the host's current tempo for every
+    // tempo-synced Echo:Beat field before importing, rather than the
+    // preset's own baked-in Tempo Rate - see Pcm80TempoOverride.h. Falls
+    // back to the preset's own tempo (a silent no-op copy) if the host
+    // isn't reporting a tempo right now (e.g. transport stopped on a
+    // host that only sends tempo while playing).
+    auto effectivePreset = preset;
+    if (useDawTempoToggle_.getToggleState())
+    {
+        juce::Optional<double> hostBpm;
+        if (auto* playHead = processor_.getPlayHead())
+        {
+            if (auto position = playHead->getPosition())
+            {
+                hostBpm = position->getBpm();
+            }
+        }
+        if (hostBpm.hasValue() && *hostBpm > 0.0)
+        {
+            effectivePreset = withTempoOverride(preset, *hostBpm);
+        }
+    }
+
     // Applying onto processor_.activeAdapter() (the engine actually
     // driving audio) rather than a throwaway metadata adapter, so this
     // stays consistent with LoomBrowserPluginProcessor::switchTo() -
     // both write the same APVTS, but the active instance is the one the
     // audio thread's process() calls will read from immediately after.
-    if (auto* adapter = processor_.activeAdapter())
+    auto* adapter = processor_.activeAdapter();
+    if (adapter == nullptr)
     {
-        adapter->importPcm80Preset(preset, processor_.apvts);
+        return;
+    }
+
+    // "Keep Current Mix": many factory presets bake in Mix 100% wet,
+    // which would stomp whatever dry/wet blend is already dialed in for
+    // this session - snapshot it and restore it after import rather than
+    // excluding it from every adapter's importPcm80Preset() individually
+    // (every adapter uses the same "mix" parameter id suffix).
+    auto mixParamId = loom::browser::prefixedId(adapter->id(), "mix");
+    auto keepMix = keepMixToggle_.getToggleState();
+    auto previousMix = keepMix ? loom::browser::paramValue(processor_.apvts, mixParamId) : 0.0f;
+
+    adapter->importPcm80Preset(effectivePreset, processor_.apvts);
+
+    if (keepMix)
+    {
+        loom::browser::setParamValue(processor_.apvts, mixParamId, previousMix);
     }
 }
 

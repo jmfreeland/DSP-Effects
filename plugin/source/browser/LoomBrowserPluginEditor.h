@@ -6,6 +6,7 @@
 #include "LoomTheme.h"
 #include "ArchitectureView.h"
 #include "pcm80/Pcm80Archive.h"
+#include "pcm80/Pcm80TempoOverride.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -37,7 +38,14 @@
 // bundled with the plugin) and offers that algorithm's presets in a
 // popup menu; picking one calls the active adapter's
 // importPcm80Preset(), which writes engineering-unit values straight
-// into the shared APVTS.
+// into the shared APVTS. Two toggles next to it modify that import (see
+// applyPcm80Preset()): "Use DAW Tempo" recomputes tempo-synced Echo:Beat
+// fields against the host's current tempo instead of the preset's own
+// baked-in Tempo Rate (Pcm80TempoOverride.h) - the same override the
+// PCM81 hardware itself offers via a master unit tempo setting. "Keep
+// Current Mix" leaves the current Mix parameter alone rather than
+// letting the import overwrite it, since many factory presets bake in
+// Mix 100% wet.
 class LoomBrowserPluginEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
   public:
@@ -66,6 +74,16 @@ class LoomBrowserPluginEditor : public juce::AudioProcessorEditor, private juce:
     std::unique_ptr<juce::ComboBoxParameterAttachment> pickerAttachment_;
 
     juce::TextButton pcm80ImportButton_ { "Import PCM80 Preset..." };
+    // "Use DAW Tempo": recompute any tempo-synced Echo:Beat field (delay
+    // times) against the host's current tempo instead of the value baked
+    // into the preset's own ROM data - the same override the PCM81
+    // hardware itself offers via a master unit tempo setting. "Keep
+    // Current Mix": many factory presets bake in Mix 100% wet; leave
+    // whichever Mix value is already dialed in alone rather than having
+    // every import stomp it - see Pcm80TempoOverride.h and
+    // applyPcm80Preset()'s own comment for both.
+    juce::ToggleButton useDawTempoToggle_ { "Use DAW Tempo" };
+    juce::ToggleButton keepMixToggle_ { "Keep Current Mix" };
     loom::browser::pcm80::Archive pcm80Archive_;
     bool pcm80ArchiveLoaded_ = false;
     std::unique_ptr<juce::FileChooser> pcm80FileChooser_;

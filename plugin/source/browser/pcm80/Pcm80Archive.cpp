@@ -11,6 +11,7 @@ Field parseField(const juce::var& v)
     f.label = v.getProperty("label", "").toString();
     f.raw = static_cast<double>(v.getProperty("raw", 0.0));
     f.tempoActive = static_cast<bool>(v.getProperty("tempo_active", false));
+    f.rangeDecode = static_cast<int>(v.getProperty("range_decode", -1));
     auto numeric = v.getProperty("numeric", juce::var());
     if (!numeric.isVoid() && !numeric.isUndefined())
     {
