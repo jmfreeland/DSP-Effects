@@ -1,0 +1,121 @@
+# PCM80 preset importer
+
+A standalone script that reads a Lexicon PCM80 host-CPU firmware ROM dump
+(the M27C2001/DIP32 EPROM that sits on the control board, *not* the
+Motorola 56000-series DSP program) and extracts its factory preset table
+into a JSON archive: preset name, the front-panel "quick knob" label, and
+- for the 10 algorithms Lexicon's own MIDI Implementation Details manual
+documents - the fully decoded, named parameter set for each preset (Mix,
+Reverb Time, Diffusion, every patch, etc.), plus the raw per-preset
+parameter bytes as a fallback.
+
+The importer script and decoder itself have no CMake wiring and don't
+feed into any of the Lexicon/Eventide-inspired engines here - they're a
+standalone firmware-archaeology/archival utility for people who own a
+PCM80 and want a readable catalog of their unit's presets.
+
+## Usage
+
+```
+python3 tools/pcm80-import/extract_presets.py /path/to/your-dump.bin -o archive.json
+```
+
+You need to supply your own ROM dump, read out of hardware you own. This
+repo does not include, fetch, or ship any Lexicon ROM image.
+
+## What's actually decoded
+
+The preset table is a chain of variable-length records (see the
+docstring in `extract_presets.py` for the exact byte layout). Record
+*boundaries* were verified statistically across the full 200-record
+chain - not guessed from one or two samples.
+
+- **Preset name, macro-knob label** - solid. Verified by chain-walking an
+  entire ROM and finding exactly 200 records (the PCM80's known factory
+  preset count), every one of which decodes to a name that reads as a
+  real, plausible preset ("Concert Hall", "Vox Chamber", "Rich Plate",
+  "6 Vox Chorus", ...).
+- **Bitpacked Effect Control Data** (everything after the name/label, to
+  the end of the record) - this used to be three undecoded
+  statistically-distinct hex zones. Lexicon's own MIDI Implementation
+  Details manual (a separate document from the PCM81 User Guide already
+  in `docs/references/`, covering the PCM80's SysEx protocol) documents
+  this whole region as one continuous LSB-first bitpacked structure, and
+  `tools/pcm80-import/pcm80lib/` implements that documented format:
+  Soft Row Assignments, Unpatchable Parameter Information, the ADJUST
+  Knob's initial value, each algorithm's own Patchable Parameter list
+  (named, range-decoded values - percent, dB, Hz, ms, tempo-synced
+  Echo:Beat form, enums, pan position, etc.), and the Patching
+  Information (which MIDI/internal sources are patched to which
+  parameters, and by how much). For a preset using one of the 10
+  algorithms this manual documents (Plate, Chamber, Infinite, Inverse,
+  Concert Hall, M-Band+Rvb, Glide>Hall, Chorus+Rvb, Res1>Plate,
+  Res2>Plate - `algorithm_id` 0-9), the archive's `decoded` key holds
+  this structured output. Presets using other algorithm IDs (expansion
+  cards this manual doesn't cover) only get the raw hex fallback.
+
+  **Validation status**: the bit-reader, Soft Row Assignments,
+  Unpatchable Parameter Information, and Patchable Parameter Information
+  logic were checked end-to-end against the manual's own four worked
+  examples (two on Chorus+Rvb, one each on Plate and Glide>Hall), and
+  every field decoded within rounding of the manual's documented display
+  values. The other 6 algorithm tables share the same validated building
+  blocks and were transcribed with the same care but aren't directly
+  checked against a known answer - the manual only worked through 3 of
+  the 10 algorithms. See `pcm80lib/decoder.py`'s module docstring for
+  the full validation notes, known imprecisions in a couple of the range
+  decode lookup tables, and a still-unresolved anomaly: about 19% of
+  presets in a real v1.10 ROM (always the shortest ROM record for a
+  given algorithm) don't contain enough bitpacked data for that
+  algorithm's full documented field table, even though both the fixed
+  header and (independently, directly from the manual) the Plate
+  algorithm's own field table check out exactly. Those presets are
+  flagged with `decoded.reliable: false` and a `decode_warning` rather
+  than silently decoded wrong - use the raw hex fallback for them.
+
+The raw hex zones (`knob_id_list_hex`, `range_flags_block_hex_undecoded`,
+`parameter_value_block_hex`) are still included for every preset as a
+fallback/cross-check, even where `decoded` is present.
+
+Every field in `decoded.patchable` also carries a `numeric`/`unit` pair
+alongside its human-readable `value` string (e.g. `"value": "-6db",
+"numeric": -6.46, "unit": "db"`) - a machine-usable interpretation for
+consumers that want to convert into their own units rather than re-parse
+a formatted string. `unit` is one of `percent`, `db`, `db_phase_inverted`,
+`hz`, `ms`, `ratio`, `degrees`, `meters`, `pan-1to1`, `bool`, `raw`,
+`bpm`, `count`; `numeric` is `null` for fields with no single-number
+meaning (enums, named sources, "Off"/mute, and tempo-synced Echo:Beat
+values, which would need the preset's own BPM to convert - not attempted
+here). See `pcm80lib/range_decode.py`'s `NUMERIC_DECODE_FUNCS`.
+
+## Loading presets into the Loom Browser plugin
+
+`plugin/`'s `LoomBrowserPlugin` (see the repo root `CLAUDE.md`) can load
+a decoded PCM80 archive at runtime: its "Import PCM80 Preset..." button
+opens a file picker for an archive JSON produced by this tool, then
+offers that algorithm's presets. Picking one converts each PCM80 field's
+`numeric`/`unit` value into the currently-selected engine's own
+parameter units (dB -> linear gain, ms -> seconds, percent -> 0-1
+fraction, etc.) and applies it - see
+`plugin/source/browser/PlateAdapter.h`'s `importPcm80Preset()` for the
+first mapping (Plate) and `plugin/source/browser/pcm80/` for the
+shared archive-loading/unit-conversion code other algorithms' adapters
+can reuse. PCM80 and this codebase's own engines are different hardware
+generations with the same algorithm names/topology family but not
+parameter-for-parameter identical ranges, so this is a best-effort
+approximation, not a faithful recreation - fields with no corresponding
+parameter, or no numeric interpretation, are left at their current
+value rather than guessed. Nothing from a loaded archive is written back
+to disk or bundled with the plugin; this is purely a runtime import,
+same copyright posture as the rest of this tool.
+
+## Copyright
+
+The ROM, and every preset name/byte extracted from it, are Lexicon's
+copyrighted property. This directory ships only the *importer script* -
+never a ROM image, never a pre-extracted archive. Any archive you
+generate with this tool is for your own personal reference with hardware
+you own; don't redistribute it. `.gitignore` at the repo root blocks
+`tools/**/*.bin` and any `tools/pcm80-import/*.json`/`*.csv` output so
+this stays true even if you run the script inside a checkout of this
+repo.

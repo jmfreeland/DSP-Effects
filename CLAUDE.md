@@ -71,3 +71,7 @@ cmake -S . -B build-plugin -DDSP_EFFECTS_BUILD_PLUGIN=ON -DCMAKE_BUILD_TYPE=Rele
 cmake --build build-plugin -j -t LexiconHallPlugin_VST3
 ```
 Produces a `.vst3` under `build-plugin/plugin/LexiconHallPlugin_artefacts/Release/VST3/`.
+
+## Firmware archive tools
+
+`tools/pcm80-import/` is a standalone, unwired-into-the-build utility: it extracts a user-supplied Lexicon PCM80 host-CPU ROM dump's factory preset table into a JSON archive, decoding the bitpacked Effect Control Data for the 10 algorithms Lexicon's own MIDI Implementation Details manual documents (named, unit-tagged parameter values, not just raw bytes) via `pcm80lib/`. It ships only the importer/decoder code — never a ROM image or a pre-extracted archive (`.gitignore` blocks both) — since that data is Lexicon's copyright. See `tools/pcm80-import/README.md`. The Loom Browser plugin (`plugin/source/browser/`, see below) can load such an archive at runtime and map a preset's fields onto whichever algorithm is selected via `EngineAdapter::importPcm80Preset()` — currently implemented for Plate (`PlateAdapter.h`) as the first of the 10; the archive itself is never bundled with the plugin, only read from a file the user points it at.

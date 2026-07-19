@@ -5,9 +5,11 @@
 #include "LoomParametersPanel.h"
 #include "LoomTheme.h"
 #include "ArchitectureView.h"
+#include "pcm80/Pcm80Archive.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include <map>
 #include <memory>
 
 // The Loom browser plugin's editor: an algorithm picker above the same
@@ -26,6 +28,16 @@
 // schema()/id()/displayName() are pure metadata a throwaway adapter can
 // answer immediately, so the UI stays correct even if the audio thread
 // hasn't processed a block since the parameter changed.
+//
+// Also owns the "Import PCM80 Preset..." button, enabled only while the
+// selected algorithm's adapter has a PCM80 mapping (EngineAdapter::
+// pcm80AlgorithmName() != nullptr - see PlateAdapter.h for the first
+// one). Clicking it loads a decoded PCM80 archive JSON (produced by
+// tools/pcm80-import/extract_presets.py from a ROM the user owns; never
+// bundled with the plugin) and offers that algorithm's presets in a
+// popup menu; picking one calls the active adapter's
+// importPcm80Preset(), which writes engineering-unit values straight
+// into the shared APVTS.
 class LoomBrowserPluginEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
   public:
@@ -42,11 +54,22 @@ class LoomBrowserPluginEditor : public juce::AudioProcessorEditor, private juce:
     void updateParametersPanelSize();
     int selectedAlgorithmIndex() const;
 
+    void showPcm80ImportMenu();
+    void choosePcm80ArchiveFile();
+    void applyPcm80Preset(const loom::browser::pcm80::Preset& preset);
+    void updatePcm80ButtonEnablement();
+
     LoomBrowserAudioProcessor& processor_;
     loom::LookAndFeel lookAndFeel_;
 
     juce::ComboBox algorithmPicker_;
     std::unique_ptr<juce::ComboBoxParameterAttachment> pickerAttachment_;
+
+    juce::TextButton pcm80ImportButton_ { "Import PCM80 Preset..." };
+    loom::browser::pcm80::Archive pcm80Archive_;
+    bool pcm80ArchiveLoaded_ = false;
+    std::unique_ptr<juce::FileChooser> pcm80FileChooser_;
+    std::map<int, const loom::browser::pcm80::Preset*> pcm80MenuPresets_;
 
     juce::Viewport architectureViewport_;
     juce::Viewport parametersViewport_;

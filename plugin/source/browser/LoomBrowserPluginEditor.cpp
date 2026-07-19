@@ -31,6 +31,9 @@ LoomBrowserPluginEditor::LoomBrowserPluginEditor(LoomBrowserAudioProcessor& proc
           std::make_unique<juce::ComboBoxParameterAttachment>(*algorithmParam, algorithmPicker_);
     }
 
+    addAndMakeVisible(pcm80ImportButton_);
+    pcm80ImportButton_.onClick = [this] { showPcm80ImportMenu(); };
+
     addAndMakeVisible(architectureViewport_);
     addAndMakeVisible(parametersViewport_);
 
@@ -108,6 +111,7 @@ void LoomBrowserPluginEditor::rebuildForAlgorithm(int index)
     };
 
     renderedIndex_ = index;
+    updatePcm80ButtonEnablement();
     resized();
     repaint();
 }
@@ -115,7 +119,10 @@ void LoomBrowserPluginEditor::rebuildForAlgorithm(int index)
 void LoomBrowserPluginEditor::resized()
 {
     auto bounds = getLocalBounds();
-    algorithmPicker_.setBounds(bounds.removeFromTop(kPickerHeight).reduced(10, 4));
+    auto pickerRow = bounds.removeFromTop(kPickerHeight).reduced(10, 4);
+    pcm80ImportButton_.setBounds(pickerRow.removeFromRight(180));
+    pickerRow.removeFromRight(6);
+    algorithmPicker_.setBounds(pickerRow);
 
     auto diagramHeight = static_cast<int>(static_cast<float>(bounds.getHeight()) * kDiagramShare);
     architectureViewport_.setBounds(bounds.removeFromTop(diagramHeight));
@@ -148,6 +155,114 @@ void LoomBrowserPluginEditor::updateParametersPanelSize()
     }
     auto panelWidth = parametersViewport_.getWidth() - parametersViewport_.getScrollBarThickness();
     parametersPanel_->setSize(panelWidth, parametersPanel_->preferredHeightForWidth(panelWidth));
+}
+
+void LoomBrowserPluginEditor::updatePcm80ButtonEnablement()
+{
+    auto adapter = loom::browser::createAdapter(selectedAlgorithmIndex());
+    pcm80ImportButton_.setEnabled(adapter->pcm80AlgorithmName() != nullptr);
+}
+
+void LoomBrowserPluginEditor::choosePcm80ArchiveFile()
+{
+    pcm80FileChooser_ = std::make_unique<juce::FileChooser>(
+      "Select a decoded PCM80 preset archive (from tools/pcm80-import/extract_presets.py)",
+      juce::File(), "*.json");
+
+    pcm80FileChooser_->launchAsync(
+      juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+      [this](const juce::FileChooser& chooser) {
+          auto file = chooser.getResult();
+          if (!file.existsAsFile())
+          {
+              return;
+          }
+          juce::String error;
+          if (pcm80Archive_.loadFromFile(file, &error))
+          {
+              pcm80ArchiveLoaded_ = true;
+              showPcm80ImportMenu();
+          }
+          else
+          {
+              juce::AlertWindow::showAsync(
+                juce::MessageBoxOptions()
+                  .withIconType(juce::MessageBoxIconType::WarningIcon)
+                  .withTitle("Couldn't load PCM80 archive")
+                  .withMessage(error)
+                  .withButton("OK"),
+                nullptr);
+          }
+      });
+}
+
+void LoomBrowserPluginEditor::showPcm80ImportMenu()
+{
+    auto adapter = loom::browser::createAdapter(selectedAlgorithmIndex());
+    auto* algorithmName = adapter->pcm80AlgorithmName();
+    if (algorithmName == nullptr)
+    {
+        return;
+    }
+
+    juce::PopupMenu menu;
+    int itemId = 1;
+    menu.addItem(itemId++, pcm80ArchiveLoaded_ ? "Load Different Archive..." : "Load PCM80 Archive...");
+
+    pcm80MenuPresets_.clear();
+    if (pcm80ArchiveLoaded_)
+    {
+        auto matches = pcm80Archive_.presetsForAlgorithm(algorithmName);
+        menu.addSeparator();
+        if (matches.empty())
+        {
+            menu.addItem(itemId++, "(no " + juce::String(algorithmName) + " presets in this archive)", false);
+        }
+        else
+        {
+            for (auto* preset : matches)
+            {
+                auto label = preset->name;
+                if (!preset->reliable)
+                {
+                    label += " (partial decode)";
+                }
+                menu.addItem(itemId, label);
+                pcm80MenuPresets_[itemId] = preset;
+                ++itemId;
+            }
+        }
+    }
+
+    menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+        if (result == 0)
+        {
+            return;
+        }
+        if (result == 1)
+        {
+            choosePcm80ArchiveFile();
+            return;
+        }
+        auto it = pcm80MenuPresets_.find(result);
+        if (it != pcm80MenuPresets_.end())
+        {
+            applyPcm80Preset(*it->second);
+        }
+    });
+}
+
+void LoomBrowserPluginEditor::applyPcm80Preset(const loom::browser::pcm80::Preset& preset)
+{
+    // Applying onto processor_.activeAdapter() (the engine actually
+    // driving audio) rather than a throwaway metadata adapter, so this
+    // stays consistent with LoomBrowserPluginProcessor::switchTo() -
+    // both write the same APVTS, but the active instance is the one the
+    // audio thread's process() calls will read from immediately after.
+    if (auto* adapter = processor_.activeAdapter())
+    {
+        adapter->importPcm80Preset(preset, processor_.apvts);
+    }
 }
 
 void LoomBrowserPluginEditor::updateArchitectureViewSize()

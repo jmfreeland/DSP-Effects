@@ -4,7 +4,10 @@
 #include "EngineAdapter.h"
 #include "dsp/graphs/Res2PlateAlgorithm.h"
 #include "dsp/schema/Res2PlateSchema.h"
+#include "pcm80/Pcm80UnitConvert.h"
 
+#include <cmath>
+#include <functional>
 #include <span>
 
 // Adapts dsp::graphs::Res2PlateAlgorithm to EngineAdapter - see
@@ -199,7 +202,117 @@ class Res2PlateAdapter : public EngineAdapter
         engine_.process(left, right);
     }
 
+    // See PlateAdapter.h's importPcm80Preset() for the pattern; Res2>
+    // Plate shares Res1>Plate's reverb-core field list (see that
+    // adapter's own doc comment for what's skipped there and why) but
+    // replaces per-voice direct Hz with PCM80's actual Pitch group
+    // (Key/Scale/Root/Rule/per-voice interval), which corresponds much
+    // more directly to this adapter's own Key/Scale/Tune/Interval
+    // design than Res1>Plate's did. Pitch Scale only has 2 raw values
+    // (Major/Harmonic) against this adapter's 6 choices, mapped to the
+    // closest two (Major, Harmonic Minor); Pitch Root (a scale-degree
+    // offset) and Pitch Rule (round/shift behavior) have no equivalent
+    // here and are left unmapped, as is Resonance V{n} Res (see
+    // Res1PlateAdapter.h's note on why a bipolar percent doesn't map to
+    // a Duration in seconds).
+    const char* pcm80AlgorithmName() const override { return "Res2>Plate"; }
+
+    void importPcm80Preset(const pcm80::Preset& preset, juce::AudioProcessorValueTreeState& apvts) const override
+    {
+        using namespace pcm80;
+        auto pid = [](const char* suffix) { return prefixedId("res2Plate", suffix); };
+
+        auto apply = [&](const juce::String& group, const juce::String& label, const juce::String& paramId,
+                          float lo, float hi, const std::function<float(const Field&)>& convert) {
+            auto* f = preset.find(group, label);
+            if (f == nullptr || !f->numeric.has_value())
+            {
+                return;
+            }
+            setParamValue(apvts, paramId, clampf(convert(*f), lo, hi));
+        };
+        // For enum/choice parameters PCM80 encodes as an index with no
+        // single-number "meaning" (so NUMERIC_DECODE_FUNCS reports
+        // none) - reads the raw index directly instead.
+        auto applyRawIndex = [&](const juce::String& group, const juce::String& label,
+                                  const juce::String& paramId, float maxIndex) {
+            auto* f = preset.find(group, label);
+            if (f == nullptr)
+            {
+                return;
+            }
+            setParamValue(apvts, paramId, clampf(static_cast<float>(f->raw), 0.0f, maxIndex));
+        };
+
+        auto percent = [](const Field& f) { return percentToFraction(*f.numeric); };
+        auto db = [](const Field& f) { return dbToLinear(*f.numeric); };
+        auto dbSigned = [](const Field& f) {
+            auto linear = dbToLinear(*f.numeric);
+            return f.unit == "db_phase_inverted" ? -linear : linear;
+        };
+        auto ms = [](const Field& f) { return msToSeconds(*f.numeric); };
+        auto direct = [](const Field& f) { return static_cast<float>(*f.numeric); };
+        auto boolean = direct;
+
+        apply("Controls", "Mix", pid("mix"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX ADJUST", pid("fxAdjust"), -73.0f, 12.0f, direct);
+        apply("Controls", "InLvl L", pid("inLevelLeft"), -1.0f, 1.0f, dbSigned);
+        apply("Controls", "InLvl R", pid("inLevelRight"), -1.0f, 1.0f, dbSigned);
+        apply("Controls", "InPan L", pid("inPanLeft"), -1.0f, 1.0f, direct);
+        apply("Controls", "InPan R", pid("inPanRight"), -1.0f, 1.0f, direct);
+        apply("Controls", "FX Mix", pid("fxMix"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX Width", pid("fxWidth"), -360.0f, 360.0f, direct);
+
+        apply("Rvb Time", "Low Rt", pid("lowRatio"), 0.2f, 2.0f, direct);
+        apply("Rvb Time", "Mid Rt", pid("decay"), 0.3f, 8.0f, ms);
+        apply("Rvb Time", "Crossover", pid("crossover"), 100.0f, 2000.0f, direct);
+        apply("Rvb Time", "Rt HC", pid("damping"), 0.0f, 1.0f,
+              [](const Field& f) { return 1.0f - (direct_(f) - 1000.0f) / 19000.0f; });
+        apply("Rvb Time", "Pre Delay", pid("preDelay"), 0.0f, 0.93f, ms);
+        apply("Rvb Time", "RefLvl L", pid("earlyReflectionLevelLeft"), 0.0f, 1.0f, db);
+        apply("Rvb Time", "RefDly L", pid("earlyReflectionDelayLeft"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "RefLvl R", pid("earlyReflectionLevelRight"), 0.0f, 1.0f, db);
+        apply("Rvb Time", "RefDly R", pid("earlyReflectionDelayRight"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "EkoFbk L", pid("ekoFeedbackLeft"), -1.0f, 1.0f,
+              [](const Field& f) { return direct_(f) / 100.0f; });
+        apply("Rvb Time", "EkoDly L", pid("ekoDelayLeft"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "EkoFbk R", pid("ekoFeedbackRight"), -1.0f, 1.0f,
+              [](const Field& f) { return direct_(f) / 100.0f; });
+        apply("Rvb Time", "EkoDly R", pid("ekoDelayRight"), 0.0f, 1.2f, ms);
+
+        apply("RvbDesign", "Size", pid("size"), 0.0f, 1.0f,
+              [](const Field& f) { return (direct_(f) - 4.0f) / 72.0f; });
+        apply("RvbDesign", "Diffusion", pid("diffusion"), 0.0f, 1.0f, percent);
+        apply("RvbDesign", "Attack", pid("attack"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 100.0f; });
+        apply("RvbDesign", "Spin", pid("spin"), 0.0f, 1.0f, percent);
+        apply("RvbDesign", "Link", pid("link"), 0.0f, 1.0f, boolean);
+        apply("RvbDesign", "Rvb Out", pid("rvbOut"), 0.0f, 1.0f, db);
+
+        applyRawIndex("Pitch", "Key", pid("key"), 11.0f);
+        if (auto* scaleField = preset.find("Pitch", "Scale"))
+        {
+            setParamValue(apvts, pid("scale"), scaleField->raw >= 0.5 ? 2.0f : 0.0f);
+        }
+        apply("Pitch", "Tuning", pid("tune"), -50.0f, 50.0f,
+              [](const Field& f) { return 1200.0f * std::log2(direct_(f) / 440.0f); });
+
+        static constexpr const char* kVLabels[6] = { "V1", "V2", "V3", "V4", "V5", "V6" };
+        static constexpr const char* kVoiceLabels[6] = { "Voice1", "Voice2", "Voice3",
+                                                           "Voice4", "Voice5", "Voice6" };
+        for (int i = 0; i < 6; ++i)
+        {
+            apply("Levels", juce::String(kVLabels[i]) + " Lvl", voiceParamId("res2Plate", i, "Level"),
+                  -1.0f, 1.0f, dbSigned);
+            apply("Panning", kVoiceLabels[i], voiceParamId("res2Plate", i, "Pan"), -1.0f, 1.0f, direct);
+            apply("Resonance", juce::String(kVLabels[i]) + " HiCut", voiceParamId("res2Plate", i, "HiCut"),
+                  200.0f, 20000.0f, direct);
+            applyRawIndex("Pitch", kVoiceLabels[i], voiceParamId("res2Plate", i, "Interval"), 17.0f);
+        }
+    }
+
   private:
+    static float direct_(const pcm80::Field& f) { return static_cast<float>(*f.numeric); }
+
     dsp::graphs::Res2PlateAlgorithm engine_;
 };
 }

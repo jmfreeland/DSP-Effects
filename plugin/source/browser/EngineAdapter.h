@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dsp/schema/AlgorithmSchema.h"
+#include "pcm80/Pcm80Preset.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -62,5 +63,26 @@ class EngineAdapter
     // driving.
     virtual void process(juce::AudioProcessorValueTreeState& apvts, std::span<float> left,
                          std::span<float> right) = 0;
+
+    // The two hooks below are how an adapter opts into loading presets
+    // from a decoded PCM80 archive (tools/pcm80-import) - optional,
+    // since the mapping is per-algorithm hand-built work (see
+    // PlateAdapter.h for the first one) and most adapters don't have it
+    // yet. Default: no PCM80 mapping available.
+
+    // The archive's own algorithm name this adapter corresponds to
+    // (e.g. "Plate", matching pcm80lib's ALGORITHM_NAMES) - nullptr
+    // means this adapter has no PCM80 mapping, and the browser's
+    // "Import PCM80 Preset..." UI should stay disabled while it's
+    // selected.
+    virtual const char* pcm80AlgorithmName() const { return nullptr; }
+
+    // Applies preset's fields onto this adapter's own (prefixed)
+    // parameters in apvts, converting PCM80's engineering units to
+    // whatever units this adapter's own createParameters() declared.
+    // Fields this adapter has no corresponding parameter for, or whose
+    // PCM80 value has no numeric interpretation (see Pcm80Preset.h),
+    // are left at their current value rather than guessed.
+    virtual void importPcm80Preset(const pcm80::Preset&, juce::AudioProcessorValueTreeState&) const {}
 };
 }

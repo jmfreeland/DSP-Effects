@@ -4,7 +4,10 @@
 #include "EngineAdapter.h"
 #include "dsp/graphs/GlideHallAlgorithm.h"
 #include "dsp/schema/GlideHallSchema.h"
+#include "pcm80/Pcm80UnitConvert.h"
 
+#include <cmath>
+#include <functional>
 #include <span>
 
 // Adapts dsp::graphs::GlideHallAlgorithm to EngineAdapter - see
@@ -166,7 +169,108 @@ class GlideHallAdapter : public EngineAdapter
         engine_.process(left, right);
     }
 
+    // See PlateAdapter.h's importPcm80Preset() for the pattern. Glide>
+    // Hall's PCM80 field list uses CONTROLS_NO_HIGHCUT (has Voice Dif,
+    // no Controls High Cut - and no other field maps onto this
+    // adapter's own hiCut either, so it's left untouched), no Rvb Time
+    // Eko fields, and its own "Glide FX" group for the two glide taps
+    // (A/B Lvl/Dly per side) and their Feedback/X-Feedback - Glide FX
+    // A/B Dly use 0.1ms increments (rd43), finer-grained than the 1ms
+    // fields used elsewhere. The per-voice Feedback group is also
+    // uniquely named ("V1 Fbk"/"V1 X-Fbk" rather than "Voice1"). No
+    // DelayTime Clear field exists (matching GlideHallAlgorithm having
+    // no clear() of its own).
+    const char* pcm80AlgorithmName() const override { return "Glide>Hall"; }
+
+    void importPcm80Preset(const pcm80::Preset& preset, juce::AudioProcessorValueTreeState& apvts) const override
+    {
+        using namespace pcm80;
+        auto pid = [](const char* suffix) { return prefixedId("glideHall", suffix); };
+
+        auto apply = [&](const juce::String& group, const juce::String& label, const juce::String& paramId,
+                          float lo, float hi, const std::function<float(const Field&)>& convert) {
+            auto* f = preset.find(group, label);
+            if (f == nullptr || !f->numeric.has_value())
+            {
+                return;
+            }
+            setParamValue(apvts, paramId, clampf(convert(*f), lo, hi));
+        };
+
+        auto percent = [](const Field& f) { return percentToFraction(*f.numeric); };
+        auto db = [](const Field& f) { return dbToLinear(*f.numeric); };
+        auto dbSigned = [](const Field& f) {
+            auto linear = dbToLinear(*f.numeric);
+            return f.unit == "db_phase_inverted" ? -linear : linear;
+        };
+        auto ms = [](const Field& f) { return msToSeconds(*f.numeric); };
+        auto direct = [](const Field& f) { return static_cast<float>(*f.numeric); };
+        auto boolean = direct;
+        auto bipolarPercent = [](const Field& f) { return direct_(f) / 100.0f; };
+
+        apply("Controls", "Mix", pid("mix"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX ADJUST", pid("fxAdjust"), -73.0f, 12.0f, direct);
+        apply("Controls", "InLvl L", pid("inLevelLeft"), -1.0f, 1.0f, dbSigned);
+        apply("Controls", "InLvl R", pid("inLevelRight"), -1.0f, 1.0f, dbSigned);
+        apply("Controls", "InPan L", pid("inPanLeft"), -1.0f, 1.0f, direct);
+        apply("Controls", "InPan R", pid("inPanRight"), -1.0f, 1.0f, direct);
+        apply("Controls", "Voice Dif", pid("voiceDiffusion"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX Mix", pid("fxMix"), 0.0f, 1.0f, percent);
+        apply("Controls", "FX Width", pid("fxWidth"), -360.0f, 360.0f, direct);
+
+        apply("Rvb Time", "Low Rt", pid("lowRatio"), 0.2f, 2.0f, direct);
+        apply("Rvb Time", "Mid Rt", pid("decay"), 0.3f, 8.0f, ms);
+        apply("Rvb Time", "Crossover", pid("crossover"), 100.0f, 2000.0f, direct);
+        apply("Rvb Time", "Rt HC", pid("damping"), 0.0f, 1.0f,
+              [](const Field& f) { return 1.0f - (direct_(f) - 1000.0f) / 19000.0f; });
+        apply("Rvb Time", "Pre Delay", pid("preDelay"), 0.0f, 0.93f, ms);
+        apply("Rvb Time", "RefLvl L", pid("earlyReflectionLevelLeft"), 0.0f, 1.0f, db);
+        apply("Rvb Time", "RefDly L", pid("earlyReflectionDelayLeft"), 0.0f, 1.2f, ms);
+        apply("Rvb Time", "RefLvl R", pid("earlyReflectionLevelRight"), 0.0f, 1.0f, db);
+        apply("Rvb Time", "RefDly R", pid("earlyReflectionDelayRight"), 0.0f, 1.2f, ms);
+
+        apply("RvbDesign", "Size", pid("size"), 0.0f, 1.0f,
+              [](const Field& f) { return (direct_(f) - 4.0f) / 72.0f; });
+        apply("RvbDesign", "Diffusion", pid("diffusion"), 0.0f, 1.0f, percent);
+        apply("RvbDesign", "Def", pid("definition"), 0.0f, 1.0f, percent);
+        apply("RvbDesign", "Depth", pid("depth"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 15.0f; });
+        apply("RvbDesign", "Spin", pid("spin"), 0.0f, 1.0f, percent);
+        apply("RvbDesign", "Chorus", pid("chorus"), 0.0f, 1.0f, [](const Field& f) { return direct_(f) / 10.0f; });
+        apply("RvbDesign", "Link", pid("link"), 0.0f, 1.0f, boolean);
+        apply("RvbDesign", "Rvb In", pid("rvbIn"), 0.0f, 1.0f, db);
+        apply("RvbDesign", "Rvb Out", pid("rvbOut"), 0.0f, 1.0f, db);
+
+        apply("Glide FX", "Gld Lvl", pid("glideLevel"), 0.0f, 1.0f, db);
+        apply("Glide FX", "A Lvl L", pid("glideTapALevelLeft"), -1.0f, 1.0f, dbSigned);
+        apply("Glide FX", "A Dly L", pid("glideTapADelayLeft"), 0.0f, 0.042f, ms);
+        apply("Glide FX", "A Lvl R", pid("glideTapALevelRight"), -1.0f, 1.0f, dbSigned);
+        apply("Glide FX", "A Dly R", pid("glideTapADelayRight"), 0.0f, 0.042f, ms);
+        apply("Glide FX", "B Lvl L", pid("glideTapBLevelLeft"), -1.0f, 1.0f, dbSigned);
+        apply("Glide FX", "B Dly L", pid("glideTapBDelayLeft"), 0.0f, 0.042f, ms);
+        apply("Glide FX", "B Lvl R", pid("glideTapBLevelRight"), -1.0f, 1.0f, dbSigned);
+        apply("Glide FX", "B Dly R", pid("glideTapBDelayRight"), 0.0f, 0.042f, ms);
+        apply("Glide FX", "Fbk L", pid("glideFeedbackLeft"), -1.0f, 1.0f, bipolarPercent);
+        apply("Glide FX", "Fbk R", pid("glideFeedbackRight"), -1.0f, 1.0f, bipolarPercent);
+        apply("Glide FX", "X-Fbk L", pid("glideCrossFeedbackLeft"), -1.0f, 1.0f, bipolarPercent);
+        apply("Glide FX", "X-Fbk R", pid("glideCrossFeedbackRight"), -1.0f, 1.0f, bipolarPercent);
+
+        static constexpr const char* kVoiceLabels[6] = { "Voice1", "Voice2", "Voice3",
+                                                           "Voice4", "Voice5", "Voice6" };
+        for (int i = 0; i < 6; ++i)
+        {
+            apply("Levels", kVoiceLabels[i], voiceParamId("glideHall", i, "Level"), -1.0f, 1.0f, dbSigned);
+            apply("DelayTime", kVoiceLabels[i], voiceParamId("glideHall", i, "Delay"), 0.0f, 10.581f, ms);
+            apply("Panning", kVoiceLabels[i], voiceParamId("glideHall", i, "Pan"), -1.0f, 1.0f, direct);
+            apply("Feedback", "V" + juce::String(i + 1) + " Fbk", voiceParamId("glideHall", i, "Feedback"),
+                  -1.0f, 1.0f, bipolarPercent);
+            apply("Feedback", "V" + juce::String(i + 1) + " X-Fbk",
+                  voiceParamId("glideHall", i, "CrossFeedback"), -1.0f, 1.0f, bipolarPercent);
+        }
+    }
+
   private:
+    static float direct_(const pcm80::Field& f) { return static_cast<float>(*f.numeric); }
+
     dsp::graphs::GlideHallAlgorithm engine_;
 };
 }
