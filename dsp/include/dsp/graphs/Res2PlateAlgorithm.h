@@ -68,7 +68,7 @@ class Res2PlateAlgorithm
         setInLevel(1.0f, 1.0f);
         setInPan(-1.0f, 1.0f);
         setVoiceDiffusion(0.0f);
-        setFxWidth(0.0f);
+        setFxWidth(45.0f);
         setHiCut(18000.0f);
         setFxAdjustDb(0.0f);
         setMix(1.0f);
@@ -186,7 +186,7 @@ class Res2PlateAlgorithm
 
         block_.processSample(fxLeft, fxRight);
 
-        rotateStereoWidth(fxLeft, fxRight, fxWidthDegrees_);
+        rotatePcm81Width(fxLeft, fxRight, fxWidthDegrees_);
 
         fxLeft = hiCutLeft_.process(fxLeft);
         fxRight = hiCutRight_.process(fxRight);

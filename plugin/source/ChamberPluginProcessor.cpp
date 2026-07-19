@@ -167,9 +167,9 @@ LexiconChamberAudioProcessor::createParameterLayout()
     params.push_back(
       floatParam(kPostDelayGlideRangeId, "Post Delay Glide Range", 0.0f, 1.365f, 0.0f, "s"));
     params.push_back(floatParam(kPostDelayMixId, "Post Delay Mix", 0.0f, 1.0f, 0.15f));
-    params.push_back(floatParam(kRvbWidthId, "Rvb Width", -360.0f, 360.0f, 0.0f, "deg"));
+    params.push_back(floatParam(kRvbWidthId, "Rvb Width", -360.0f, 360.0f, 45.0f, "deg"));
     params.push_back(floatParam(kFxMixId, "FX Mix", 0.0f, 1.0f, 0.75f));
-    params.push_back(floatParam(kFxWidthId, "FX Width", -360.0f, 360.0f, 0.0f, "deg"));
+    params.push_back(floatParam(kFxWidthId, "FX Width", -360.0f, 360.0f, 45.0f, "deg"));
     params.push_back(floatParam(kHiCutId, "Hi Cut", 1000.0f, 20000.0f, 18000.0f, "Hz", 0.4f));
     params.push_back(floatParam(kFxAdjustId, "FX Adjust", -73.0f, 12.0f, 0.0f, "dB"));
     params.push_back(floatParam(kMixId, "Mix", 0.0f, 1.0f, 0.4f));

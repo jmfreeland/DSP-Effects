@@ -86,7 +86,7 @@ class DualChmbAlgorithm
         setVoiceFeedback(0, 0.0f, 0.0f);
         setVoiceFeedback(1, 0.0f, 0.0f);
         setSpliceSeconds(0.004f);
-        setFxWidth(0.0f);
+        setFxWidth(45.0f);
         setHiCut(18000.0f);
         setFxAdjustDb(0.0f);
         setMix(1.0f);
@@ -226,7 +226,7 @@ class DualChmbAlgorithm
         auto wetLeft = received.left;
         auto wetRight = received.right;
 
-        rotateStereoWidth(wetLeft, wetRight, fxWidthDegrees_);
+        rotatePcm81Width(wetLeft, wetRight, fxWidthDegrees_);
 
         wetLeft = hiCutLeft_.process(wetLeft);
         wetRight = hiCutRight_.process(wetRight);

@@ -44,7 +44,7 @@ class ChorusRvbAlgorithm
 
         setInLevel(1.0f, 1.0f);
         setInPan(-1.0f, 1.0f);
-        setFxWidth(0.0f);
+        setFxWidth(45.0f);
         setHiCut(18000.0f);
         setFxAdjustDb(0.0f);
         setMix(1.0f);
@@ -95,7 +95,9 @@ class ChorusRvbAlgorithm
         inPanRight_ = right;
     }
 
-    // -360..360 degrees on the combined output.
+    // -360..360 degrees on the combined output, in the PCM81's own
+    // display convention (0 = MONO, 45 = STEREO/normal - see
+    // rotatePcm81Width()'s doc comment).
     void setFxWidth(float degrees) { fxWidthDegrees_ = degrees; }
 
     // Final high-cut on the combined signal, in Hz.
@@ -143,7 +145,7 @@ class ChorusRvbAlgorithm
 
         block_.processSample(fxLeft, fxRight);
 
-        rotateStereoWidth(fxLeft, fxRight, fxWidthDegrees_);
+        rotatePcm81Width(fxLeft, fxRight, fxWidthDegrees_);
 
         fxLeft = hiCutLeft_.process(fxLeft);
         fxRight = hiCutRight_.process(fxRight);

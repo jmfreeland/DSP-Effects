@@ -81,7 +81,7 @@ class StereoChmbAlgorithm
         setShiftCents(12.0f);
         setShiftDelaySeconds(0.02f);
         setSpliceSeconds(0.004f);
-        setFxWidth(0.0f);
+        setFxWidth(45.0f);
         setHiCut(18000.0f);
         setFxAdjustDb(0.0f);
         setMix(1.0f);
@@ -198,7 +198,7 @@ class StereoChmbAlgorithm
         auto wetLeft = received.left;
         auto wetRight = received.right;
 
-        rotateStereoWidth(wetLeft, wetRight, fxWidthDegrees_);
+        rotatePcm81Width(wetLeft, wetRight, fxWidthDegrees_);
 
         wetLeft = hiCutLeft_.process(wetLeft);
         wetRight = hiCutRight_.process(wetRight);

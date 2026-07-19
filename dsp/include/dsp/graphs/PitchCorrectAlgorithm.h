@@ -100,7 +100,7 @@ class PitchCorrectAlgorithm
         setShiftCents(0.0f);
         setShiftSemitones(0);
         setFxMix(0.0f);
-        setFxWidth(0.0f);
+        setFxWidth(45.0f);
         setHiCut(18000.0f);
         setFxAdjustDb(0.0f);
         setMix(1.0f);
@@ -262,7 +262,7 @@ class PitchCorrectAlgorithm
         auto fxLeft = lerp(corrected, reverbLeft, fxMix_);
         auto fxRight = lerp(corrected, reverbRight, fxMix_);
 
-        rotateStereoWidth(fxLeft, fxRight, fxWidthDegrees_);
+        rotatePcm81Width(fxLeft, fxRight, fxWidthDegrees_);
 
         fxLeft = hiCutLeft_.process(fxLeft);
         fxRight = hiCutRight_.process(fxRight);

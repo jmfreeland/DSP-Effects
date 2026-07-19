@@ -138,7 +138,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout DualInvAudioProcessor::creat
     }
 
     params.push_back(floatParam(kSpliceId, "Splice", 0.001f, 0.05f, 0.004f, "s"));
-    params.push_back(floatParam(kFxWidthId, "FX Width", -360.0f, 360.0f, 0.0f, "deg"));
+    params.push_back(floatParam(kFxWidthId, "FX Width", -360.0f, 360.0f, 45.0f, "deg"));
     params.push_back(floatParam(kHiCutId, "Hi Cut", 1000.0f, 20000.0f, 18000.0f, "Hz", 0.4f));
     params.push_back(floatParam(kFxAdjustId, "FX Adjust", -73.0f, 12.0f, 0.0f, "dB"));
     params.push_back(floatParam(kMixId, "Mix", 0.0f, 1.0f, 1.0f));

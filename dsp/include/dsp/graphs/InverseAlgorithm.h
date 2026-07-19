@@ -99,9 +99,9 @@ class InverseAlgorithm
         setPostDelaySeconds(0.25f, 0.25f);
         setPostDelayMix(0.15f);
         setClear(false);
-        setRvbWidth(0.0f);
+        setRvbWidth(45.0f);
         setFxMix(0.75f);
-        setFxWidth(0.0f);
+        setFxWidth(45.0f);
         setHiCut(18000.0f);
         setFxAdjustDb(0.0f);
         setMix(1.0f);
@@ -297,7 +297,7 @@ class InverseAlgorithm
         auto reverbLeft = effectsLeft;
         auto reverbRight = effectsRight;
         reverb_.processSample(reverbLeft, reverbRight);
-        rotateStereoWidth(reverbLeft, reverbRight, rvbWidthDegrees_);
+        rotatePcm81Width(reverbLeft, reverbRight, rvbWidthDegrees_);
 
         auto voiceInput = clearActive_ ? 0.0f : voiceDiffuser_.process(effectsMono);
         float voicesLeft = 0.0f;
@@ -320,7 +320,7 @@ class InverseAlgorithm
         fxLeft = lerp(fxLeft, postLeft, postDelayMix_);
         fxRight = lerp(fxRight, postRight, postDelayMix_);
 
-        rotateStereoWidth(fxLeft, fxRight, fxWidthDegrees_);
+        rotatePcm81Width(fxLeft, fxRight, fxWidthDegrees_);
 
         fxLeft = hiCutLeft_.process(fxLeft);
         fxRight = hiCutRight_.process(fxRight);
