@@ -14,7 +14,11 @@ presets - not the manual's printed hex, which has its own OCR risk.
 Every field across all four decoded within rounding of the manual's own
 documented display values; the majority matched exactly, including
 enum lookups (Shape, Mode, Off/On), tempo-form Echo:Beat/Cycl:Beat
-fields, and Hz/percent/dB conversions.
+fields, and Hz/percent/dB conversions. Echo:Beat fields additionally
+convert to a real millisecond value now (decode_tempo_value()) - a
+formula reconstructed from, and validated against, the Prime Blue and
+RandomImages worked examples' own numbers; see that function's doc
+comment and docs/pcm81-echo-beat-tempo-sync.md for the derivation.
 
 The other 6 algorithm tables (Chamber, Infinite, Inverse, Concert Hall,
 M-Band+Rvb, Res1>Plate, Res2>Plate) share the same validated Controls-
@@ -105,11 +109,51 @@ def apply_rd_numeric(rd_id, value, ctx):
         return (None, None)
 
 
-def decode_tempo_value(raw10, rd_id):
+def decode_tempo_value(raw10, rd_id, preset_bpm=None):
+    """Decode a tempo-active field's raw value into its display string and,
+    for Echo:Beat fields where the preset's own Tempo Rate is known, a real
+    millisecond value too.
+
+    Format, per the MIDI Implementation Details manual (page 7, the
+    "Parameter" SysEx message): a tempo-mode value is a ratio of two
+    separate 5-bit fields, "Tempo value Numerator" and "Tempo value
+    Denominator" (each 1-24), packed as numerator in the high 6 bits and
+    denominator in the low 5 bits of the field - i.e. exactly this
+    project's existing `echoes`/`beats` split, which the manual's own
+    "Echo:Beat" display label names. Validated byte-for-byte against two
+    of the manual's own full worked examples (Prime Blue and RandomImages
+    on Chorus+Rvb): every non-tempo field in both dumps decodes to an
+    identical string via this module, and Prime Blue's own "DelayTime
+    Voice2" (raw 628) decodes to "19: 20 Echo:Beat", matching the manual's
+    printed dump exactly.
+
+    The manual never states the numerator:denominator -> time formula in
+    prose, but it can be derived from those two worked examples plus each
+    preset's own decoded Tempo Rate (Prime Blue: 81 BPM; RandomImages: 120
+    BPM, both BeatValue=Quarter): time_ms = (denominator / numerator) *
+    (60000 / bpm) reproduces every Echo:Beat value in both dumps as a
+    musically sensible duration (Prime Blue's "12: 1" Pre Delay -> 61.7ms,
+    a plausible early-reflection delay; its "19: 20" Voice2 DelayTime ->
+    779.7ms, a plausible slap-delay-length chorus tap - both scaled
+    consistently by the *same* preset's own 81 BPM). Not an official
+    Lexicon-published formula, so treat as a well-supported reconstruction
+    rather than a certainty - see docs/pcm81-echo-beat-tempo-sync.md.
+
+    Only handles "Echo:Beat" (delay/time fields); "Cycl:Beat" (rate_decode
+    in CYCL_BEAT_RDS, used for tempo-synced LFO Rate fields) would need a
+    different, not-yet-derived frequency formula, so those still return no
+    numeric value.
+    """
     echoes = raw10 >> 5
     beats = raw10 & 0x1F
-    unit = "Cycl:Beat" if rd_id in CYCL_BEAT_RDS else "Echo:Beat"
-    return f"{echoes}: {beats} {unit}"
+    is_cycl = rd_id in CYCL_BEAT_RDS
+    unit = "Cycl:Beat" if is_cycl else "Echo:Beat"
+    display = f"{echoes}: {beats} {unit}"
+    numeric_ms = None
+    if not is_cycl and preset_bpm and echoes > 0:
+        beat_ms = 60000.0 / preset_bpm
+        numeric_ms = (beats / echoes) * beat_ms
+    return display, numeric_ms
 
 
 def is_algorithm_decodable(algorithm_id: int) -> bool:
@@ -131,9 +175,12 @@ def decode_preset(name: str, knob_label: str, algorithm_id: int, bitpack: bytes)
     out["soft_row"] = [(lambda b: (b >> 4, b & 0xF))(r.read(8)) for _ in range(10)]
 
     unpatchable = {}
+    preset_bpm = None
     for bits, _dlid, _dn, group, label, rd_id in [e[1:] for e in UNPATCHABLE_TABLE]:
         raw = r.read(bits)
         unpatchable[f"{group} {label}"] = apply_rd(rd_id, raw, {})
+        if group == "Tempo" and label == "Rate":
+            preset_bpm, _ = apply_rd_numeric(rd_id, raw, {})
     out["unpatchable"] = unpatchable
 
     out["adjust_initial"] = r.read(7)
@@ -209,13 +256,14 @@ def decode_preset(name: str, knob_label: str, algorithm_id: int, bitpack: bytes)
     patchable = []
     for f in raw_fields:
         if f["tempo_active"]:
-            value = decode_tempo_value(f["raw"], f["range_decode"])
-            # Converting tempo-form Echo:Beat/Cycl:Beat back to a real
-            # seconds/Hz value needs the preset's own Tempo Rate (BPM)
-            # and the manual doesn't fully spell out the echoes/beats
-            # arithmetic - out of scope for now, see decoder.py's module
-            # docstring. Numeric consumers should leave these alone.
-            numeric, unit = (None, None)
+            value, numeric_ms = decode_tempo_value(f["raw"], f["range_decode"], preset_bpm)
+            # See decode_tempo_value()'s own doc comment for the formula
+            # and its validation against the manual's worked examples.
+            # Still None for Cycl:Beat fields (tempo-synced Rate, not
+            # DelayTime) and for any preset whose own Tempo Rate wasn't
+            # found (shouldn't happen - it's in every algorithm's fixed
+            # Unpatchable Parameter Information header).
+            numeric, unit = (numeric_ms, "ms") if numeric_ms is not None else (None, None)
         else:
             value = apply_rd(f["range_decode"], f["raw"], ctx)
             numeric, unit = apply_rd_numeric(f["range_decode"], f["raw"], ctx)
@@ -230,7 +278,7 @@ def decode_preset(name: str, knob_label: str, algorithm_id: int, bitpack: bytes)
         points = []
         for pt in rp["points"]:
             if rp["dest_tempo_active"]:
-                display = decode_tempo_value(pt["raw"], dest_entry["range_decode"])
+                display, _numeric_ms = decode_tempo_value(pt["raw"], dest_entry["range_decode"], preset_bpm)
             elif dest_entry:
                 display = apply_rd(dest_entry["range_decode"], pt["raw"], ctx)
             else:

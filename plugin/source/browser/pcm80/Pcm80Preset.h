@@ -21,9 +21,12 @@ struct Field
     double raw = 0.0;
     bool tempoActive = false;
     // The archive's own unit-tagged numeric interpretation of raw, where
-    // one exists (see range_decode.py's NUMERIC_DECODE_FUNCS) - unset
-    // for pure enums, named sources, "Off"/mute, and tempo-synced values
-    // (which need the preset's own BPM to convert; not attempted here).
+    // one exists (see range_decode.py's NUMERIC_DECODE_FUNCS) - unset for
+    // pure enums, named sources, "Off"/mute, and tempo-synced "Cycl:Beat"
+    // fields (tempo-synced LFO Rate; no frequency conversion formula
+    // derived yet). Tempo-synced "Echo:Beat" fields (delay/time
+    // parameters) *are* converted to a real ms value using the preset's
+    // own Tempo Rate - see decoder.py's decode_tempo_value().
     // unit is one of: percent, db, db_phase_inverted, hz, ms, ratio,
     // degrees, meters, pan-1to1, bool, raw, bpm, count.
     std::optional<double> numeric;

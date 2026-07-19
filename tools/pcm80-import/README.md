@@ -84,9 +84,15 @@ consumers that want to convert into their own units rather than re-parse
 a formatted string. `unit` is one of `percent`, `db`, `db_phase_inverted`,
 `hz`, `ms`, `ratio`, `degrees`, `meters`, `pan-1to1`, `bool`, `raw`,
 `bpm`, `count`; `numeric` is `null` for fields with no single-number
-meaning (enums, named sources, "Off"/mute, and tempo-synced Echo:Beat
-values, which would need the preset's own BPM to convert - not attempted
-here). See `pcm80lib/range_decode.py`'s `NUMERIC_DECODE_FUNCS`.
+meaning (enums, named sources, "Off"/mute), and for tempo-synced
+"Cycl:Beat" fields (tempo-synced LFO Rate - a frequency conversion
+formula hasn't been derived yet). Tempo-synced **"Echo:Beat"** fields
+(delay/time parameters) *are* converted to a real `ms` value, using each
+preset's own decoded Tempo Rate - see `decode_tempo_value()` in
+`pcm80lib/decoder.py` for the formula and its validation against two of
+Lexicon's own worked examples in the MIDI Implementation Details manual.
+See `pcm80lib/range_decode.py`'s `NUMERIC_DECODE_FUNCS` for every other
+range decode's numeric conversion.
 
 ## Loading presets into the Loom Browser plugin
 
