@@ -388,13 +388,31 @@ class ReverbCore
             lines_[i].write(lineInput);
         }
 
+        // Two independent tap combinations for the wet L/R output - both
+        // sum four lines positive and four negative (so neither channel
+        // gets a fully in-phase, all-eight-lines-constructive sum the
+        // other doesn't), and the two sign patterns are orthogonal to
+        // each other (dot product zero) so they're genuinely decorrelated
+        // rather than one being the other's mirror or negation. Matters
+        // for any strongly tonal/coherent input (a sustained note, not
+        // just diffuse noise): the previous scheme (left = sum of all
+        // eight taps in phase, right = an alternating-sign sum of the
+        // *same* eight) gave left a full constructive-interference gain
+        // right never got, producing a persistent left-heavy bias -
+        // most audible in algorithms that run this core at 100% wet
+        // (Chorus+Rvb, Glide>Hall, M-Band+Rvb, Res1/Res2>Plate), since
+        // the standalone reverb Graphs happen to mask it by blending in
+        // a large, symmetric dry component before this core's own wet_
+        // default is ever overridden.
+        static constexpr std::array<float, kNumLines> leftTapSign = { 1, 1, -1, -1, 1, 1, -1, -1 };
+        static constexpr std::array<float, kNumLines> rightTapSign = { 1, -1, -1, 1, 1, -1, -1, 1 };
         float wetLeft = 0.0f;
         float wetRight = 0.0f;
         for (int i = 0; i < kNumLines; ++i)
         {
             auto tap = tapped[i];
-            wetLeft += tap;
-            wetRight += (i % 2 == 0) ? -tap : tap;
+            wetLeft += tap * leftTapSign[static_cast<std::size_t>(i)];
+            wetRight += tap * rightTapSign[static_cast<std::size_t>(i)];
         }
         wetLeft *= 0.35f * rvbOutGain_;
         wetRight *= 0.35f * rvbOutGain_;
