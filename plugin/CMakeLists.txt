@@ -7,6 +7,19 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JUCE)
 
+# CLAP support for the Loom Browser plugin only (see that target's own
+# clap_juce_extensions_plugin() call near the end of this file) - JUCE
+# has no native CLAP format, so this pulls in the unofficial
+# free-audio/clap-juce-extensions wrapper. Not shallow: it needs its own
+# clap/clap-helpers submodules recursively cloned, which FetchContent
+# handles automatically for a full (non-shallow) clone.
+FetchContent_Declare(
+    clap-juce-extensions
+    GIT_REPOSITORY https://github.com/free-audio/clap-juce-extensions.git
+    GIT_TAG 16e9d4ca7b1e86c76e04584b2c08e85a764bcda8
+)
+FetchContent_MakeAvailable(clap-juce-extensions)
+
 juce_add_plugin(LexiconHallPlugin
     COMPANY_NAME "Loom"
     PLUGIN_MANUFACTURER_CODE Loom
@@ -1570,4 +1583,13 @@ target_link_libraries(LoomBrowserPlugin
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
+)
+
+# CLAP build of the browser plugin only - see the FetchContent_Declare
+# for clap-juce-extensions near the top of this file. Produces an
+# additional LoomBrowserPlugin_CLAP target alongside the VST3/AU/
+# Standalone ones already declared above.
+clap_juce_extensions_plugin(TARGET LoomBrowserPlugin
+    CLAP_ID "com.loom.browser"
+    CLAP_FEATURES audio-effect multi-effects reverb delay chorus
 )
