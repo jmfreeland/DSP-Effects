@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-DSP-Effects is a growing archive of vintage-DSP-inspired audio effects, built primarily as patches for the [Polyend Endless](https://polyend.com/endless/) pedal via its `FxPatchSDK` (vendored under `sdk/`), with the same DSP code also runnable natively for offline testing and (eventually) as a DAW plugin.
+DSP-Effects is a growing archive of vintage-DSP-inspired audio effects. It's built primarily as patches for the [Polyend Endless](https://polyend.com/endless/) pedal via its `FxPatchSDK` (vendored under `sdk/`), with the same DSP code also runnable natively for offline testing and as a DAW plugin (JUCE, VST3/AU/CLAP/Standalone) - **the Polyend patch target is currently paused** (no pedal owned to test against; may resume later), so new work should go into `dsp/` + `plugin/` (the Loom Browser plugin especially) rather than adding new `patches/<device>/<algo>/` directories. Existing patches stay in the repo and aren't being removed, just not actively extended for new algorithms right now.
 
 Roadmap, not necessarily sequential — work can interleave across stages and devices:
 - **Stage 1**: replicate the core DSP algorithms of the Lexicon PCM81 and Eventide H3000 *functionally* — right topology, right building blocks, working end to end.
@@ -70,7 +70,7 @@ Plugin build (fetches JUCE 8.0.14 on first configure; needs `libx11-dev`, `libxr
 cmake -S . -B build-plugin -DDSP_EFFECTS_BUILD_PLUGIN=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build-plugin -j -t LexiconHallPlugin_VST3
 ```
-Produces a `.vst3` under `build-plugin/plugin/LexiconHallPlugin_artefacts/Release/VST3/`.
+Produces a `.vst3` under `build-plugin/plugin/LexiconHallPlugin_artefacts/Release/VST3/`. The Loom Browser plugin (`LoomBrowserPlugin`, see below) also builds a CLAP target via `free-audio/clap-juce-extensions` (fetched on first configure, not shallow - needs its own submodules recursively cloned): `cmake --build build-plugin -j -t LoomBrowserPlugin_CLAP`, producing `build-plugin/plugin/LoomBrowserPlugin_artefacts/Release/CLAP/Loom - Browser.clap`. CLAP is currently scoped to that one target only, not the 40 single-algorithm plugins.
 
 ## Firmware archive tools
 
