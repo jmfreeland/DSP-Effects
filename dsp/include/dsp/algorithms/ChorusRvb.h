@@ -31,9 +31,18 @@ namespace dsp::algorithms
  *          replacing "Voice Dif" for this algorithm) ->
  *   leftBank_/rightBank_ (one shared 3-tap DelayLine per channel, taps
  *          Voice1-3 from leftBank_, Voice4-6 from rightBank_) -> each
- *          voice's own LFO wobbles its read position by +/-Depth ms at
- *          Rate Hz around its base Delay Time - "allowing the PCM81 to
- *          sound like a rack of six digital delay boxes" -> Level/Pan ->
+ *          voice's own LFO wobbles its read position by 0..Depth ms
+ *          *above* its base Delay Time (same unipolar convention
+ *          StringModeller's own chorus voice uses, and for the same
+ *          reason: a real PCM81 preset's Depth is frequently as large as
+ *          or larger than its Delay Time - e.g. the factory "Prime Blue"
+ *          preset pairs a 9ms Voice3 delay with an 18ms depth - so a
+ *          symmetric +/-Depth sweep around Delay Time routinely drives
+ *          the tap negative, which used to clamp to 0 and freeze the
+ *          read position for a third of every cycle: an audible
+ *          "wow-wow-wow" glitch every LFO cycle, not smooth chorus) at
+ *          Rate Hz - "allowing the PCM81 to sound like a rack of six
+ *          digital delay boxes" -> Level/Pan ->
  *          summed, feeding back into its own bank only (own-channel Fbk;
  *          unlike Glide>Hall, the manual's own text for this algorithm
  *          describes no cross-feedback between banks).
@@ -215,15 +224,15 @@ class ChorusRvb
         for (int i = 0; i < 3; ++i)
         {
             auto idx = static_cast<std::size_t>(i);
-            auto modSamples = voiceLfo_[idx].nextSine() * voiceDepthSamples_[idx] * masterDepth_;
-            auto tap = std::max(voiceDelaySamples_[idx] + modSamples, 0.0f);
+            auto modSamples = (0.5f + 0.5f * voiceLfo_[idx].nextSine()) * voiceDepthSamples_[idx] * masterDepth_;
+            auto tap = voiceDelaySamples_[idx] + modSamples;
             voiceOut[idx] = leftBank_.readLinear(tap);
         }
         for (int i = 3; i < kNumVoices; ++i)
         {
             auto idx = static_cast<std::size_t>(i);
-            auto modSamples = voiceLfo_[idx].nextSine() * voiceDepthSamples_[idx] * masterDepth_;
-            auto tap = std::max(voiceDelaySamples_[idx] + modSamples, 0.0f);
+            auto modSamples = (0.5f + 0.5f * voiceLfo_[idx].nextSine()) * voiceDepthSamples_[idx] * masterDepth_;
+            auto tap = voiceDelaySamples_[idx] + modSamples;
             voiceOut[idx] = rightBank_.readLinear(tap);
         }
 
