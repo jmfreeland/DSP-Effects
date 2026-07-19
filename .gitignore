@@ -15,3 +15,6 @@ tools/**/*.rom
 tools/pcm80-import/output/
 tools/pcm80-import/*.json
 tools/pcm80-import/*.csv
+tools/pcm81-import/output/
+tools/pcm81-import/*.json
+tools/pcm81-import/*.csv
