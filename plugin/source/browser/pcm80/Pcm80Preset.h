@@ -45,7 +45,17 @@ struct Field
 // Loom browser plugin's importer needs - deliberately not the full
 // archive schema (no soft-row assignments, no patches): those describe
 // MIDI/internal modulation routing this first pass doesn't attempt to
-// reconstruct, only the preset's own static parameter values.
+// reconstruct, only the preset's own static parameter values. Every
+// algorithm's Levels/DelayTime/Feedback/Panning field groups also carry
+// a "Master" field (e.g. Levels Master) alongside the per-voice "VoiceN"
+// fields this importer does read - every EngineAdapter::importPcm80Preset()
+// reads only the VoiceN fields directly and ignores Master, since the
+// MIDI Implementation Details manual documents each Master field's own
+// display formatting (a Range Decode id) but never the formula that
+// combines it with the per-voice values, so there's nothing published to
+// implement against. A preset with non-neutral Masters (anything other
+// than Levels +0dB / DelayTime, Feedback, Panning 100%, all four fields'
+// own default) will import its raw per-voice values un-scaled.
 struct Preset
 {
     juce::String name;

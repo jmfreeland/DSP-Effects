@@ -170,7 +170,21 @@ class ConcertHallAdapter : public EngineAdapter
     // chorus) in place of Attack/Shape+Spread - Depth is a 4-bit raw
     // field (max 15) and Chorus a 4-bit raw field (max 10), so both
     // normalize by their own declared max rather than the /100 used for
-    // percent-scale fields elsewhere.
+    // percent-scale fields elsewhere. Mid Rt is additionally halved -
+    // see hallMidRt's own doc comment below.
+    //
+    // Like every other algorithm here, this imports each Levels/
+    // DelayTime/Feedback/Panning "VoiceN" field directly and does not
+    // apply the corresponding "Master" field (Levels Master/DelayTime
+    // Master/Feedback Master/Panning Master) that would otherwise scale
+    // all four voices together - the MIDI Implementation Details manual
+    // documents the Master fields' own display formatting (Range Decode
+    // 33/9/9/12) but never the Master-to-Voice combination formula
+    // itself, so it isn't implemented. A real preset with non-neutral
+    // Masters (anything other than Levels +0dB / DelayTime, Feedback,
+    // Panning 100%) will therefore import its raw per-voice values
+    // un-scaled; test presets with Masters left at their neutral default
+    // avoid this gap entirely.
     const char* pcm80AlgorithmName() const override { return "Concert Hall"; }
 
     void importPcm80Preset(const pcm80::Preset& preset, juce::AudioProcessorValueTreeState& apvts) const override
@@ -197,6 +211,13 @@ class ConcertHallAdapter : public EngineAdapter
         auto ms = [](const Field& f) { return msToSeconds(*f.numeric); };
         auto direct = [](const Field& f) { return static_cast<float>(*f.numeric); };
         auto boolean = direct;
+        // Concert Hall's real decay time is half of what Range Decode
+        // 16's own documented lookup-table+Link/Size formula computes -
+        // an empirical hardware quirk (confirmed against real PCM81
+        // hardware), not something the MIDI Implementation Details
+        // manual itself documents, and not shared by Plate/Chamber/
+        // Infinite/Inverse's own Mid Rt-equivalent fields.
+        auto hallMidRt = [](const Field& f) { return msToSeconds(*f.numeric) * 0.5f; };
 
         apply("Controls", "Mix", pid("mix"), 0.0f, 1.0f, percent);
         apply("Controls", "FX ADJUST", pid("fxAdjust"), -73.0f, 12.0f, direct);
@@ -210,7 +231,7 @@ class ConcertHallAdapter : public EngineAdapter
         apply("Controls", "FX Width", pid("fxWidth"), -360.0f, 360.0f, direct);
 
         apply("RvbTime", "LowRt", pid("lowRatio"), 0.2f, 2.0f, direct);
-        apply("RvbTime", "MidRt", pid("decay"), 0.3f, 8.0f, ms);
+        apply("RvbTime", "MidRt", pid("decay"), 0.3f, 8.0f, hallMidRt);
         apply("RvbTime", "Crossover", pid("crossover"), 100.0f, 2000.0f, direct);
         apply("RvbTime", "RtHC", pid("damping"), 0.0f, 1.0f,
               [](const Field& f) { return 1.0f - (direct_(f) - 1000.0f) / 19000.0f; });
