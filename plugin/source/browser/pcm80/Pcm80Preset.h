@@ -55,7 +55,9 @@ struct Field
 // combines it with the per-voice values, so there's nothing published to
 // implement against. A preset with non-neutral Masters (anything other
 // than Levels +0dB / DelayTime, Feedback, Panning 100%, all four fields'
-// own default) will import its raw per-voice values un-scaled.
+// own default) will import its raw per-voice values un-scaled. See
+// docs/pcm80-master-voice-parameters.md for what's known so far toward
+// eventually closing this gap.
 struct Preset
 {
     juce::String name;
