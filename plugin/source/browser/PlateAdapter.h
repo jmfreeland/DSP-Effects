@@ -175,10 +175,11 @@ class PlateAdapter : public EngineAdapter
     // comment), so most fields have a natural counterpart; a handful of
     // this adapter's own parameters (Definition, Depth, Chorus, Freeze)
     // have no equivalent in PCM80's documented Plate field list and are
-    // left untouched, and tempo-synced fields (Pre Delay, RefDly,
-    // EkoDly, PstDly when set to Echo:Beat form) are skipped because
-    // converting them needs the preset's own BPM, not attempted yet -
-    // see Pcm80Preset.h's Field::numeric doc comment.
+    // left untouched. Tempo-synced fields (Pre Delay, RefDly, EkoDly,
+    // PstDly when set to Echo:Beat form) convert to a real ms value using
+    // the preset's own decoded Tempo Rate - see decoder.py's
+    // decode_tempo_value() and Pcm80Preset.h's Field::numeric doc
+    // comment - so they import like any other numeric field here.
     const char* pcm80AlgorithmName() const override { return "Plate"; }
 
     void importPcm80Preset(const pcm80::Preset& preset, juce::AudioProcessorValueTreeState& apvts) const override
