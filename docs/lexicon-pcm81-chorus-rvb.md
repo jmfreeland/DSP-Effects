@@ -89,6 +89,20 @@ own six lines.
   of the delay bank) - it used to only touch `hiCut`, leaving
   `chorusHighCut` stuck at a hardcoded 10kHz default for every preset,
   an extra unintended low-pass stage.
+- **Per-voice LFO phases are now staggered** (`i/kNumVoices` around the
+  cycle, set once in `prepare()`) instead of every voice defaulting to
+  phase 0 - found via a hardware-vs-VST comparison where real Prime Blue
+  sounded like "a proper chorus" and the VST sounded "hollow and
+  metallic". Voice1-3 (and separately Voice4-6) share one `DelayLine`
+  per channel (`leftBank_`/`rightBank_`), so their read taps sum
+  directly; with every voice starting in phase, two voices with similar
+  Rates (real presets routinely have several - Prime Blue's own Voice1
+  is 2.10Hz, Voice3 2.05Hz) stay near-synchronized for a long time,
+  producing a static comb-filter notch pattern instead of a continuously
+  sweeping one - confirmed directly with a white-noise render through
+  just Voice1(19ms)/Voice3(9ms): a persistent ~100Hz-spaced peak/null
+  structure (matching their fixed 10ms delay difference) that becomes
+  measurably less locked to that static grid once phases are staggered.
 
 ## Status
 

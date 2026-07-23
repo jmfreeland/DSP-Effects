@@ -93,9 +93,24 @@ class ChorusRvb
         rightBank_.setBuffer(workingBuffer.subspan(offset, kBankCapacitySamples));
         offset += kBankCapacitySamples;
 
-        for (auto& lfo : voiceLfo_)
+        for (int i = 0; i < kNumVoices; ++i)
         {
-            lfo.setFrequency(0.0f, sampleRate_);
+            auto idx = static_cast<std::size_t>(i);
+            voiceLfo_[idx].setFrequency(0.0f, sampleRate_);
+            // Stagger each voice's starting phase evenly around the
+            // cycle (0, 1/6, 2/6, ...) rather than leaving every voice's
+            // default 0 phase - without this, voices with similar Rates
+            // (real presets routinely have several, e.g. Prime Blue's
+            // Voice1 2.10Hz/Voice3 2.05Hz) stay near-synchronized for a
+            // long time, so their read taps into the *same* leftBank_/
+            // rightBank_ buffer sum into a static, un-swept comb-filter
+            // notch pattern - measured directly (a 1s white-noise render
+            // through Voice1/Voice3 alone showed a persistent ~100Hz-
+            // spaced peak/null structure matching the two voices' fixed
+            // 10ms delay difference) - rather than the continuously
+            // sweeping notch pattern an actual chorus needs to sound
+            // diffuse instead of hollow/metallic.
+            voiceLfo_[idx].setPhase(static_cast<float>(i) / static_cast<float>(kNumVoices));
         }
 
         reverb_.setMix(1.0f);
