@@ -60,7 +60,12 @@ does.
 ## Known simplifications
 
 Same as Swept Combs (no Glide, Repeat mutes input rather than truly
-freezing playback) - see `docs/eventide-swept-combs.md`.
+freezing playback), plus the same fixed random-walk-seed-sharing bug -
+see `docs/eventide-swept-combs.md`. This Block already staggered each
+line's LFO *phase* (`setPhase(i/kNumLines)`), which wasn't enough on its
+own: phase only changes cycle timing, not the shared xorshift state
+`nextRandomWalk()` draws its targets from, so the six lines' sweep
+*content* was still identical before this fix.
 
 ## Status
 

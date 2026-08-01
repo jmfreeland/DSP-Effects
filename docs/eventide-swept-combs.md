@@ -72,6 +72,16 @@ flagged rather than presented as verified facts:
   Feedback is set, rather than a true infinite-capture/hold state -
   matches the spirit but decays over time unless Feedback is pushed
   close to 1.
+- **Fixed bug: the six lines' random-walk sweeps were not actually
+  independent.** `LFO::nextRandomWalk()`'s xorshift generator started
+  from the same hardcoded seed on every instance, and its target draws
+  are a pure function of that state - so all six `SweptCombVoice`
+  instances drew from the identical sequence of walk targets, just at
+  different speeds (their own Rate), not different *content*. Confirmed
+  directly: two LFOs at very different rates (0.4Hz vs 4.7Hz) produced
+  numerically matching end-of-cycle values for 5+ consecutive cycles.
+  Fixed by giving `LFO` a `setSeed()` and threading a distinct seed per
+  line through `SweptCombVoice::prepare()`.
 
 ## Status
 

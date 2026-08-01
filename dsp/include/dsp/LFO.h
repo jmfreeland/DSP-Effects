@@ -22,6 +22,23 @@ class LFO
 
     void setPhase(float phase01) { phase_ = phase01; }
 
+    // Reseeds nextRandomWalk()'s own xorshift generator. Needed because
+    // every LFO instance otherwise starts from the same hardcoded seed
+    // (see rngState_'s default below): nextRandomBipolar() is a pure
+    // function of that state, so two default-constructed LFOs draw the
+    // exact same *sequence of walk targets* regardless of Rate or
+    // setPhase() - only the timing at which each instance reaches its
+    // Nth target differs, not the target's value. Confirmed directly (a
+    // 0.4Hz and a 4.7Hz instance's end-of-cycle values matched to ~2
+    // decimal places for 5+ consecutive cycles despite the very
+    // different rates). Callers driving several LFOs whose
+    // nextRandomWalk() outputs get summed together (Swept Combs' six
+    // lines, Swept Reverb's own sweepLfo_ array) need a distinct seed
+    // per instance or the "independent" random sweeps are actually the
+    // same sequence just sampled at different speeds. 0 is rejected
+    // (xorshift32's fixed point) and mapped to the default seed instead.
+    void setSeed(std::uint32_t seed) { rngState_ = seed != 0 ? seed : 0x9e3779b9u; }
+
     float nextSine()
     {
         auto value = std::sin(phase_ * kTwoPi);

@@ -5,6 +5,7 @@
 #include "dsp/Math.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <span>
 
 namespace dsp
@@ -27,10 +28,14 @@ class SweptCombVoice
   public:
     void setBuffer(std::span<float> buffer) { comb_.setBuffer(buffer); }
 
-    void prepare(float sampleRate)
+    // seed distinguishes this voice's random-walk sweep from every other
+    // SweptCombVoice's - see LFO::setSeed()'s own doc comment for why
+    // that matters when several voices' outputs get summed together.
+    void prepare(float sampleRate, std::uint32_t seed = 0x9e3779b9u)
     {
         sampleRate_ = sampleRate;
         maxDepthSamples_ = kMaxDepthSeconds * sampleRate_;
+        lfo_.setSeed(seed);
         updateSweepFrequency();
     }
 

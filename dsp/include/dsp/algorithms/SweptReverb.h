@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 
 namespace dsp::algorithms
@@ -66,6 +67,12 @@ class SweptReverb
             baseRate_[idx] = kDefaultRates[idx];
             baseDepth_[idx] = 30.0f;
             sweepLfo_[idx].setPhase(static_cast<float>(i) / static_cast<float>(kNumLines));
+            // setPhase() alone only staggers cycle *timing* - the six
+            // lines' nextRandomWalk() calls still drew from the same
+            // underlying sequence without this, since every LFO
+            // otherwise starts from the same hardcoded seed (see
+            // LFO::setSeed()'s own doc comment).
+            sweepLfo_[idx].setSeed(0x9e3779b9u + static_cast<std::uint32_t>(i) * 0x2545f491u);
         }
         setMasterDelay(1.0f);
         setMasterRate(0.5f);

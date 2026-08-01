@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 
 namespace dsp::algorithms
@@ -47,7 +48,13 @@ class SweptCombs
             lines_[static_cast<std::size_t>(i)].setBuffer(
               workingBuffer.subspan(static_cast<std::size_t>(i) * kLineCapacitySamples,
                                      kLineCapacitySamples));
-            lines_[static_cast<std::size_t>(i)].prepare(sampleRate);
+            // Distinct seed per line - see LFO::setSeed()'s doc comment:
+            // without this, all six lines' "random" sweeps are actually
+            // the same underlying sequence just sampled at different
+            // speeds, since every LFO otherwise starts from the same
+            // hardcoded seed.
+            lines_[static_cast<std::size_t>(i)].prepare(
+              sampleRate, 0x9e3779b9u + static_cast<std::uint32_t>(i) * 0x2545f491u);
         }
 
         // Reasonable spread across the 0-250ms range, not all identical,
