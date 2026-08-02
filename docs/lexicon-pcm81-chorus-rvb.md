@@ -103,6 +103,24 @@ own six lines.
   just Voice1(19ms)/Voice3(9ms): a persistent ~100Hz-spaced peak/null
   structure (matching their fixed 10ms delay difference) that becomes
   measurably less locked to that static grid once phases are staggered.
+- **Chorus voice modulation Depth is scaled down 10x from the decoded
+  field's literal ms value** (`ChorusRvb::setVoiceChorus()`'s
+  `kDepthScale`). The phase-stagger fix above measurably improved the
+  hollow/metallic comb-lock issue but a follow-up hardware comparison
+  still reported the VST sounding "thin" and "more like obvious vibrato
+  than chorus". Using the standard delay-modulation-to-pitch-shift
+  relationship (frequency ratio = 1 - d(delay)/dt), Prime Blue's own
+  Voice1 (20ms Depth, 2.10Hz Rate) computes to a ~466-cent peak-to-peak
+  swing at the literal (unscaled) depth value - confirmed by actually
+  rendering a tone through the engine and measuring the output pitch,
+  not just the formula. A hardware recording of the same preset,
+  pitch-tracked directly (autocorrelation on a sustained note), measured
+  only ~50.8 cents peak-to-peak - ordinary chorus depth. A 10x scale-down
+  brings the same Voice1 settings to ~63.5 cents measured the same way,
+  matching within the noise of comparing one isolated voice to the real
+  6-voice ensemble recording. Not a manual-documented constant - the
+  MIDI Implementation Details manual's Chorus Depth field is just the
+  generic "time in ms" numeric decode, no chorus-specific formula given.
 
 ## Status
 

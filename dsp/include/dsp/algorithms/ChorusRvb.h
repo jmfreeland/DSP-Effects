@@ -199,7 +199,27 @@ class ChorusRvb
     void setVoiceChorus(int index, float depthMs, float rateHz)
     {
         auto idx = static_cast<std::size_t>(index);
-        voiceDepthSamples_[idx] = depthMs * 0.001f * 48000.0f;
+        // kDepthScale: the decoded Depth field's literal ms value used
+        // directly as peak delay-time swing (no scale-down) produces a
+        // wildly excessive pitch modulation - e.g. Prime Blue's own
+        // Voice1 (20ms Depth, 2.10Hz Rate) computes to a ~466-cent
+        // (almost 5 semitone) peak-to-peak swing, confirmed both by the
+        // standard delay-modulation-to-pitch-shift formula (frequency
+        // ratio = 1 - d(delay)/dt) and by actually rendering a tone
+        // through this engine and measuring its output pitch directly.
+        // Real Prime Blue hardware, measured the same way from a
+        // recording (autocorrelation pitch-tracking a sustained note),
+        // wobbles only about 50.8 cents peak-to-peak - ordinary chorus
+        // depth, not audible vibrato. This constant is the scale-down
+        // (not a manual-documented value; the MIDI Implementation
+        // Details manual's Chorus Depth field is just the generic
+        // "time in ms" decode, no chorus-specific formula given) needed
+        // to land in that same range: at kDepthScale=0.1, Voice1's own
+        // settings compute to ~46 cents peak-to-peak, matching the
+        // measured ~50.8 within the noise of comparing one isolated
+        // voice to the real full 6-voice ensemble recording.
+        static constexpr float kDepthScale = 0.1f;
+        voiceDepthSamples_[idx] = depthMs * kDepthScale * 0.001f * 48000.0f;
         voiceRateHz_[idx] = rateHz;
         refreshVoiceRate(index);
     }
